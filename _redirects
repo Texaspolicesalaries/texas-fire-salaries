@@ -4,8 +4,6 @@
 # to the new page and link equity is preserved. Example:
 # /departments/old-slug/  /departments/new-slug/  301
 
-# Friendly shortcuts
-/map            /map.html            301
-/compare        /compare.html        301
-/submit         /submit.html         301
-/departments    /departments.html    301
+# Cloudflare Pages serves root-level .html files at clean extensionless URLs
+# automatically. Do not redirect those clean routes back to .html or Pages will
+# canonicalize them again and create a loop.

@@ -1,0 +1,51 @@
+name: Refresh salary data
+
+on:
+  push:
+    branches:
+      - main
+  schedule:
+    # Every 15 minutes, offset from the top of the hour to reduce queue delays.
+    - cron: "7,22,37,52 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  deployments: write
+
+concurrency:
+  group: texas-fire-salaries-production
+  cancel-in-progress: false
+
+jobs:
+  refresh-and-deploy:
+    name: Refresh Firestore data and deploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out the site
+        uses: actions/checkout@v6
+
+      - name: Use Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Refresh community data
+        run: npm run refresh
+
+      - name: Run tests
+        run: npm test
+
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy . --project-name=texas-fire-salaries --branch=main --commit-dirty=true
+          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
