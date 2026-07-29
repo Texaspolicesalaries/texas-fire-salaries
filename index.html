@@ -12,95 +12,123 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <link rel="stylesheet" href="/css/tokens-20260729b.css">
   <link rel="stylesheet" href="/css/base-20260729b.css">
   <link rel="stylesheet" href="/css/components-20260729b.css">
+  <link rel="stylesheet" href="/css/home-20260729.css">
 </head>
 <body data-page="home">
   <div id="site-header"></div>
 
   <main id="main">
-    <!-- Hero -->
-    <section class="hero">
-      <div class="wrap">
-        <p class="eyebrow">Community pay atlas · Texas fire service</p>
-        <h1>Compare Texas Firefighter Salaries</h1>
-        <p class="lede">Explore firefighter pay, schedules, incentives, and career earnings reported by firefighters, applicants, recruiters, and departments across Texas.</p>
-
-        <div class="searchbox" style="margin-top:1.75rem">
-          <span class="search-icon" aria-hidden="true">🔍</span>
-          <input id="home-search" type="search" autocomplete="off" placeholder="Search a department, city, or county" aria-label="Search departments, cities, or counties">
-          <div class="search-results" id="home-search-results" role="listbox"></div>
+    <!-- Task-first hero -->
+    <section class="hero home-hero">
+      <div class="wrap home-hero-grid">
+        <div class="home-hero-copy">
+          <p class="eyebrow">Community pay atlas · Texas fire service</p>
+          <h1>Compare Texas Firefighter Salaries</h1>
+          <p class="lede">Find current pay, schedules, incentives, and full career step plans reported across Texas.</p>
         </div>
 
-        <div class="hero-actions">
-          <a class="btn btn-primary btn-lg" href="/map?nav=20260729">Explore the map</a>
-          <a class="btn btn-outline btn-lg" href="/compare?nav=20260729">Compare departments</a>
-          <a class="btn btn-outline btn-lg" href="/submit?mode=add&amp;nav=20260729">Submit a department</a>
-          <a class="btn btn-ghost btn-lg" href="/submit?nav=20260729">Update salary information</a>
+        <div class="home-find-card" aria-label="Find a fire department">
+          <label for="home-search">Find a department</label>
+          <div class="searchbox">
+            <span class="search-icon" aria-hidden="true">⌕</span>
+            <input id="home-search" type="search" autocomplete="off" placeholder="Name, city, or county" aria-label="Search departments, cities, or counties">
+            <div class="search-results" id="home-search-results" role="listbox"></div>
+          </div>
+          <div class="hero-actions">
+            <a class="btn btn-primary btn-lg" href="/map?nav=20260729">Explore the map</a>
+            <a class="btn btn-outline btn-lg" href="/compare?nav=20260729">Compare departments</a>
+          </div>
+          <a class="home-directory-link" href="/departments?nav=20260729">Browse every department →</a>
         </div>
       </div>
     </section>
 
-    <!-- Disclaimer -->
-    <section class="wrap" style="margin-top:1.5rem">
-      <div class="notice disclaimer"><span class="notice-icon" aria-hidden="true">ⓘ</span>
-        <div><strong>Community-maintained data.</strong> Compensation information may be incomplete, outdated, or incorrect. Always confirm current pay, benefits, and employment terms directly with the hiring department. Nothing here is “verified” unless a department maintains its own page.</div>
-      </div>
-    </section>
-
-    <!-- Statewide summary -->
-    <section class="section wrap">
-      <div class="grid cols-4">
-        <div class="card stat-card"><div class="stat-val" id="stat-depts">—</div><div class="stat-lab">Departments listed</div></div>
-        <div class="card stat-card"><div class="stat-val" id="stat-updated">—</div><div class="stat-lab">Updated in the last 12 months</div></div>
-        <div class="card stat-card"><div class="stat-val" id="stat-stepplans">—</div><div class="stat-lab">Departments with full step plans</div></div>
-        <div class="card stat-card"><div class="stat-val" id="stat-contributors">—</div><div class="stat-lab">Community contributors</div></div>
-      </div>
-      <p class="muted" style="margin-top:1rem;font-size:.9rem">Statewide salary averages are intentionally not shown until enough comparable data exists — firefighter pay mixes base salary, scheduled overtime, and incentives that are not directly comparable.</p>
-    </section>
-
-    <!-- Launch progress -->
-    <section class="section-sm wrap">
-      <div class="progress-wrap" id="launch-progress"></div>
-    </section>
-
-    <!-- Explore by region + map CTA -->
-    <section class="section wrap">
-      <div class="grid" style="grid-template-columns: 1.1fr .9fr; gap:2rem; align-items:center">
+    <!-- Statewide data coverage -->
+    <section class="wrap home-coverage" aria-labelledby="coverage-title">
+      <div class="home-section-head">
         <div>
-          <h2>Start with the map</h2>
-          <p class="lede">The interactive Texas map is the fastest way to find departments near you, compare what they pay, and see how fresh each report is. Markers show data condition at a glance — current, older, conflicting, department-maintained, or missing.</p>
+          <p class="eyebrow">Statewide coverage</p>
+          <h2 id="coverage-title">Salary data at a glance</h2>
+        </div>
+        <span class="home-coverage-status" id="coverage-status">Loading current coverage…</span>
+      </div>
+      <div class="home-stat-grid">
+        <div class="home-stat"><span class="home-stat-val" id="stat-depts">—</span><span class="home-stat-lab">Departments listed</span></div>
+        <div class="home-stat"><span class="home-stat-val" id="stat-salary">—</span><span class="home-stat-lab">With salary data</span></div>
+        <div class="home-stat"><span class="home-stat-val" id="stat-stepplans">—</span><span class="home-stat-lab">Full step plans</span></div>
+        <div class="home-stat"><span class="home-stat-val" id="stat-needed">—</span><span class="home-stat-lab">Still need data</span></div>
+      </div>
+      <div class="home-progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-label="Departments with salary data" id="coverage-progress"><span></span></div>
+      <p class="home-data-note"><span aria-hidden="true">ⓘ</span><span><strong>Community-maintained data.</strong> Confirm current pay, benefits, and employment terms with the hiring department.</span></p>
+    </section>
+
+    <!-- Live map preview -->
+    <section class="section home-map-section">
+      <div class="wrap home-map-grid">
+        <div class="home-map-copy">
+          <p class="eyebrow">Explore statewide</p>
+          <h2>See departments across Texas</h2>
+          <p class="lede">Use the interactive map to find departments near you and see whether each salary report is current, outdated, conflicting, department-maintained, or still needed.</p>
+          <div class="home-map-key" aria-label="Map preview legend">
+            <span><i class="map-dot current"></i> Current</span>
+            <span><i class="map-dot strong"></i> Strong agreement</span>
+            <span><i class="map-dot missing"></i> Needs data</span>
+          </div>
           <a class="btn btn-primary" href="/map?nav=20260729">Open the interactive map →</a>
         </div>
-        <div class="card" aria-hidden="true" style="padding:0;overflow:hidden;background:linear-gradient(135deg,var(--ember-050),var(--teal-100));min-height:240px;position:relative">
-          <div style="position:absolute;inset:0;display:grid;place-items:center;color:var(--text-soft);font-family:var(--font-display);font-size:1.1rem">
-            <div style="text-align:center">
-              <div style="font-size:2.4rem">🗺️</div>
-              Texas · statewide map
-            </div>
-          </div>
+        <div class="home-map-card">
+          <div id="home-map" aria-label="Preview of fire departments across Texas"></div>
+          <a class="home-map-open" href="/map?nav=20260729">Explore all departments</a>
         </div>
       </div>
     </section>
 
-    <!-- Recent updates -->
-    <section class="section wrap">
-      <div class="grid" style="grid-template-columns: 1.4fr 1fr; gap:2.5rem">
+    <!-- Latest updates -->
+    <section class="section wrap home-updates" aria-labelledby="updates-title">
+      <div class="home-section-head">
         <div>
-          <h2>Recent community updates</h2>
-          <div id="recent-feed" class="card"><p class="muted">Loading…</p></div>
+          <p class="eyebrow">What changed</p>
+          <h2 id="updates-title">Latest salary updates</h2>
         </div>
+        <a href="/departments?nav=20260729">View department directory →</a>
+      </div>
+      <div id="recent-feed" class="card home-feed"><p class="muted">Loading…</p></div>
+    </section>
+
+    <!-- Contribute -->
+    <section class="section-sm wrap home-contribute-section">
+      <div class="home-contribute">
         <div>
-          <h2>How it works</h2>
-          <div class="stack">
-            <div class="card card-tight"><strong>1 · Anyone can contribute</strong><p class="muted" style="margin:.3rem 0 0">Verified contributors submit pay, steps, and schedules — no owner approval needed for routine updates.</p></div>
-            <div class="card card-tight"><strong>2 · Consensus, not guesswork</strong><p class="muted" style="margin:.3rem 0 0">Matching reports build confidence automatically. Conflicting reports stay visible, never hidden.</p></div>
-            <div class="card card-tight"><strong>3 · History is preserved</strong><p class="muted" style="margin:.3rem 0 0">Every submission is a revision. Old pay plans are never erased.</p></div>
-            <a class="btn btn-outline" href="/how-it-works.html">Read how it works →</a>
-          </div>
+          <p class="eyebrow">Built by the fire-service community</p>
+          <h2>Help keep Texas salary information current</h2>
+          <p>Share a new pay plan, correct a salary, or add a department that is not listed yet.</p>
+        </div>
+        <div class="home-contribute-actions">
+          <a class="btn btn-primary" href="/submit?nav=20260729">Update salary information</a>
+          <a class="btn btn-outline" href="/submit?mode=add&amp;nav=20260729">Submit a department</a>
         </div>
       </div>
+    </section>
+
+    <!-- How it works -->
+    <section class="section wrap home-how" aria-labelledby="how-title">
+      <div class="home-section-head">
+        <div>
+          <p class="eyebrow">Clear provenance</p>
+          <h2 id="how-title">How community data works</h2>
+        </div>
+        <a href="/how-it-works?nav=20260729">Read the full methodology →</a>
+      </div>
+      <div class="home-how-grid">
+        <div class="home-how-step"><span>1</span><div><strong>Anyone can contribute</strong><p>Verified contributors submit pay, steps, and schedules.</p></div></div>
+        <div class="home-how-step"><span>2</span><div><strong>Matching reports build confidence</strong><p>Agreement strengthens a figure; conflicts remain visible.</p></div></div>
+        <div class="home-how-step"><span>3</span><div><strong>History remains available</strong><p>Every submission becomes part of the revision history.</p></div></div>
+      </div>
+      <p class="home-method-note">Statewide salary averages are intentionally omitted until enough directly comparable data exists. Base salary, scheduled overtime, and incentives are reported separately.</p>
     </section>
   </main>
 
@@ -115,6 +143,7 @@
   <script src="/js/data.js"></script>
   <script src="/js/ui.js"></script>
   <script src="/js/nav-20260729.js"></script>
-  <script src="/js/home.js"></script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="/js/home-20260729.js"></script>
 </body>
 </html>
