@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Submit Firefighter Salary Data | Texas Fire Salaries</title>
+  <meta name="description" content="Add or update Texas firefighter compensation. Quick update, complete pay plan, or add a new department — no owner approval needed for routine submissions.">
+  <link rel="canonical" href="https://texasfiresalaries.com/submit.html">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/tokens.css">
+  <link rel="stylesheet" href="/css/base.css">
+  <link rel="stylesheet" href="/css/components.css">
+</head>
+<body data-page="submit">
+  <div id="site-header"></div>
+
+  <main id="main" class="wrap wrap-narrow section-sm">
+    <p class="eyebrow">Contribute</p>
+    <h1>Submit salary information</h1>
+    <p class="lede">Firefighters, applicants, recruiters, and departments keep this database current. Routine submissions publish automatically and are preserved as revisions — history is never erased.</p>
+
+    <div class="gate" id="submit-gate"></div>
+
+    <div class="wizard-tabs" role="tablist">
+      <button data-tab="update" role="tab"><strong>Quick update</strong><span>Change one or more fields</span></button>
+      <button data-tab="plan" role="tab"><strong>Complete pay plan</strong><span>Enter every step</span></button>
+      <button data-tab="add" role="tab"><strong>Add a department</strong><span>Not listed yet</span></button>
+    </div>
+
+    <div id="submit-body"><p class="muted">Loading…</p></div>
+  </main>
+
+  <div id="site-footer"></div>
+
+  <script src="/js/salary-lib.js"></script>
+  <script src="/js/consensus.js"></script>
+  <script src="/js/derive.js"></script>
+  <script src="/js/aggregate.js"></script>
+  <script src="/js/firebase-init.js"></script>
+  <script src="/js/auth.js"></script>
+  <script src="/js/data.js"></script>
+  <script src="/js/ui.js"></script>
+  <script src="/js/nav.js"></script>
+  <script src="/js/submit.js"></script>
+</body>
+</html>

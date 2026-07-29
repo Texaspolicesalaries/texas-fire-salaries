@@ -1,0 +1,11 @@
+name = "texas-fire-salaries-reminders"
+main = "index.js"
+compatibility_date = "2026-02-24"
+
+# Runs weekly; adjust as needed. Reminder cadence thresholds are configurable
+# in the app's freshness settings (see js/consensus.js DEFAULTS).
+[triggers]
+crons = ["0 15 * * 1"]  # Mondays 15:00 UTC
+
+# Add secrets with: wrangler secret put FIREBASE_SERVICE_ACCOUNT
+# Add secrets with: wrangler secret put EMAIL_API_KEY

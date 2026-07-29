@@ -1,0 +1,11 @@
+# Cloudflare Pages redirects.
+# Automatic slug-change handling: when a department slug changes, add a line here
+# (or generate them from a slug-history table during the build) so old URLs 301
+# to the new page and link equity is preserved. Example:
+# /departments/old-slug/  /departments/new-slug/  301
+
+# Friendly shortcuts
+/map            /map.html            301
+/compare        /compare.html        301
+/submit         /submit.html         301
+/departments    /departments.html    301

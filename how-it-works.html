@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>How It Works | Texas Fire Salaries</title>
+  <meta name="description" content="How Texas Fire Salaries works: a community-maintained database where verified contributors submit, confirm, and dispute firefighter pay, and consensus is computed automatically.">
+  <link rel="canonical" href="https://texasfiresalaries.com/how-it-works.html">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/tokens.css">
+  <link rel="stylesheet" href="/css/base.css">
+  <link rel="stylesheet" href="/css/components.css">
+</head>
+<body data-page="how">
+  <div id="site-header"></div>
+
+  <main id="main" class="wrap section-sm">
+    <div style="max-width:760px">
+      <p class="eyebrow">About the data</p>
+      <h1>How Texas Fire Salaries works</h1>
+      <p class="lede">This is a community-maintained database. The site owner provides the platform, calculations, structure, and moderation tools. The Texas fire-service community provides and maintains the salary information.</p>
+
+      <div class="notice disclaimer" style="margin:1.5rem 0">
+        <span class="notice-icon" aria-hidden="true">ⓘ</span>
+        <div><strong>Not an official source.</strong> Compensation information may be incomplete, outdated, or incorrect, and is not officially verified. Always confirm current pay, benefits, and employment terms directly with the hiring department.</div>
+      </div>
+
+      <h2>Confidence labels</h2>
+      <p class="muted">Instead of a mysterious score, each figure carries a plain-language label. We only use “verified” for a department’s own source documents — never for community reports.</p>
+      <div class="grid cols-2" style="margin:1rem 0 2rem">
+        <div class="card card-tight"><span class="chip dept"><span class="chip-icon">◆</span>Department maintained</span><p class="muted" style="margin:.5rem 0 0">An official department account manages the information.</p></div>
+        <div class="card card-tight"><span class="chip strong"><span class="chip-icon">▲</span>Strong community agreement</span><p class="muted" style="margin:.5rem 0 0">Multiple recent contributors submitted matching information.</p></div>
+        <div class="card card-tight"><span class="chip reported"><span class="chip-icon">●</span>Community reported</span><p class="muted" style="margin:.5rem 0 0">One or two contributors submitted the information.</p></div>
+        <div class="card card-tight"><span class="chip conflicting"><span class="chip-icon">◧</span>Conflicting reports</span><p class="muted" style="margin:.5rem 0 0">Recent contributors submitted materially different values — both stay visible.</p></div>
+      </div>
+
+      <h2>Data freshness</h2>
+      <div class="grid cols-2" style="margin:1rem 0 2rem">
+        <div class="card card-tight"><span class="chip current"><span class="chip-icon">◉</span>Current community report</span><p class="muted" style="margin:.5rem 0 0">Updated or confirmed within 12 months.</p></div>
+        <div class="card card-tight"><span class="chip update"><span class="chip-icon">◑</span>Update recommended</span><p class="muted" style="margin:.5rem 0 0">Last updated 12–18 months ago.</p></div>
+        <div class="card card-tight"><span class="chip outdated"><span class="chip-icon">◍</span>Possibly outdated</span><p class="muted" style="margin:.5rem 0 0">Last updated more than 18 months ago.</p></div>
+        <div class="card card-tight"><span class="chip upcoming"><span class="chip-icon">◔</span>Upcoming pay plan</span><p class="muted" style="margin:.5rem 0 0">The effective date is in the future.</p></div>
+      </div>
+
+      <h2>Base pay vs reported compensation</h2>
+      <p>Firefighters often work long shift schedules, and “annual pay” can mean very different things. We always keep <strong>base salary</strong> separate from <strong>reported total compensation</strong> (which may include scheduled overtime and incentives), and we show an <strong>effective hourly</strong> figure using scheduled annual hours so a 24/48 department can be compared fairly with a 40-hour one. Comparisons warn you when two figures aren’t directly comparable.</p>
+
+      <h2>Who can do what</h2>
+      <div class="stack" style="margin:1rem 0 2rem">
+        <div class="card card-tight"><strong>Visitors</strong> browse, search, map, compare, and view history — no account needed.</div>
+        <div class="card card-tight"><strong>Registered contributors</strong> (verified email) add departments, submit pay and steps, confirm, and dispute. Routine submissions publish without owner approval.</div>
+        <div class="card card-tight"><strong>Trusted contributors</strong> earn faster publishing and can suggest duplicate merges after a track record of accepted, community-confirmed submissions. No one can erase revision history.</div>
+        <div class="card card-tight"><strong>Department representatives</strong> claim their page with an official email and earn a “Department maintained” badge — while the community can still submit corrections.</div>
+        <div class="card card-tight"><strong>Administrators</strong> handle spam, abuse, claims, and duplicates. They do not research or approve every normal update.</div>
+      </div>
+
+      <div style="display:flex;gap:.75rem;flex-wrap:wrap">
+        <a class="btn btn-primary" href="/submit.html">Contribute data</a>
+        <a class="btn btn-outline" href="/map.html">Explore the map</a>
+        <a class="btn btn-ghost" href="/community-policy.html">Community submission policy</a>
+      </div>
+    </div>
+  </main>
+
+  <div id="site-footer"></div>
+
+  <script src="/js/salary-lib.js"></script>
+  <script src="/js/consensus.js"></script>
+  <script src="/js/firebase-init.js"></script>
+  <script src="/js/auth.js"></script>
+  <script src="/js/data.js"></script>
+  <script src="/js/ui.js"></script>
+  <script src="/js/nav.js"></script>
+</body>
+</html>

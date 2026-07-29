@@ -1,0 +1,145 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── Helpers ────────────────────────────────────────────────────────────
+    // OWNER: administrator email(s). Add more (e.g. a texasfiresalaries.com address) as needed.
+    function isAdmin() {
+      return request.auth != null
+        && request.auth.token.email_verified == true
+        && request.auth.token.email in ['dfwfiresalaries@gmail.com', 'fastford19@gmail.com'];
+    }
+    function signedIn() { return request.auth != null; }
+    // A contributor may PUBLISH only with a verified email (spec §4/§5).
+    function verified() {
+      return request.auth != null && request.auth.token.email_verified == true;
+    }
+    function isOwnerField(field) {
+      return request.resource.data[field] == request.auth.uid;
+    }
+
+    // ── Users ── each user reads/writes only their own profile; admin reads all.
+    // Email is stored but never exposed publicly by the app. No deletes (audit).
+    match /users/{userId} {
+      allow read:   if signedIn() && (request.auth.uid == userId || isAdmin());
+      allow create: if signedIn() && request.auth.uid == userId
+                    && request.resource.data.role in ['contributor', 'department'];
+      // Users cannot promote themselves to admin or clear their suspension.
+      allow update: if signedIn() && request.auth.uid == userId
+                    && request.resource.data.role == resource.data.role
+                    && request.resource.data.suspended == resource.data.suspended
+                    || isAdmin();
+      allow delete: if false;
+    }
+
+    // ── Departments ── public read. Structured records are maintained by the
+    // owner/import and by admins; community changes flow through `submissions`,
+    // never by editing the department record directly. History-safe: no deletes.
+    match /departments/{deptId} {
+      allow read:   if true;
+      allow write:  if isAdmin();
+      allow delete: if false;
+    }
+
+    // ── Compensation plans & pay steps ── public read; admin/system writes.
+    // (Community-entered plans arrive as `submissions` and are promoted by the
+    //  consensus function running under a service account, which bypasses rules.)
+    match /compensation_plans/{id} {
+      allow read: if true;
+      allow write: if isAdmin();
+      allow delete: if false;
+    }
+    match /pay_steps/{id} {
+      allow read: if true;
+      allow write: if isAdmin();
+      allow delete: if false;
+    }
+
+    // ── Submissions ── the append-only revision log. Anyone reads published/
+    // flagged revisions. A verified contributor may CREATE a revision that is
+    // stamped as their own and published immediately (no owner approval), but
+    // may never edit or delete an existing revision. Admins may only change
+    // status (e.g. soft-remove spam) — never hard-delete, preserving history.
+    match /submissions/{id} {
+      allow read: if resource.data.status in ['published', 'flagged'] || isAdmin();
+      allow create: if verified()
+        && isOwnerField('contributorId')
+        && request.resource.data.status in ['published', 'flagged']
+        && request.resource.data.submittedAt is timestamp
+        && (!('departmentSlug' in request.resource.data)
+            || request.resource.data.departmentSlug is string
+            && request.resource.data.departmentSlug.size() <= 120)
+        && (!('notes' in request.resource.data)
+            || request.resource.data.notes is string
+            && request.resource.data.notes.size() <= 1000);
+      // Admin may re-status (moderation) but not rewrite authorship/content.
+      allow update: if isAdmin()
+        && request.resource.data.contributorId == resource.data.contributorId
+        && request.resource.data.proposedValues == resource.data.proposedValues;
+      allow delete: if false;
+    }
+
+    // ── Department requests (new department that isn't listed yet) ──
+    match /department_requests/{id} {
+      allow read:   if isAdmin();
+      allow create: if verified() && isOwnerField('contributorId')
+                    && request.resource.data.name is string
+                    && request.resource.data.name.size() <= 140;
+      allow update: if isAdmin();
+      allow delete: if false;
+    }
+
+    // ── Confirmations ("this looks correct") ── verified users only; immutable.
+    match /confirmations/{id} {
+      allow read:   if true;
+      allow create: if verified() && isOwnerField('contributorId')
+                    && request.resource.data.createdAt is timestamp;
+      allow update, delete: if false;
+    }
+
+    // ── Disputes ("report incorrect") ── verified users only; stay visible.
+    match /disputes/{id} {
+      allow read:   if true;
+      allow create: if verified() && isOwnerField('contributorId')
+                    && request.resource.data.status == 'open'
+                    && (!('reason' in request.resource.data)
+                        || request.resource.data.reason is string
+                        && request.resource.data.reason.size() <= 1000);
+      allow update: if isAdmin();          // resolve / label, never erase
+      allow delete: if false;
+    }
+
+    // ── Department claims ── a signed-in verified user requests to manage a page
+    // with an official email; admin approves. Requester reads only their own.
+    match /department_claims/{id} {
+      allow read:   if isAdmin() || (signedIn() && resource.data.userId == request.auth.uid);
+      allow create: if verified() && request.resource.data.userId == request.auth.uid
+                    && request.resource.data.status == 'pending';
+      allow update, delete: if isAdmin();
+    }
+
+    // ── Analytics events ── open create with a tight schema lock (no PII),
+    // admin read/rollup. Mirrors the sibling site's abuse-resistant pattern.
+    match /events/{id} {
+      allow read: if isAdmin();
+      allow create: if true
+        && request.resource.data.keys().hasOnly([
+             'type', 'sessionId', 'date', 'timestamp', 'page',
+             'departmentSlug', 'query', 'filterSummary', 'value', 'label'])
+        && request.resource.data.type is string
+        && request.resource.data.type.size() <= 40
+        && request.resource.data.timestamp is timestamp
+        && request.resource.data.timestamp > request.time - duration.value(24, 'h')
+        && request.resource.data.timestamp < request.time + duration.value(1, 'h')
+        && (!('query' in request.resource.data)
+            || request.resource.data.query is string
+            && request.resource.data.query.size() <= 300);
+      allow update, delete: if isAdmin();
+    }
+
+    match /daily_stats/{id} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+  }
+}

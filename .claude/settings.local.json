@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(echo \"=== TexasFireSalaries dir ===\" && ls -la /Users/alan/Documents/Website/TexasFireSalaries 2>/dev/null; echo \"\" && echo \"=== Parent Website dir ===\" && ls -la /Users/alan/Documents/Website 2>/dev/null)"
+    ]
+  }
+}

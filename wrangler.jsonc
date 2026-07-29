@@ -1,0 +1,16 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "texas-fire-salaries",
+  "compatibility_date": "2026-02-24",
+  // Cloudflare Pages serves the repo root. Generated department/ranking pages
+  // and sitemap.xml are produced by `npm run build` (set that as the Pages build
+  // command, output directory ".").
+  "pages_build_output_dir": "./",
+  "vars": {
+    // Public, non-secret config. Add analytics / Turnstile keys here as needed.
+    "SITE_NAME": "Texas Fire Salaries"
+  }
+  // Future bindings (uncomment when used):
+  // "kv_namespaces": [{ "binding": "CACHE", "id": "..." }],
+  // "r2_buckets": [{ "binding": "SOURCES", "bucket_name": "texas-fire-sources" }]
+}

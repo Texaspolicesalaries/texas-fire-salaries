@@ -1,0 +1,132 @@
+/* ============================================================================
+   Texas Fire Salaries — Design tokens
+   "Texas data atlas": warm stone canvas, charcoal-navy ink, ember + teal accents,
+   editorial serif display over a clean humanist sans. Deliberately unlike the
+   police site's blue public-safety look. No flames, no crosses, no truck art.
+   ========================================================================== */
+
+:root {
+  /* ---- Brand palette (light) ---- */
+  --stone-50:  #FBF9F5;   /* page canvas */
+  --stone-100: #F5F1E9;
+  --stone-200: #ECE5D8;
+  --stone-300: #DDD3C2;
+  --stone-400: #C4B79E;
+
+  --ink-900: #1C232E;     /* deep charcoal-navy text */
+  --ink-700: #333B48;
+  --ink-500: #5A6270;
+  --ink-400: #7A828E;
+  --ink-300: #9AA0AA;
+
+  --ember-700: #9E4118;
+  --ember-600: #B94E1E;   /* primary accent — burnt orange / ember */
+  --ember-500: #D2632B;
+  --ember-100: #F7E4D6;
+  --ember-050: #FBF0E6;
+
+  --teal-700: #1F5F58;
+  --teal-600: #2A7268;    /* secondary accent — muted teal */
+  --teal-500: #3B8C80;
+  --teal-100: #DCEBE7;
+
+  /* ---- Semantic surfaces ---- */
+  --bg:            var(--stone-50);
+  --bg-raised:     #FFFFFF;
+  --bg-sunken:     var(--stone-100);
+  --bg-inset:      var(--stone-200);
+  --border:        var(--stone-300);
+  --border-strong: var(--stone-400);
+  --text:          var(--ink-900);
+  --text-soft:     var(--ink-500);
+  --text-faint:    var(--ink-400);
+  --accent:        var(--ember-600);
+  --accent-hover:  var(--ember-700);
+  --accent-soft:   var(--ember-050);
+  --accent-2:      var(--teal-600);
+  --accent-2-soft: var(--teal-100);
+  --focus-ring:    #2A7268;
+
+  /* ---- Status: data confidence (keys mirror consensus.js CONFIDENCE) ---- */
+  --c-dept-fg:        #1F5F58; --c-dept-bg:        #DCEBE7;
+  --c-strong-fg:      #2C6E3F; --c-strong-bg:      #DCEDE0;
+  --c-reported-fg:    #4A5262; --c-reported-bg:    #E9E4D8;
+  --c-conflicting-fg: #9A4B12; --c-conflicting-bg: #F7E3CF;
+  --c-needed-fg:      #6B6257; --c-needed-bg:      #ECE6DA;
+
+  /* ---- Status: freshness (keys mirror consensus.js FRESHNESS) ---- */
+  --f-current-fg:  #1F5F58; --f-current-bg:  #DCEBE7;
+  --f-update-fg:   #8A5A12; --f-update-bg:   #F5E6C8;
+  --f-outdated-fg: #944225; --f-outdated-bg: #F1DBD0;
+  --f-upcoming-fg: #4A4A8A; --f-upcoming-bg: #E3E2F2;
+
+  /* ---- Typography ---- */
+  --font-display: "Fraunces", "Iowan Old Style", "Palatino Linotype", Palatino, "Georgia", serif;
+  --font-body: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", "Cascadia Mono", "Roboto Mono", Menlo, Consolas, monospace;
+
+  --fs-display: clamp(2.4rem, 5.2vw, 4rem);
+  --fs-h1: clamp(1.9rem, 3.6vw, 2.7rem);
+  --fs-h2: clamp(1.4rem, 2.4vw, 1.9rem);
+  --fs-h3: 1.25rem;
+  --fs-lg: 1.125rem;
+  --fs-base: 1rem;
+  --fs-sm: 0.875rem;
+  --fs-xs: 0.78rem;
+
+  --lh-tight: 1.12;
+  --lh-snug: 1.3;
+  --lh-body: 1.6;
+
+  /* ---- Spacing scale ---- */
+  --sp-1: 0.25rem; --sp-2: 0.5rem;  --sp-3: 0.75rem; --sp-4: 1rem;
+  --sp-5: 1.5rem;  --sp-6: 2rem;    --sp-7: 3rem;    --sp-8: 4rem; --sp-9: 6rem;
+
+  /* ---- Radius / shadow / layout ---- */
+  --r-sm: 6px; --r-md: 10px; --r-lg: 16px; --r-xl: 22px; --r-pill: 999px;
+  --shadow-sm: 0 1px 2px rgba(28,35,46,.06), 0 1px 3px rgba(28,35,46,.05);
+  --shadow-md: 0 4px 14px rgba(28,35,46,.08);
+  --shadow-lg: 0 14px 40px rgba(28,35,46,.14);
+  --maxw: 1180px;
+  --maxw-narrow: 780px;
+  --nav-h: 66px;
+
+  color-scheme: light;
+}
+
+/* ---- Dark theme (system preference) ---- */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg:            #14181F;
+    --bg-raised:     #1C222B;
+    --bg-sunken:     #10141A;
+    --bg-inset:      #232A34;
+    --border:        #2C3542;
+    --border-strong: #3A4453;
+    --text:          #ECE7DD;
+    --text-soft:     #AEB4BF;
+    --text-faint:    #838A96;
+    --accent:        #E07A44;
+    --accent-hover:  #EE8A55;
+    --accent-soft:   #2A211B;
+    --accent-2:      #4FA396;
+    --accent-2-soft: #17302C;
+    --focus-ring:    #4FA396;
+
+    --c-dept-fg:        #7FD0C3; --c-dept-bg:        #16302C;
+    --c-strong-fg:      #83C99A; --c-strong-bg:      #17301F;
+    --c-reported-fg:    #B7BCC7; --c-reported-bg:    #262B34;
+    --c-conflicting-fg: #E8A268; --c-conflicting-bg: #33241A;
+    --c-needed-fg:      #A29A8C; --c-needed-bg:      #26221B;
+
+    --f-current-fg:  #7FD0C3; --f-current-bg:  #16302C;
+    --f-update-fg:   #E0BE73; --f-update-bg:   #322914;
+    --f-outdated-fg: #E29277; --f-outdated-bg: #331F17;
+    --f-upcoming-fg: #A9A8E0; --f-upcoming-bg: #21213A;
+
+    --shadow-sm: 0 1px 2px rgba(0,0,0,.4);
+    --shadow-md: 0 4px 14px rgba(0,0,0,.45);
+    --shadow-lg: 0 14px 40px rgba(0,0,0,.55);
+    color-scheme: dark;
+  }
+}

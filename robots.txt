@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+Disallow: /admin.html
+Disallow: /sign-in.html
+
+Sitemap: https://texasfiresalaries.com/sitemap.xml

@@ -1,0 +1,11 @@
+name = "texas-fire-salaries-refresh"
+main = "index.js"
+compatibility_date = "2026-02-24"
+
+# Cadence for the automatic refresh. Default: top of every hour.
+# Examples: "0 */6 * * *" = every 6 hours ; "0 12 * * *" = once daily at 12:00 UTC.
+[triggers]
+crons = ["0 * * * *"]
+
+# The Pages deploy-hook URL is stored as a secret, not here:
+#   wrangler secret put PAGES_DEPLOY_HOOK

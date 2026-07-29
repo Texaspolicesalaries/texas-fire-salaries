@@ -1,0 +1,26 @@
+{
+  "name": "texas-fire-salaries",
+  "version": "0.1.0",
+  "description": "Texas Fire Salaries — a community-maintained firefighter compensation map and comparison database for Texas.",
+  "private": true,
+  "type": "commonjs",
+  "scripts": {
+    "test": "node --test \"js/**/*.test.js\"",
+    "build": "node scripts/build-site.js",
+    "refresh": "node scripts/export-overlay.js && node scripts/build-site.js",
+    "serve": "node scripts/serve.js",
+    "dev": "npm run build && npm run serve"
+  },
+  "keywords": [
+    "texas",
+    "firefighter",
+    "salaries",
+    "fire-department",
+    "compensation"
+  ],
+  "license": "UNLICENSED",
+  "devDependencies": {
+    "firebase-tools": "^15.14.0",
+    "wrangler": "^4.80.0"
+  }
+}

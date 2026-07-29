@@ -1,0 +1,23 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // Community-uploaded sources (pay plans, flyers, public documents).
+    // Verified contributors may upload; anyone may read (sources are public).
+    // Size + type limits guard against abuse; keep uploads modest.
+    match /sources/{deptSlug}/{fileId} {
+      allow read: if true;
+      allow write: if request.auth != null
+        && request.auth.token.email_verified == true
+        && request.resource.size < 10 * 1024 * 1024
+        && (request.resource.contentType.matches('image/.*')
+            || request.resource.contentType == 'application/pdf');
+      allow delete: if false; // preserve; admins remove via the console/service account
+    }
+
+    // Everything else is closed by default.
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

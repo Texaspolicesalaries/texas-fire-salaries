@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Texas Fire Salaries — Compare Texas Firefighter Salaries</title>
+  <meta name="description" content="Explore firefighter pay, schedules, incentives, and career earnings reported by firefighters, applicants, recruiters, and departments across Texas. A community-maintained compensation map and comparison database.">
+  <link rel="canonical" href="https://texasfiresalaries.com/">
+  <meta property="og:title" content="Compare Texas Firefighter Salaries">
+  <meta property="og:description" content="A statewide, community-built firefighter compensation map and comparison database.">
+  <meta property="og:type" content="website">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/tokens.css">
+  <link rel="stylesheet" href="/css/base.css">
+  <link rel="stylesheet" href="/css/components.css">
+</head>
+<body data-page="home">
+  <div id="site-header"></div>
+
+  <main id="main">
+    <!-- Hero -->
+    <section class="hero">
+      <div class="wrap">
+        <p class="eyebrow">Community pay atlas · Texas fire service</p>
+        <h1>Compare Texas Firefighter Salaries</h1>
+        <p class="lede">Explore firefighter pay, schedules, incentives, and career earnings reported by firefighters, applicants, recruiters, and departments across Texas.</p>
+
+        <div class="searchbox" style="margin-top:1.75rem">
+          <span class="search-icon" aria-hidden="true">🔍</span>
+          <input id="home-search" type="search" autocomplete="off" placeholder="Search a department, city, or county" aria-label="Search departments, cities, or counties">
+          <div class="search-results" id="home-search-results" role="listbox"></div>
+        </div>
+
+        <div class="hero-actions">
+          <a class="btn btn-primary btn-lg" href="/map.html">Explore the map</a>
+          <a class="btn btn-outline btn-lg" href="/compare.html">Compare departments</a>
+          <a class="btn btn-outline btn-lg" href="/submit.html?mode=add">Submit a department</a>
+          <a class="btn btn-ghost btn-lg" href="/submit.html">Update salary information</a>
+        </div>
+      </div>
+    </section>
+
+    <!-- Disclaimer -->
+    <section class="wrap" style="margin-top:-1rem">
+      <div class="notice disclaimer"><span class="notice-icon" aria-hidden="true">ⓘ</span>
+        <div><strong>Community-maintained data.</strong> Compensation information may be incomplete, outdated, or incorrect. Always confirm current pay, benefits, and employment terms directly with the hiring department. Nothing here is “verified” unless a department maintains its own page.</div>
+      </div>
+    </section>
+
+    <!-- Statewide summary -->
+    <section class="section wrap">
+      <div class="grid cols-4">
+        <div class="card stat-card"><div class="stat-val" id="stat-depts">—</div><div class="stat-lab">Departments listed</div></div>
+        <div class="card stat-card"><div class="stat-val" id="stat-updated">—</div><div class="stat-lab">Updated in the last 12 months</div></div>
+        <div class="card stat-card"><div class="stat-val" id="stat-stepplans">—</div><div class="stat-lab">Departments with full step plans</div></div>
+        <div class="card stat-card"><div class="stat-val" id="stat-contributors">—</div><div class="stat-lab">Community contributors</div></div>
+      </div>
+      <p class="muted" style="margin-top:1rem;font-size:.9rem">Statewide salary averages are intentionally not shown until enough comparable data exists — firefighter pay mixes base salary, scheduled overtime, and incentives that are not directly comparable.</p>
+    </section>
+
+    <!-- Launch progress -->
+    <section class="section-sm wrap">
+      <div class="progress-wrap" id="launch-progress"></div>
+    </section>
+
+    <!-- Explore by region + map CTA -->
+    <section class="section wrap">
+      <div class="grid" style="grid-template-columns: 1.1fr .9fr; gap:2rem; align-items:center">
+        <div>
+          <h2>Start with the map</h2>
+          <p class="lede">The interactive Texas map is the fastest way to find departments near you, compare what they pay, and see how fresh each report is. Markers show data condition at a glance — current, older, conflicting, department-maintained, or missing.</p>
+          <a class="btn btn-primary" href="/map.html">Open the interactive map →</a>
+        </div>
+        <div class="card" aria-hidden="true" style="padding:0;overflow:hidden;background:linear-gradient(135deg,var(--ember-050),var(--teal-100));min-height:240px;position:relative">
+          <div style="position:absolute;inset:0;display:grid;place-items:center;color:var(--text-soft);font-family:var(--font-display);font-size:1.1rem">
+            <div style="text-align:center">
+              <div style="font-size:2.4rem">🗺️</div>
+              Texas · statewide map
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Recent updates -->
+    <section class="section wrap">
+      <div class="grid" style="grid-template-columns: 1.4fr 1fr; gap:2.5rem">
+        <div>
+          <h2>Recent community updates</h2>
+          <div id="recent-feed" class="card"><p class="muted">Loading…</p></div>
+        </div>
+        <div>
+          <h2>How it works</h2>
+          <div class="stack">
+            <div class="card card-tight"><strong>1 · Anyone can contribute</strong><p class="muted" style="margin:.3rem 0 0">Verified contributors submit pay, steps, and schedules — no owner approval needed for routine updates.</p></div>
+            <div class="card card-tight"><strong>2 · Consensus, not guesswork</strong><p class="muted" style="margin:.3rem 0 0">Matching reports build confidence automatically. Conflicting reports stay visible, never hidden.</p></div>
+            <div class="card card-tight"><strong>3 · History is preserved</strong><p class="muted" style="margin:.3rem 0 0">Every submission is a revision. Old pay plans are never erased.</p></div>
+            <a class="btn btn-outline" href="/how-it-works.html">Read how it works →</a>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div id="site-footer"></div>
+
+  <script src="/js/salary-lib.js"></script>
+  <script src="/js/consensus.js"></script>
+  <script src="/js/derive.js"></script>
+  <script src="/js/aggregate.js"></script>
+  <script src="/js/firebase-init.js"></script>
+  <script src="/js/auth.js"></script>
+  <script src="/js/data.js"></script>
+  <script src="/js/ui.js"></script>
+  <script src="/js/nav.js"></script>
+  <script src="/js/home.js"></script>
+</body>
+</html>

@@ -1,0 +1,4920 @@
+{
+  "meta": {
+    "source": "dfw-fire-pay.csv (owner-provided Google Sheet)",
+    "generated": "2026-07-29",
+    "note": "Imported from the owner's pay-plan sheet. Each figure is the published pay-plan annual salary per year of service (treated as base). No OT/incentive/transport/retirement breakdown was available; those fields are left blank for the community to fill in. Rerun scripts/import-sheet.js after updating the sheet.",
+    "disclaimer": "Texas Fire Salaries is a community-maintained database. Compensation information may be incomplete, outdated, or incorrect. Always confirm current pay, benefits, and employment terms directly with the hiring department."
+  },
+  "regions": [
+    {
+      "id": "north-texas",
+      "name": "North Texas (DFW)"
+    },
+    {
+      "id": "gulf-coast",
+      "name": "Gulf Coast"
+    },
+    {
+      "id": "central-texas",
+      "name": "Central Texas"
+    },
+    {
+      "id": "south-texas",
+      "name": "South Texas"
+    },
+    {
+      "id": "west-texas",
+      "name": "West Texas"
+    },
+    {
+      "id": "east-texas",
+      "name": "East Texas"
+    },
+    {
+      "id": "panhandle",
+      "name": "Panhandle"
+    }
+  ],
+  "departments": [
+    {
+      "slug": "addison-fd",
+      "name": "Addison Fire Department",
+      "city": "Addison",
+      "county": "Dallas",
+      "region": "north-texas",
+      "zip": "",
+      "lat": 32.965767075348246,
+      "lng": -96.83025869503638,
+      "departmentType": "municipal",
+      "website": "",
+      "careersUrl": "",
+      "phone": "",
+      "transportStatus": "unknown",
+      "hiringStatus": "unknown",
+      "scheduleType": "48/96",
+      "annualScheduledHours": 2912,
+      "population": 17100,
+      "flags": {
+        "paramedicIncentive": false,
+        "certPay": false,
+        "educationPay": false,
+        "longevity": false,
+        "lateralsAccepted": false,
+        "emtRequired": false,
+        "paramedicRequired": false
+      },
+      "dataStatus": "current",
+      "salary": {
+        "effectiveDate": "2025-08-04",
+        "includesScheduledOvertime": false,
+        "includesFlsaOvertime": false,
+        "sourceType": "official-pay-plan",
+        "sourceUrl": "https://irp.cdn-website.com/8a2e0383/files/uploaded/Addison.pdf",
+        "classification": "Firefighter",
+        "steps": [
+          {
+            "stepName": "Entry (0–12 mo)",
+            "minimumMonths": 0,
+            "maximumMonths": null,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 76208.01
+          }
+        ],
+        "reports": [
+          {
+            "contributorId": "dfw-fire-import",
+            "submittedAt": "2025-08-04",
+            "entry": 76208.01,
+            "top": 76208.01,
+            "hasSource": true,
+            "departmentMaintained": false
+          }
+        ]
+      }
+    },
+    {
+      "slug": "allen-fd",
+      "name": "Allen Fire Department",
+      "city": "Allen",
+      "county": "Collin",
+      "region": "north-texas",
+      "zip": "",
+      "lat": 33.099272858872965,
+      "lng": -96.67505703919858,
+      "departmentType": "municipal",
+      "website": "",
+      "careersUrl": "",
+      "phone": "",
+      "transportStatus": "unknown",
+      "hiringStatus": "unknown",
+      "scheduleType": "24/48",
+      "annualScheduledHours": 2912,
+      "population": 111620,
+      "flags": {
+        "paramedicIncentive": false,
+        "certPay": false,
+        "educationPay": false,
+        "longevity": false,
+        "lateralsAccepted": false,
+        "emtRequired": false,
+        "paramedicRequired": false
+      },
+      "dataStatus": "current",
+      "salary": {
+        "effectiveDate": "2025-10-23",
+        "includesScheduledOvertime": false,
+        "includesFlsaOvertime": false,
+        "sourceType": "official-pay-plan",
+        "sourceUrl": "https://irp.cdn-website.com/8a2e0383/files/uploaded/Allen+FD.pdf",
+        "classification": "Firefighter",
+        "steps": [
+          {
+            "stepName": "Entry (0–12 mo)",
+            "minimumMonths": 0,
+            "maximumMonths": 12,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 97528.75
+          },
+          {
+            "stepName": "1 year",
+            "minimumMonths": 12,
+            "maximumMonths": 24,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 101592.45
+          },
+          {
+            "stepName": "2 years",
+            "minimumMonths": 24,
+            "maximumMonths": 36,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 105825.47
+          },
+          {
+            "stepName": "3+ years (top)",
+            "minimumMonths": 36,
+            "maximumMonths": null,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 110058.49
+          }
+        ],
+        "reports": [
+          {
+            "contributorId": "dfw-fire-import",
+            "submittedAt": "2025-10-23",
+            "entry": 97528.75,
+            "top": 110058.49,
+            "hasSource": true,
+            "departmentMaintained": false
+          }
+        ]
+      }
+    },
+    {
+      "slug": "anna-fd",
+      "name": "Anna Fire Department",
+      "city": "Anna",
+      "county": "Collin",
+      "region": "north-texas",
+      "zip": "",
+      "lat": 33.347772193532485,
+      "lng": -96.55073807006593,
+      "departmentType": "municipal",
+      "website": "",
+      "careersUrl": "",
+      "phone": "",
+      "transportStatus": "unknown",
+      "hiringStatus": "unknown",
+      "scheduleType": null,
+      "annualScheduledHours": null,
+      "population": 27501,
+      "flags": {
+        "paramedicIncentive": false,
+        "certPay": false,
+        "educationPay": false,
+        "longevity": false,
+        "lateralsAccepted": false,
+        "emtRequired": false,
+        "paramedicRequired": false
+      },
+      "dataStatus": "current",
+      "salary": {
+        "effectiveDate": "2025-10-23",
+        "includesScheduledOvertime": false,
+        "includesFlsaOvertime": false,
+        "sourceType": "official-pay-plan",
+        "sourceUrl": "https://irp.cdn-website.com/8a2e0383/files/uploaded/Anna-678fb880.pdf",
+        "classification": "Firefighter",
+        "steps": [
+          {
+            "stepName": "Entry (0–12 mo)",
+            "minimumMonths": 0,
+            "maximumMonths": 12,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 63860
+          },
+          {
+            "stepName": "1 year",
+            "minimumMonths": 12,
+            "maximumMonths": 24,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 72100
+          },
+          {
+            "stepName": "2 years",
+            "minimumMonths": 24,
+            "maximumMonths": 36,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 74263
+          },
+          {
+            "stepName": "3 years",
+            "minimumMonths": 36,
+            "maximumMonths": 48,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 76490.89
+          },
+          {
+            "stepName": "4 years",
+            "minimumMonths": 48,
+            "maximumMonths": 60,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 78785.62
+          },
+          {
+            "stepName": "5+ years (top)",
+            "minimumMonths": 60,
+            "maximumMonths": null,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 81149.19
+          }
+        ],
+        "reports": [
+          {
+            "contributorId": "dfw-fire-import",
+            "submittedAt": "2025-10-23",
+            "entry": 63860,
+            "top": 81149.19,
+            "hasSource": true,
+            "departmentMaintained": false
+          }
+        ]
+      }
+    },
+    {
+      "slug": "arlington-fd",
+      "name": "Arlington Fire Department",
+      "city": "Arlington",
+      "county": "Tarrant",
+      "region": "north-texas",
+      "zip": "",
+      "lat": 32.73830654807124,
+      "lng": -97.1135962773361,
+      "departmentType": "municipal",
+      "website": "",
+      "careersUrl": "",
+      "phone": "",
+      "transportStatus": "unknown",
+      "hiringStatus": "unknown",
+      "scheduleType": "24/48",
+      "annualScheduledHours": 2912,
+      "population": 398431,
+      "flags": {
+        "paramedicIncentive": false,
+        "certPay": false,
+        "educationPay": false,
+        "longevity": false,
+        "lateralsAccepted": false,
+        "emtRequired": false,
+        "paramedicRequired": false
+      },
+      "dataStatus": "current",
+      "salary": {
+        "effectiveDate": "2025-10-04",
+        "includesScheduledOvertime": false,
+        "includesFlsaOvertime": false,
+        "sourceType": "official-pay-plan",
+        "sourceUrl": "https://irp.cdn-website.com/8a2e0383/files/uploaded/ArlingtonFD.pdf",
+        "classification": "Firefighter",
+        "steps": [
+          {
+            "stepName": "Entry (0–12 mo)",
+            "minimumMonths": 0,
+            "maximumMonths": 12,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 78990.46
+          },
+          {
+            "stepName": "1 year",
+            "minimumMonths": 12,
+            "maximumMonths": 24,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 82941.52
+          },
+          {
+            "stepName": "2 years",
+            "minimumMonths": 24,
+            "maximumMonths": 36,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 87094.85
+          },
+          {
+            "stepName": "3 years",
+            "minimumMonths": 36,
+            "maximumMonths": 48,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 91451.04
+          },
+          {
+            "stepName": "4 years",
+            "minimumMonths": 48,
+            "maximumMonths": 60,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 96031.48
+          },
+          {
+            "stepName": "5 years",
+            "minimumMonths": 60,
+            "maximumMonths": 180,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 100859.92
+          },
+          {
+            "stepName": "15 years",
+            "minimumMonths": 180,
+            "maximumMonths": 240,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 103374.15
+          },
+          {
+            "stepName": "20+ years (top)",
+            "minimumMonths": 240,
+            "maximumMonths": null,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 105958.5
+          }
+        ],
+        "reports": [
+          {
+            "contributorId": "dfw-fire-import",
+            "submittedAt": "2025-10-04",
+            "entry": 78990.46,
+            "top": 105958.5,
+            "hasSource": true,
+            "departmentMaintained": false
+          }
+        ]
+      }
+    },
+    {
+      "slug": "aubrey-fd",
+      "name": "Aubrey Fire Department",
+      "city": "Aubrey",
+      "county": "Denton",
+      "region": "north-texas",
+      "zip": "",
+      "lat": 33.30334626947917,
+      "lng": -96.98567108581287,
+      "departmentType": "municipal",
+      "website": "",
+      "careersUrl": "",
+      "phone": "",
+      "transportStatus": "unknown",
+      "hiringStatus": "unknown",
+      "scheduleType": null,
+      "annualScheduledHours": null,
+      "population": 8843,
+      "flags": {
+        "paramedicIncentive": false,
+        "certPay": false,
+        "educationPay": false,
+        "longevity": false,
+        "lateralsAccepted": false,
+        "emtRequired": false,
+        "paramedicRequired": false
+      },
+      "dataStatus": "current",
+      "salary": {
+        "effectiveDate": "2025-10-24",
+        "includesScheduledOvertime": false,
+        "includesFlsaOvertime": false,
+        "sourceType": "official-pay-plan",
+        "sourceUrl": "https://irp.cdn-website.com/8a2e0383/files/uploaded/Aubrey+FD.pdf",
+        "classification": "Firefighter",
+        "steps": [
+          {
+            "stepName": "Entry (0–12 mo)",
+            "minimumMonths": 0,
+            "maximumMonths": 12,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 75997.68
+          },
+          {
+            "stepName": "1 year",
+            "minimumMonths": 12,
+            "maximumMonths": 24,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 78664.13
+          },
+          {
+            "stepName": "2 years",
+            "minimumMonths": 24,
+            "maximumMonths": 36,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 80629.27
+          },
+          {
+            "stepName": "3 years",
+            "minimumMonths": 36,
+            "maximumMonths": 48,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 82653.07
+          },
+          {
+            "stepName": "4 years",
+            "minimumMonths": 48,
+            "maximumMonths": 60,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 84706.2
+          },
+          {
+            "stepName": "5 years",
+            "minimumMonths": 60,
+            "maximumMonths": 72,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 86817.98
+          },
+          {
+            "stepName": "6 years",
+            "minimumMonths": 72,
+            "maximumMonths": 84,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 88988.43
+          },
+          {
+            "stepName": "7 years",
+            "minimumMonths": 84,
+            "maximumMonths": 96,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 91217.54
+          },
+          {
+            "stepName": "8+ years (top)",
+            "minimumMonths": 96,
+            "maximumMonths": null,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 93505.32
+          }
+        ],
+        "reports": [
+          {
+            "contributorId": "dfw-fire-import",
+            "submittedAt": "2025-10-24",
+            "entry": 75997.68,
+            "top": 93505.32,
+            "hasSource": true,
+            "departmentMaintained": false
+          }
+        ]
+      }
+    },
+    {
+      "slug": "carrollton-fd",
+      "name": "Carrollton Fire Department",
+      "city": "Carrollton",
+      "county": "Dallas",
+      "region": "north-texas",
+      "zip": "",
+      "lat": 32.953359323098894,
+      "lng": -96.90890204623463,
+      "departmentType": "municipal",
+      "website": "",
+      "careersUrl": "",
+      "phone": "",
+      "transportStatus": "unknown",
+      "hiringStatus": "unknown",
+      "scheduleType": "48/96",
+      "annualScheduledHours": 2912,
+      "population": 132918,
+      "flags": {
+        "paramedicIncentive": false,
+        "certPay": false,
+        "educationPay": false,
+        "longevity": false,
+        "lateralsAccepted": false,
+        "emtRequired": false,
+        "paramedicRequired": false
+      },
+      "dataStatus": "current",
+      "salary": {
+        "effectiveDate": "2025-09-20",
+        "includesScheduledOvertime": false,
+        "includesFlsaOvertime": false,
+        "sourceType": "official-pay-plan",
+        "sourceUrl": "https://irp.cdn-website.com/8a2e0383/files/uploaded/CarrolltonFD.pdf",
+        "classification": "Firefighter",
+        "steps": [
+          {
+            "stepName": "Entry (0–12 mo)",
+            "minimumMonths": 0,
+            "maximumMonths": 12,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 79571.08
+          },
+          {
+            "stepName": "1 year",
+            "minimumMonths": 12,
+            "maximumMonths": 24,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 87103.89
+          },
+          {
+            "stepName": "2 years",
+            "minimumMonths": 24,
+            "maximumMonths": 36,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 91458.95
+          },
+          {
+            "stepName": "3 years",
+            "minimumMonths": 36,
+            "maximumMonths": 48,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 96031.6
+          },
+          {
+            "stepName": "4 years",
+            "minimumMonths": 48,
+            "maximumMonths": 60,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 98912.1
+          },
+          {
+            "stepName": "5+ years (top)",
+            "minimumMonths": 60,
+            "maximumMonths": null,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 101879.55
+          }
+        ],
+        "reports": [
+          {
+            "contributorId": "dfw-fire-import",
+            "submittedAt": "2025-09-20",
+            "entry": 79571.08,
+            "top": 101879.55,
+            "hasSource": true,
+            "departmentMaintained": false
+          }
+        ]
+      }
+    },
+    {
+      "slug": "cleburne-fd",
+      "name": "Cleburne Fire Department",
+      "city": "Cleburne",
+      "county": "Johnson",
+      "region": "north-texas",
+      "zip": "",
+      "lat": 32.348240756655265,
+      "lng": -97.38763636741902,
+      "departmentType": "municipal",
+      "website": "",
+      "careersUrl": "",
+      "phone": "",
+      "transportStatus": "unknown",
+      "hiringStatus": "unknown",
+      "scheduleType": "48/96",
+      "annualScheduledHours": 2912,
+      "population": 32966,
+      "flags": {
+        "paramedicIncentive": false,
+        "certPay": false,
+        "educationPay": false,
+        "longevity": false,
+        "lateralsAccepted": false,
+        "emtRequired": false,
+        "paramedicRequired": false
+      },
+      "dataStatus": "current",
+      "salary": {
+        "effectiveDate": "2025-12-03",
+        "includesScheduledOvertime": false,
+        "includesFlsaOvertime": false,
+        "sourceType": "official-pay-plan",
+        "sourceUrl": "https://irp.cdn-website.com/8a2e0383/files/uploaded/Cleburne+FD.jpg",
+        "classification": "Firefighter",
+        "steps": [
+          {
+            "stepName": "Entry (0–12 mo)",
+            "minimumMonths": 0,
+            "maximumMonths": 12,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 71377.13
+          },
+          {
+            "stepName": "1 year",
+            "minimumMonths": 12,
+            "maximumMonths": 24,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 74279.62
+          },
+          {
+            "stepName": "2 years",
+            "minimumMonths": 24,
+            "maximumMonths": 36,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 77643.75
+          },
+          {
+            "stepName": "3 years",
+            "minimumMonths": 36,
+            "maximumMonths": 48,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 78877.26
+          },
+          {
+            "stepName": "4 years",
+            "minimumMonths": 48,
+            "maximumMonths": 60,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 82778.61
+          },
+          {
+            "stepName": "5 years",
+            "minimumMonths": 60,
+            "maximumMonths": 72,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 85476.41
+          },
+          {
+            "stepName": "6+ years (top)",
+            "minimumMonths": 72,
+            "maximumMonths": null,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 87475.7
+          }
+        ],
+        "reports": [
+          {
+            "contributorId": "dfw-fire-import",
+            "submittedAt": "2025-12-03",
+            "entry": 71377.13,
+            "top": 87475.7,
+            "hasSource": true,
+            "departmentMaintained": false
+          }
+        ]
+      }
+    },
+    {
+      "slug": "colleyville-fd",
+      "name": "Colleyville Fire Department",
+      "city": "Colleyville",
+      "county": "Tarrant",
+      "region": "north-texas",
+      "zip": "",
+      "lat": 32.885455471032905,
+      "lng": -97.15158542066983,
+      "departmentType": "municipal",
+      "website": "",
+      "careersUrl": "",
+      "phone": "",
+      "transportStatus": "unknown",
+      "hiringStatus": "unknown",
+      "scheduleType": null,
+      "annualScheduledHours": null,
+      "population": 26012,
+      "flags": {
+        "paramedicIncentive": false,
+        "certPay": false,
+        "educationPay": false,
+        "longevity": false,
+        "lateralsAccepted": false,
+        "emtRequired": false,
+        "paramedicRequired": false
+      },
+      "dataStatus": "current",
+      "salary": {
+        "effectiveDate": "2025-10-24",
+        "includesScheduledOvertime": false,
+        "includesFlsaOvertime": false,
+        "sourceType": "official-pay-plan",
+        "sourceUrl": "https://irp.cdn-website.com/8a2e0383/files/uploaded/Colleyville.pdf",
+        "classification": "Firefighter",
+        "steps": [
+          {
+            "stepName": "Entry (0–12 mo)",
+            "minimumMonths": 0,
+            "maximumMonths": null,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 78432
+          }
+        ],
+        "reports": [
+          {
+            "contributorId": "dfw-fire-import",
+            "submittedAt": "2025-10-24",
+            "entry": 78432,
+            "top": 78432,
+            "hasSource": true,
+            "departmentMaintained": false
+          }
+        ]
+      }
+    },
+    {
+      "slug": "coppell-fd",
+      "name": "Coppell Fire Department",
+      "city": "Coppell",
+      "county": "Dallas",
+      "region": "north-texas",
+      "zip": "",
+      "lat": 32.949178531532816,
+      "lng": -97.00666270918607,
+      "departmentType": "municipal",
+      "website": "",
+      "careersUrl": "",
+      "phone": "",
+      "transportStatus": "unknown",
+      "hiringStatus": "unknown",
+      "scheduleType": "48/96",
+      "annualScheduledHours": 2912,
+      "population": 41404,
+      "flags": {
+        "paramedicIncentive": false,
+        "certPay": false,
+        "educationPay": false,
+        "longevity": false,
+        "lateralsAccepted": false,
+        "emtRequired": false,
+        "paramedicRequired": false
+      },
+      "dataStatus": "current",
+      "salary": {
+        "effectiveDate": "2025-10-23",
+        "includesScheduledOvertime": false,
+        "includesFlsaOvertime": false,
+        "sourceType": "official-pay-plan",
+        "sourceUrl": "https://irp.cdn-website.com/8a2e0383/files/uploaded/Coppell-203d6a39.pdf",
+        "classification": "Firefighter",
+        "steps": [
+          {
+            "stepName": "Entry (0–12 mo)",
+            "minimumMonths": 0,
+            "maximumMonths": 12,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 84975
+          },
+          {
+            "stepName": "1 year",
+            "minimumMonths": 12,
+            "maximumMonths": 24,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 88374
+          },
+          {
+            "stepName": "2 years",
+            "minimumMonths": 24,
+            "maximumMonths": 36,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 91908.96
+          },
+          {
+            "stepName": "3 years",
+            "minimumMonths": 36,
+            "maximumMonths": 48,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 95585.03
+          },
+          {
+            "stepName": "4 years",
+            "minimumMonths": 48,
+            "maximumMonths": 60,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 99408.39
+          },
+          {
+            "stepName": "5+ years (top)",
+            "minimumMonths": 60,
+            "maximumMonths": null,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 103385.2
+          }
+        ],
+        "reports": [
+          {
+            "contributorId": "dfw-fire-import",
+            "submittedAt": "2025-10-23",
+            "entry": 84975,
+            "top": 103385.2,
+            "hasSource": true,
+            "departmentMaintained": false
+          }
+        ]
+      }
+    },
+    {
+      "slug": "crowley-fd",
+      "name": "Crowley Fire Department",
+      "city": "Crowley",
+      "county": "Tarrant",
+      "region": "north-texas",
+      "zip": "",
+      "lat": 32.579101208995205,
+      "lng": -97.35708230973714,
+      "departmentType": "municipal",
+      "website": "",
+      "careersUrl": "",
+      "phone": "",
+      "transportStatus": "unknown",
+      "hiringStatus": "unknown",
+      "scheduleType": "48/96",
+      "annualScheduledHours": 2912,
+      "population": 19932,
+      "flags": {
+        "paramedicIncentive": false,
+        "certPay": false,
+        "educationPay": false,
+        "longevity": false,
+        "lateralsAccepted": false,
+        "emtRequired": false,
+        "paramedicRequired": false
+      },
+      "dataStatus": "current",
+      "salary": {
+        "effectiveDate": "2025-08-04",
+        "includesScheduledOvertime": false,
+        "includesFlsaOvertime": false,
+        "sourceType": "official-pay-plan",
+        "sourceUrl": "https://irp.cdn-website.com/8a2e0383/files/uploaded/Crowley.pdf",
+        "classification": "Firefighter",
+        "steps": [
+          {
+            "stepName": "Entry (0–12 mo)",
+            "minimumMonths": 0,
+            "maximumMonths": 12,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 72678.8
+          },
+          {
+            "stepName": "1 year",
+            "minimumMonths": 12,
+            "maximumMonths": 24,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 74868.8
+          },
+          {
+            "stepName": "2 years",
+            "minimumMonths": 24,
+            "maximumMonths": 36,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 77117.2
+          },
+          {
+            "stepName": "3 years",
+            "minimumMonths": 36,
+            "maximumMonths": 48,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 79424
+          },
+          {
+            "stepName": "4 years",
+            "minimumMonths": 48,
+            "maximumMonths": 60,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 81818.4
+          },
+          {
+            "stepName": "5 years",
+            "minimumMonths": 60,
+            "maximumMonths": 72,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 8427
+          },
+          {
+            "stepName": "6 years",
+            "minimumMonths": 72,
+            "maximumMonths": 84,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 86811.6
+          },
+          {
+            "stepName": "7 years",
+            "minimumMonths": 84,
+            "maximumMonths": 96,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 89410.4
+          },
+          {
+            "stepName": "8 years",
+            "minimumMonths": 96,
+            "maximumMonths": 108,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 92096.8
+          },
+          {
+            "stepName": "9 years",
+            "minimumMonths": 108,
+            "maximumMonths": 120,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 94870.8
+          },
+          {
+            "stepName": "10+ years (top)",
+            "minimumMonths": 120,
+            "maximumMonths": null,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 97703.2
+          }
+        ],
+        "reports": [
+          {
+            "contributorId": "dfw-fire-import",
+            "submittedAt": "2025-08-04",
+            "entry": 72678.8,
+            "top": 97703.2,
+            "hasSource": true,
+            "departmentMaintained": false
+          }
+        ]
+      }
+    },
+    {
+      "slug": "dallas-fd",
+      "name": "Dallas Fire Department",
+      "city": "Dallas",
+      "county": "Dallas",
+      "region": "north-texas",
+      "zip": "",
+      "lat": 32.781174208400685,
+      "lng": -96.77649118363489,
+      "departmentType": "municipal",
+      "website": "",
+      "careersUrl": "",
+      "phone": "",
+      "transportStatus": "unknown",
+      "hiringStatus": "unknown",
+      "scheduleType": null,
+      "annualScheduledHours": null,
+      "population": 1304379,
+      "flags": {
+        "paramedicIncentive": false,
+        "certPay": false,
+        "educationPay": false,
+        "longevity": false,
+        "lateralsAccepted": false,
+        "emtRequired": false,
+        "paramedicRequired": false
+      },
+      "dataStatus": "current",
+      "salary": {
+        "effectiveDate": "2025-08-04",
+        "includesScheduledOvertime": false,
+        "includesFlsaOvertime": false,
+        "sourceType": "official-pay-plan",
+        "sourceUrl": "https://irp.cdn-website.com/8a2e0383/files/uploaded/Dallas.pdf",
+        "classification": "Firefighter",
+        "steps": [
+          {
+            "stepName": "Entry (0–12 mo)",
+            "minimumMonths": 0,
+            "maximumMonths": 12,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 75397
+          },
+          {
+            "stepName": "1 year",
+            "minimumMonths": 12,
+            "maximumMonths": 24,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 77659
+          },
+          {
+            "stepName": "2 years",
+            "minimumMonths": 24,
+            "maximumMonths": 36,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 79989
+          },
+          {
+            "stepName": "3 years",
+            "minimumMonths": 36,
+            "maximumMonths": 48,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 82389
+          },
+          {
+            "stepName": "4 years",
+            "minimumMonths": 48,
+            "maximumMonths": 60,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 84861
+          },
+          {
+            "stepName": "5 years",
+            "minimumMonths": 60,
+            "maximumMonths": 72,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 87407
+          },
+          {
+            "stepName": "6 years",
+            "minimumMonths": 72,
+            "maximumMonths": 84,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 90029
+          },
+          {
+            "stepName": "7 years",
+            "minimumMonths": 84,
+            "maximumMonths": 96,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 92730
+          },
+          {
+            "stepName": "8 years",
+            "minimumMonths": 96,
+            "maximumMonths": 108,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 95512
+          },
+          {
+            "stepName": "9+ years (top)",
+            "minimumMonths": 108,
+            "maximumMonths": null,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 98377
+          }
+        ],
+        "reports": [
+          {
+            "contributorId": "dfw-fire-import",
+            "submittedAt": "2025-08-04",
+            "entry": 75397,
+            "top": 98377,
+            "hasSource": true,
+            "departmentMaintained": false
+          }
+        ]
+      }
+    },
+    {
+      "slug": "denton-county-esd-no-1",
+      "name": "Denton County ESD No. 1",
+      "city": "Denton County",
+      "county": "Denton",
+      "region": "north-texas",
+      "zip": "",
+      "lat": 33.10045164369473,
+      "lng": -97.16012632061037,
+      "departmentType": "esd",
+      "website": "",
+      "careersUrl": "",
+      "phone": "",
+      "transportStatus": "unknown",
+      "hiringStatus": "unknown",
+      "scheduleType": null,
+      "annualScheduledHours": null,
+      "population": 42000,
+      "flags": {
+        "paramedicIncentive": false,
+        "certPay": false,
+        "educationPay": false,
+        "longevity": false,
+        "lateralsAccepted": false,
+        "emtRequired": false,
+        "paramedicRequired": false
+      },
+      "dataStatus": "current",
+      "salary": {
+        "effectiveDate": "2025-10-24",
+        "includesScheduledOvertime": false,
+        "includesFlsaOvertime": false,
+        "sourceType": "official-pay-plan",
+        "sourceUrl": "https://irp.cdn-website.com/8a2e0383/files/uploaded/Denton+County+ESD+No.+1.pdf",
+        "classification": "Firefighter",
+        "steps": [
+          {
+            "stepName": "Entry (0–12 mo)",
+            "minimumMonths": 0,
+            "maximumMonths": 12,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 82131.92
+          },
+          {
+            "stepName": "1 year",
+            "minimumMonths": 12,
+            "maximumMonths": 24,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 85265.7
+          },
+          {
+            "stepName": "2 years",
+            "minimumMonths": 24,
+            "maximumMonths": 36,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 88399.48
+          },
+          {
+            "stepName": "3 years",
+            "minimumMonths": 36,
+            "maximumMonths": 48,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 91533.27
+          },
+          {
+            "stepName": "4 years",
+            "minimumMonths": 48,
+            "maximumMonths": 60,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 94704.32
+          },
+          {
+            "stepName": "5 years",
+            "minimumMonths": 60,
+            "maximumMonths": 72,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 97875.38
+          },
+          {
+            "stepName": "6+ years (top)",
+            "minimumMonths": 72,
+            "maximumMonths": null,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 101046.42
+          }
+        ],
+        "reports": [
+          {
+            "contributorId": "dfw-fire-import",
+            "submittedAt": "2025-10-24",
+            "entry": 82131.92,
+            "top": 101046.42,
+            "hasSource": true,
+            "departmentMaintained": false
+          }
+        ]
+      }
+    },
+    {
+      "slug": "denton-fd",
+      "name": "Denton Fire Department",
+      "city": "Denton",
+      "county": "Denton",
+      "region": "north-texas",
+      "zip": "",
+      "lat": 33.21399241100059,
+      "lng": -97.12869832921118,
+      "departmentType": "municipal",
+      "website": "",
+      "careersUrl": "",
+      "phone": "",
+      "transportStatus": "unknown",
+      "hiringStatus": "unknown",
+      "scheduleType": "24/48",
+      "annualScheduledHours": 2912,
+      "population": 158349,
+      "flags": {
+        "paramedicIncentive": false,
+        "certPay": false,
+        "educationPay": false,
+        "longevity": false,
+        "lateralsAccepted": false,
+        "emtRequired": false,
+        "paramedicRequired": false
+      },
+      "dataStatus": "current",
+      "salary": {
+        "effectiveDate": "2025-08-18",
+        "includesScheduledOvertime": false,
+        "includesFlsaOvertime": false,
+        "sourceType": "official-pay-plan",
+        "sourceUrl": "https://irp.cdn-website.com/8a2e0383/files/uploaded/Denton+2025.png",
+        "classification": "Firefighter",
+        "steps": [
+          {
+            "stepName": "Entry (0–12 mo)",
+            "minimumMonths": 0,
+            "maximumMonths": 12,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 86022.56
+          },
+          {
+            "stepName": "1 year",
+            "minimumMonths": 12,
+            "maximumMonths": 24,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 90413.44
+          },
+          {
+            "stepName": "2 years",
+            "minimumMonths": 24,
+            "maximumMonths": 36,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 94804.32
+          },
+          {
+            "stepName": "3 years",
+            "minimumMonths": 36,
+            "maximumMonths": 48,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 99197.28
+          },
+          {
+            "stepName": "4 years",
+            "minimumMonths": 48,
+            "maximumMonths": 72,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 103588.16
+          },
+          {
+            "stepName": "6+ years (top)",
+            "minimumMonths": 72,
+            "maximumMonths": null,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 107987.36
+          }
+        ],
+        "reports": [
+          {
+            "contributorId": "dfw-fire-import",
+            "submittedAt": "2025-08-18",
+            "entry": 86022.56,
+            "top": 107987.36,
+            "hasSource": true,
+            "departmentMaintained": false
+          }
+        ]
+      }
+    },
+    {
+      "slug": "desoto-fd",
+      "name": "DeSoto Fire Department",
+      "city": "DeSoto",
+      "county": "Dallas",
+      "region": "north-texas",
+      "zip": "",
+      "lat": 32.6046874189553,
+      "lng": -96.89182088681258,
+      "departmentType": "municipal",
+      "website": "",
+      "careersUrl": "",
+      "phone": "",
+      "transportStatus": "unknown",
+      "hiringStatus": "unknown",
+      "scheduleType": "24/48",
+      "annualScheduledHours": 2912,
+      "population": 55740,
+      "flags": {
+        "paramedicIncentive": false,
+        "certPay": false,
+        "educationPay": false,
+        "longevity": false,
+        "lateralsAccepted": false,
+        "emtRequired": false,
+        "paramedicRequired": false
+      },
+      "dataStatus": "current",
+      "salary": {
+        "effectiveDate": "2025-10-23",
+        "includesScheduledOvertime": false,
+        "includesFlsaOvertime": false,
+        "sourceType": "official-pay-plan",
+        "sourceUrl": "https://irp.cdn-website.com/8a2e0383/files/uploaded/Desoto+.png",
+        "classification": "Firefighter",
+        "steps": [
+          {
+            "stepName": "Entry (0–12 mo)",
+            "minimumMonths": 0,
+            "maximumMonths": 12,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 85207.86
+          },
+          {
+            "stepName": "1 year",
+            "minimumMonths": 12,
+            "maximumMonths": 24,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 89855.95
+          },
+          {
+            "stepName": "2 years",
+            "minimumMonths": 24,
+            "maximumMonths": 36,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 94782.94
+          },
+          {
+            "stepName": "3+ years (top)",
+            "minimumMonths": 36,
+            "maximumMonths": null,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 100005.52
+          }
+        ],
+        "reports": [
+          {
+            "contributorId": "dfw-fire-import",
+            "submittedAt": "2025-10-23",
+            "entry": 85207.86,
+            "top": 100005.52,
+            "hasSource": true,
+            "departmentMaintained": false
+          }
+        ]
+      }
+    },
+    {
+      "slug": "dfw-airport-dps",
+      "name": "DFW Airport Department of Public Safety",
+      "city": "DFW Airport",
+      "county": "Dallas",
+      "region": "north-texas",
+      "zip": "",
+      "lat": 32.863315119748364,
+      "lng": -97.04468290045418,
+      "departmentType": "airport",
+      "website": "",
+      "careersUrl": "",
+      "phone": "",
+      "transportStatus": "unknown",
+      "hiringStatus": "unknown",
+      "scheduleType": null,
+      "annualScheduledHours": null,
+      "population": 200000,
+      "flags": {
+        "paramedicIncentive": false,
+        "certPay": false,
+        "educationPay": false,
+        "longevity": false,
+        "lateralsAccepted": false,
+        "emtRequired": false,
+        "paramedicRequired": false
+      },
+      "dataStatus": "current",
+      "salary": {
+        "effectiveDate": "2025-08-04",
+        "includesScheduledOvertime": false,
+        "includesFlsaOvertime": false,
+        "sourceType": "official-pay-plan",
+        "sourceUrl": "https://irp.cdn-website.com/8a2e0383/files/uploaded/DFW+Airport.pdf",
+        "classification": "Firefighter",
+        "steps": [
+          {
+            "stepName": "Entry (0–12 mo)",
+            "minimumMonths": 0,
+            "maximumMonths": 12,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 72297
+          },
+          {
+            "stepName": "1 year",
+            "minimumMonths": 12,
+            "maximumMonths": 24,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 78197
+          },
+          {
+            "stepName": "2 years",
+            "minimumMonths": 24,
+            "maximumMonths": 36,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 81320
+          },
+          {
+            "stepName": "3 years",
+            "minimumMonths": 36,
+            "maximumMonths": 48,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 84575
+          },
+          {
+            "stepName": "4 years",
+            "minimumMonths": 48,
+            "maximumMonths": 60,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 87957
+          },
+          {
+            "stepName": "5 years",
+            "minimumMonths": 60,
+            "maximumMonths": 72,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 91479
+          },
+          {
+            "stepName": "6+ years (top)",
+            "minimumMonths": 72,
+            "maximumMonths": null,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 95136
+          }
+        ],
+        "reports": [
+          {
+            "contributorId": "dfw-fire-import",
+            "submittedAt": "2025-08-04",
+            "entry": 72297,
+            "top": 95136,
+            "hasSource": true,
+            "departmentMaintained": false
+          }
+        ]
+      }
+    },
+    {
+      "slug": "duncanville-fd",
+      "name": "Duncanville Fire Department",
+      "city": "Duncanville",
+      "county": "Dallas",
+      "region": "north-texas",
+      "zip": "",
+      "lat": 32.631090907151204,
+      "lng": -96.90790048216049,
+      "departmentType": "municipal",
+      "website": "",
+      "careersUrl": "",
+      "phone": "",
+      "transportStatus": "unknown",
+      "hiringStatus": "unknown",
+      "scheduleType": "48/96",
+      "annualScheduledHours": 2912,
+      "population": 39203,
+      "flags": {
+        "paramedicIncentive": false,
+        "certPay": false,
+        "educationPay": false,
+        "longevity": false,
+        "lateralsAccepted": false,
+        "emtRequired": false,
+        "paramedicRequired": false
+      },
+      "dataStatus": "current",
+      "salary": {
+        "effectiveDate": "2025-10-23",
+        "includesScheduledOvertime": false,
+        "includesFlsaOvertime": false,
+        "sourceType": "official-pay-plan",
+        "sourceUrl": "https://irp.cdn-website.com/8a2e0383/files/uploaded/Duncanville.png",
+        "classification": "Firefighter",
+        "steps": [
+          {
+            "stepName": "Entry (0–12 mo)",
+            "minimumMonths": 0,
+            "maximumMonths": 12,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 71757
+          },
+          {
+            "stepName": "1 year",
+            "minimumMonths": 12,
+            "maximumMonths": 24,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 73910
+          },
+          {
+            "stepName": "2 years",
+            "minimumMonths": 24,
+            "maximumMonths": 36,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 76127
+          },
+          {
+            "stepName": "3 years",
+            "minimumMonths": 36,
+            "maximumMonths": 48,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 78411
+          },
+          {
+            "stepName": "4 years",
+            "minimumMonths": 48,
+            "maximumMonths": 60,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 86252
+          },
+          {
+            "stepName": "5 years",
+            "minimumMonths": 60,
+            "maximumMonths": 72,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 90565
+          },
+          {
+            "stepName": "6+ years (top)",
+            "minimumMonths": 72,
+            "maximumMonths": null,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 93177
+          }
+        ],
+        "reports": [
+          {
+            "contributorId": "dfw-fire-import",
+            "submittedAt": "2025-10-23",
+            "entry": 71757,
+            "top": 93177,
+            "hasSource": true,
+            "departmentMaintained": false
+          }
+        ]
+      }
+    },
+    {
+      "slug": "ennis-fd",
+      "name": "Ennis Fire Department",
+      "city": "Ennis",
+      "county": "Ellis",
+      "region": "north-texas",
+      "zip": "",
+      "lat": 32.303886013394056,
+      "lng": -96.63406698434852,
+      "departmentType": "municipal",
+      "website": "",
+      "careersUrl": "",
+      "phone": "",
+      "transportStatus": "unknown",
+      "hiringStatus": "unknown",
+      "scheduleType": null,
+      "annualScheduledHours": null,
+      "population": 23686,
+      "flags": {
+        "paramedicIncentive": false,
+        "certPay": false,
+        "educationPay": false,
+        "longevity": false,
+        "lateralsAccepted": false,
+        "emtRequired": false,
+        "paramedicRequired": false
+      },
+      "dataStatus": "current",
+      "salary": {
+        "effectiveDate": "2025-08-12",
+        "includesScheduledOvertime": false,
+        "includesFlsaOvertime": false,
+        "sourceType": "official-pay-plan",
+        "sourceUrl": "https://irp.cdn-website.com/8a2e0383/files/uploaded/Ennis.xlsx",
+        "classification": "Firefighter",
+        "steps": [
+          {
+            "stepName": "Entry (0–12 mo)",
+            "minimumMonths": 0,
+            "maximumMonths": 12,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 67218
+          },
+          {
+            "stepName": "1 year",
+            "minimumMonths": 12,
+            "maximumMonths": 24,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 71312
+          },
+          {
+            "stepName": "2 years",
+            "minimumMonths": 24,
+            "maximumMonths": 36,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 73451
+          },
+          {
+            "stepName": "3 years",
+            "minimumMonths": 36,
+            "maximumMonths": 48,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 75655
+          },
+          {
+            "stepName": "4 years",
+            "minimumMonths": 48,
+            "maximumMonths": 60,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 77924
+          },
+          {
+            "stepName": "5 years",
+            "minimumMonths": 60,
+            "maximumMonths": 72,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 80262
+          },
+          {
+            "stepName": "6+ years (top)",
+            "minimumMonths": 72,
+            "maximumMonths": null,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 82670
+          }
+        ],
+        "reports": [
+          {
+            "contributorId": "dfw-fire-import",
+            "submittedAt": "2025-08-12",
+            "entry": 67218,
+            "top": 82670,
+            "hasSource": true,
+            "departmentMaintained": false
+          }
+        ]
+      }
+    },
+    {
+      "slug": "euless-fd",
+      "name": "Euless Fire Department",
+      "city": "Euless",
+      "county": "Tarrant",
+      "region": "north-texas",
+      "zip": "",
+      "lat": 32.84032784011697,
+      "lng": -97.09274412838576,
+      "departmentType": "municipal",
+      "website": "",
+      "careersUrl": "",
+      "phone": "",
+      "transportStatus": "unknown",
+      "hiringStatus": "unknown",
+      "scheduleType": null,
+      "annualScheduledHours": null,
+      "population": 60010,
+      "flags": {
+        "paramedicIncentive": false,
+        "certPay": false,
+        "educationPay": false,
+        "longevity": false,
+        "lateralsAccepted": false,
+        "emtRequired": false,
+        "paramedicRequired": false
+      },
+      "dataStatus": "current",
+      "salary": {
+        "effectiveDate": "2025-10-24",
+        "includesScheduledOvertime": false,
+        "includesFlsaOvertime": false,
+        "sourceType": "official-pay-plan",
+        "sourceUrl": "https://irp.cdn-website.com/8a2e0383/files/uploaded/Euless.pdf",
+        "classification": "Firefighter",
+        "steps": [
+          {
+            "stepName": "Entry (0–12 mo)",
+            "minimumMonths": 0,
+            "maximumMonths": 12,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 78677
+          },
+          {
+            "stepName": "1 year",
+            "minimumMonths": 12,
+            "maximumMonths": 24,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 82463
+          },
+          {
+            "stepName": "2 years",
+            "minimumMonths": 24,
+            "maximumMonths": 36,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 87002
+          },
+          {
+            "stepName": "3 years",
+            "minimumMonths": 36,
+            "maximumMonths": 48,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 91177
+          },
+          {
+            "stepName": "4 years",
+            "minimumMonths": 48,
+            "maximumMonths": 60,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 96662
+          },
+          {
+            "stepName": "5+ years (top)",
+            "minimumMonths": 60,
+            "maximumMonths": null,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 101250
+          }
+        ],
+        "reports": [
+          {
+            "contributorId": "dfw-fire-import",
+            "submittedAt": "2025-10-24",
+            "entry": 78677,
+            "top": 101250,
+            "hasSource": true,
+            "departmentMaintained": false
+          }
+        ]
+      }
+    },
+    {
+      "slug": "fairview-fd",
+      "name": "Fairview Fire Department",
+      "city": "Fairview",
+      "county": "Collin",
+      "region": "north-texas",
+      "zip": "",
+      "lat": 33.13890626413904,
+      "lng": -96.640294196338,
+      "departmentType": "municipal",
+      "website": "",
+      "careersUrl": "",
+      "phone": "",
+      "transportStatus": "unknown",
+      "hiringStatus": "unknown",
+      "scheduleType": "48/96",
+      "annualScheduledHours": 2912,
+      "population": 10790,
+      "flags": {
+        "paramedicIncentive": false,
+        "certPay": false,
+        "educationPay": false,
+        "longevity": false,
+        "lateralsAccepted": false,
+        "emtRequired": false,
+        "paramedicRequired": false
+      },
+      "dataStatus": "current",
+      "salary": {
+        "effectiveDate": "2025-08-04",
+        "includesScheduledOvertime": false,
+        "includesFlsaOvertime": false,
+        "sourceType": "official-pay-plan",
+        "sourceUrl": "https://irp.cdn-website.com/8a2e0383/files/uploaded/Fairview.jpg",
+        "classification": "Firefighter",
+        "steps": [
+          {
+            "stepName": "Entry (0–12 mo)",
+            "minimumMonths": 0,
+            "maximumMonths": 12,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 79616.99
+          },
+          {
+            "stepName": "1 year",
+            "minimumMonths": 12,
+            "maximumMonths": 24,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 82403.78
+          },
+          {
+            "stepName": "2 years",
+            "minimumMonths": 24,
+            "maximumMonths": 36,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 85286.66
+          },
+          {
+            "stepName": "3 years",
+            "minimumMonths": 36,
+            "maximumMonths": 48,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 88268.54
+          },
+          {
+            "stepName": "4 years",
+            "minimumMonths": 48,
+            "maximumMonths": 60,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 91361.9
+          },
+          {
+            "stepName": "5 years",
+            "minimumMonths": 60,
+            "maximumMonths": 72,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 95555.55
+          },
+          {
+            "stepName": "6 years",
+            "minimumMonths": 72,
+            "maximumMonths": 84,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 97866.5
+          },
+          {
+            "stepName": "7+ years (top)",
+            "minimumMonths": 84,
+            "maximumMonths": null,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 101291.83
+          }
+        ],
+        "reports": [
+          {
+            "contributorId": "dfw-fire-import",
+            "submittedAt": "2025-08-04",
+            "entry": 79616.99,
+            "top": 101291.83,
+            "hasSource": true,
+            "departmentMaintained": false
+          }
+        ]
+      }
+    },
+    {
+      "slug": "flower-mound-fd",
+      "name": "Flower Mound Fire Department",
+      "city": "Flower Mound",
+      "county": "Denton",
+      "region": "north-texas",
+      "zip": "",
+      "lat": 33.038251463204794,
+      "lng": -97.06377144722556,
+      "departmentType": "municipal",
+      "website": "",
+      "careersUrl": "",
+      "phone": "",
+      "transportStatus": "unknown",
+      "hiringStatus": "unknown",
+      "scheduleType": "24/48",
+      "annualScheduledHours": 2912,
+      "population": 79445,
+      "flags": {
+        "paramedicIncentive": false,
+        "certPay": false,
+        "educationPay": false,
+        "longevity": false,
+        "lateralsAccepted": false,
+        "emtRequired": false,
+        "paramedicRequired": false
+      },
+      "dataStatus": "current",
+      "salary": {
+        "effectiveDate": "2025-10-23",
+        "includesScheduledOvertime": false,
+        "includesFlsaOvertime": false,
+        "sourceType": "official-pay-plan",
+        "sourceUrl": "https://irp.cdn-website.com/8a2e0383/files/uploaded/Flower+Mound.jpg",
+        "classification": "Firefighter",
+        "steps": [
+          {
+            "stepName": "Entry (0–12 mo)",
+            "minimumMonths": 0,
+            "maximumMonths": 12,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 81742.96
+          },
+          {
+            "stepName": "1 year",
+            "minimumMonths": 12,
+            "maximumMonths": 24,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 84195.38
+          },
+          {
+            "stepName": "2 years",
+            "minimumMonths": 24,
+            "maximumMonths": 36,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 86731.32
+          },
+          {
+            "stepName": "3 years",
+            "minimumMonths": 36,
+            "maximumMonths": 48,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 89321.96
+          },
+          {
+            "stepName": "4 years",
+            "minimumMonths": 48,
+            "maximumMonths": 60,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 94751.28
+          },
+          {
+            "stepName": "5 years",
+            "minimumMonths": 60,
+            "maximumMonths": 72,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 97589.96
+          },
+          {
+            "stepName": "6+ years (top)",
+            "minimumMonths": 72,
+            "maximumMonths": null,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 100511.32
+          }
+        ],
+        "reports": [
+          {
+            "contributorId": "dfw-fire-import",
+            "submittedAt": "2025-10-23",
+            "entry": 81742.96,
+            "top": 100511.32,
+            "hasSource": true,
+            "departmentMaintained": false
+          }
+        ]
+      }
+    },
+    {
+      "slug": "fort-worth-fd",
+      "name": "Fort Worth Fire Department",
+      "city": "Fort Worth",
+      "county": "Tarrant",
+      "region": "north-texas",
+      "zip": "",
+      "lat": 32.676379255781924,
+      "lng": -97.3282291201696,
+      "departmentType": "municipal",
+      "website": "",
+      "careersUrl": "",
+      "phone": "",
+      "transportStatus": "unknown",
+      "hiringStatus": "unknown",
+      "scheduleType": "24/48",
+      "annualScheduledHours": 2912,
+      "population": 978468,
+      "flags": {
+        "paramedicIncentive": false,
+        "certPay": false,
+        "educationPay": false,
+        "longevity": false,
+        "lateralsAccepted": false,
+        "emtRequired": false,
+        "paramedicRequired": false
+      },
+      "dataStatus": "current",
+      "salary": {
+        "effectiveDate": "2025-08-04",
+        "includesScheduledOvertime": false,
+        "includesFlsaOvertime": false,
+        "sourceType": "official-pay-plan",
+        "sourceUrl": "https://irp.cdn-website.com/8a2e0383/files/uploaded/Fort+Worth.docx",
+        "classification": "Firefighter",
+        "steps": [
+          {
+            "stepName": "Entry (0–12 mo)",
+            "minimumMonths": 0,
+            "maximumMonths": 12,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 67757
+          },
+          {
+            "stepName": "1 year",
+            "minimumMonths": 12,
+            "maximumMonths": 24,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 71104
+          },
+          {
+            "stepName": "2 years",
+            "minimumMonths": 24,
+            "maximumMonths": 36,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 74661
+          },
+          {
+            "stepName": "3 years",
+            "minimumMonths": 36,
+            "maximumMonths": 48,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 78404
+          },
+          {
+            "stepName": "4 years",
+            "minimumMonths": 48,
+            "maximumMonths": 60,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 84783
+          },
+          {
+            "stepName": "5 years",
+            "minimumMonths": 60,
+            "maximumMonths": 108,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 88999
+          },
+          {
+            "stepName": "9 years",
+            "minimumMonths": 108,
+            "maximumMonths": 132,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 91608
+          },
+          {
+            "stepName": "11+ years (top)",
+            "minimumMonths": 132,
+            "maximumMonths": null,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 94190
+          }
+        ],
+        "reports": [
+          {
+            "contributorId": "dfw-fire-import",
+            "submittedAt": "2025-08-04",
+            "entry": 67757,
+            "top": 94190,
+            "hasSource": true,
+            "departmentMaintained": false
+          }
+        ]
+      }
+    },
+    {
+      "slug": "frisco-fd",
+      "name": "Frisco Fire Department",
+      "city": "Frisco",
+      "county": "Collin",
+      "region": "north-texas",
+      "zip": "",
+      "lat": 33.149185073202766,
+      "lng": -96.80977555516513,
+      "departmentType": "municipal",
+      "website": "",
+      "careersUrl": "",
+      "phone": "",
+      "transportStatus": "unknown",
+      "hiringStatus": "unknown",
+      "scheduleType": "24/48",
+      "annualScheduledHours": 2912,
+      "population": 225007,
+      "flags": {
+        "paramedicIncentive": false,
+        "certPay": false,
+        "educationPay": false,
+        "longevity": false,
+        "lateralsAccepted": false,
+        "emtRequired": false,
+        "paramedicRequired": false
+      },
+      "dataStatus": "current",
+      "salary": {
+        "effectiveDate": "2025-08-04",
+        "includesScheduledOvertime": false,
+        "includesFlsaOvertime": false,
+        "sourceType": "official-pay-plan",
+        "sourceUrl": "https://irp.cdn-website.com/8a2e0383/files/uploaded/Frisco.pdf",
+        "classification": "Firefighter",
+        "steps": [
+          {
+            "stepName": "Entry (0–12 mo)",
+            "minimumMonths": 0,
+            "maximumMonths": 12,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 85000
+          },
+          {
+            "stepName": "1 year",
+            "minimumMonths": 12,
+            "maximumMonths": 24,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 87550
+          },
+          {
+            "stepName": "2 years",
+            "minimumMonths": 24,
+            "maximumMonths": 36,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 90117
+          },
+          {
+            "stepName": "3 years",
+            "minimumMonths": 36,
+            "maximumMonths": 48,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 92882
+          },
+          {
+            "stepName": "4 years",
+            "minimumMonths": 48,
+            "maximumMonths": 60,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 95668
+          },
+          {
+            "stepName": "5 years",
+            "minimumMonths": 60,
+            "maximumMonths": 72,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 98538
+          },
+          {
+            "stepName": "6 years",
+            "minimumMonths": 72,
+            "maximumMonths": 84,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 101494
+          },
+          {
+            "stepName": "7+ years (top)",
+            "minimumMonths": 84,
+            "maximumMonths": null,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 105047
+          }
+        ],
+        "reports": [
+          {
+            "contributorId": "dfw-fire-import",
+            "submittedAt": "2025-08-04",
+            "entry": 85000,
+            "top": 105047,
+            "hasSource": true,
+            "departmentMaintained": false
+          }
+        ]
+      }
+    },
+    {
+      "slug": "garland-fd",
+      "name": "Garland Fire Department",
+      "city": "Garland",
+      "county": "Dallas",
+      "region": "north-texas",
+      "zip": "",
+      "lat": 32.910197223357486,
+      "lng": -96.60916126226988,
+      "departmentType": "municipal",
+      "website": "",
+      "careersUrl": "",
+      "phone": "",
+      "transportStatus": "unknown",
+      "hiringStatus": "unknown",
+      "scheduleType": null,
+      "annualScheduledHours": null,
+      "population": 243470,
+      "flags": {
+        "paramedicIncentive": false,
+        "certPay": false,
+        "educationPay": false,
+        "longevity": false,
+        "lateralsAccepted": false,
+        "emtRequired": false,
+        "paramedicRequired": false
+      },
+      "dataStatus": "current",
+      "salary": {
+        "effectiveDate": "2025-08-04",
+        "includesScheduledOvertime": false,
+        "includesFlsaOvertime": false,
+        "sourceType": "official-pay-plan",
+        "sourceUrl": "https://irp.cdn-website.com/8a2e0383/files/uploaded/Garland.jpg",
+        "classification": "Firefighter",
+        "steps": [
+          {
+            "stepName": "Entry (0–12 mo)",
+            "minimumMonths": 0,
+            "maximumMonths": 12,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 77575
+          },
+          {
+            "stepName": "1 year",
+            "minimumMonths": 12,
+            "maximumMonths": 24,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 82478
+          },
+          {
+            "stepName": "2 years",
+            "minimumMonths": 24,
+            "maximumMonths": 36,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 86740
+          },
+          {
+            "stepName": "3 years",
+            "minimumMonths": 36,
+            "maximumMonths": 60,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 90184
+          },
+          {
+            "stepName": "5 years",
+            "minimumMonths": 60,
+            "maximumMonths": 84,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 97008
+          },
+          {
+            "stepName": "7 years",
+            "minimumMonths": 84,
+            "maximumMonths": 108,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 98913
+          },
+          {
+            "stepName": "9+ years (top)",
+            "minimumMonths": 108,
+            "maximumMonths": null,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 100214
+          }
+        ],
+        "reports": [
+          {
+            "contributorId": "dfw-fire-import",
+            "submittedAt": "2025-08-04",
+            "entry": 77575,
+            "top": 100214,
+            "hasSource": true,
+            "departmentMaintained": false
+          }
+        ]
+      }
+    },
+    {
+      "slug": "grand-prairie-fd",
+      "name": "Grand Prairie Fire Department",
+      "city": "Grand Prairie",
+      "county": "Dallas",
+      "region": "north-texas",
+      "zip": "",
+      "lat": 32.745117408052295,
+      "lng": -97.00982556325793,
+      "departmentType": "municipal",
+      "website": "",
+      "careersUrl": "",
+      "phone": "",
+      "transportStatus": "unknown",
+      "hiringStatus": "unknown",
+      "scheduleType": "48/96",
+      "annualScheduledHours": 2912,
+      "population": 193835,
+      "flags": {
+        "paramedicIncentive": false,
+        "certPay": false,
+        "educationPay": false,
+        "longevity": false,
+        "lateralsAccepted": false,
+        "emtRequired": false,
+        "paramedicRequired": false
+      },
+      "dataStatus": "current",
+      "salary": {
+        "effectiveDate": "2025-08-04",
+        "includesScheduledOvertime": false,
+        "includesFlsaOvertime": false,
+        "sourceType": "official-pay-plan",
+        "sourceUrl": "https://irp.cdn-website.com/8a2e0383/files/uploaded/Grand+Prairie.pdf",
+        "classification": "Firefighter",
+        "steps": [
+          {
+            "stepName": "Entry (0–12 mo)",
+            "minimumMonths": 0,
+            "maximumMonths": 12,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 80062
+          },
+          {
+            "stepName": "1 year",
+            "minimumMonths": 12,
+            "maximumMonths": 24,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 82465
+          },
+          {
+            "stepName": "2 years",
+            "minimumMonths": 24,
+            "maximumMonths": 36,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 86588
+          },
+          {
+            "stepName": "3 years",
+            "minimumMonths": 36,
+            "maximumMonths": 48,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 90929
+          },
+          {
+            "stepName": "4 years",
+            "minimumMonths": 48,
+            "maximumMonths": 60,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 95486
+          },
+          {
+            "stepName": "5 years",
+            "minimumMonths": 60,
+            "maximumMonths": 72,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 100261
+          },
+          {
+            "stepName": "6+ years (top)",
+            "minimumMonths": 72,
+            "maximumMonths": null,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 102767
+          }
+        ],
+        "reports": [
+          {
+            "contributorId": "dfw-fire-import",
+            "submittedAt": "2025-08-04",
+            "entry": 80062,
+            "top": 102767,
+            "hasSource": true,
+            "departmentMaintained": false
+          }
+        ]
+      }
+    },
+    {
+      "slug": "grapevine-fd",
+      "name": "Grapevine Fire Department",
+      "city": "Grapevine",
+      "county": "Tarrant",
+      "region": "north-texas",
+      "zip": "",
+      "lat": 32.93106204563792,
+      "lng": -97.08728222299617,
+      "departmentType": "municipal",
+      "website": "",
+      "careersUrl": "",
+      "phone": "",
+      "transportStatus": "unknown",
+      "hiringStatus": "unknown",
+      "scheduleType": "48/96",
+      "annualScheduledHours": 2912,
+      "population": 51320,
+      "flags": {
+        "paramedicIncentive": false,
+        "certPay": false,
+        "educationPay": false,
+        "longevity": false,
+        "lateralsAccepted": false,
+        "emtRequired": false,
+        "paramedicRequired": false
+      },
+      "dataStatus": "current",
+      "salary": {
+        "effectiveDate": "2025-10-24",
+        "includesScheduledOvertime": false,
+        "includesFlsaOvertime": false,
+        "sourceType": "official-pay-plan",
+        "sourceUrl": "https://irp.cdn-website.com/8a2e0383/files/uploaded/Grapevine.pdf",
+        "classification": "Firefighter",
+        "steps": [
+          {
+            "stepName": "Entry (0–12 mo)",
+            "minimumMonths": 0,
+            "maximumMonths": 12,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 81381.41
+          },
+          {
+            "stepName": "1 year",
+            "minimumMonths": 12,
+            "maximumMonths": 24,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 85456.47
+          },
+          {
+            "stepName": "2 years",
+            "minimumMonths": 24,
+            "maximumMonths": 36,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 89711.32
+          },
+          {
+            "stepName": "3 years",
+            "minimumMonths": 36,
+            "maximumMonths": 48,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 94205.87
+          },
+          {
+            "stepName": "4+ years (top)",
+            "minimumMonths": 48,
+            "maximumMonths": null,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 98910.17
+          }
+        ],
+        "reports": [
+          {
+            "contributorId": "dfw-fire-import",
+            "submittedAt": "2025-10-24",
+            "entry": 81381.41,
+            "top": 98910.17,
+            "hasSource": true,
+            "departmentMaintained": false
+          }
+        ]
+      }
+    },
+    {
+      "slug": "haltom-city-fd",
+      "name": "Haltom City Fire Department",
+      "city": "Haltom City",
+      "county": "Tarrant",
+      "region": "north-texas",
+      "zip": "",
+      "lat": 32.810014710660646,
+      "lng": -97.26642929547452,
+      "departmentType": "municipal",
+      "website": "",
+      "careersUrl": "",
+      "phone": "",
+      "transportStatus": "unknown",
+      "hiringStatus": "unknown",
+      "scheduleType": null,
+      "annualScheduledHours": null,
+      "population": 45290,
+      "flags": {
+        "paramedicIncentive": false,
+        "certPay": false,
+        "educationPay": false,
+        "longevity": false,
+        "lateralsAccepted": false,
+        "emtRequired": false,
+        "paramedicRequired": false
+      },
+      "dataStatus": "current",
+      "salary": {
+        "effectiveDate": "2025-08-07",
+        "includesScheduledOvertime": false,
+        "includesFlsaOvertime": false,
+        "sourceType": "community",
+        "sourceUrl": "",
+        "classification": "Firefighter",
+        "steps": [
+          {
+            "stepName": "Entry (0–12 mo)",
+            "minimumMonths": 0,
+            "maximumMonths": null,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 78813
+          }
+        ],
+        "reports": [
+          {
+            "contributorId": "dfw-fire-import",
+            "submittedAt": "2025-08-07",
+            "entry": 78813,
+            "top": 78813,
+            "hasSource": false,
+            "departmentMaintained": false
+          }
+        ]
+      }
+    },
+    {
+      "slug": "highland-park-dps",
+      "name": "Highland Park Department of Public Safety",
+      "city": "Highland Park",
+      "county": "Dallas",
+      "region": "north-texas",
+      "zip": "",
+      "lat": 32.82846744162392,
+      "lng": -96.79659561968813,
+      "departmentType": "combination",
+      "website": "",
+      "careersUrl": "",
+      "phone": "",
+      "transportStatus": "unknown",
+      "hiringStatus": "unknown",
+      "scheduleType": "24/48",
+      "annualScheduledHours": 2912,
+      "population": 8642,
+      "flags": {
+        "paramedicIncentive": false,
+        "certPay": false,
+        "educationPay": false,
+        "longevity": false,
+        "lateralsAccepted": false,
+        "emtRequired": false,
+        "paramedicRequired": false
+      },
+      "dataStatus": "current",
+      "salary": {
+        "effectiveDate": "2025-08-04",
+        "includesScheduledOvertime": false,
+        "includesFlsaOvertime": false,
+        "sourceType": "community",
+        "sourceUrl": "",
+        "classification": "Firefighter",
+        "steps": [
+          {
+            "stepName": "Entry (0–12 mo)",
+            "minimumMonths": 0,
+            "maximumMonths": null,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 73677.5
+          }
+        ],
+        "reports": [
+          {
+            "contributorId": "dfw-fire-import",
+            "submittedAt": "2025-08-04",
+            "entry": 73677.5,
+            "top": 73677.5,
+            "hasSource": false,
+            "departmentMaintained": false
+          }
+        ]
+      }
+    },
+    {
+      "slug": "hurst-fd",
+      "name": "Hurst Fire Department",
+      "city": "Hurst",
+      "county": "Tarrant",
+      "region": "north-texas",
+      "zip": "",
+      "lat": 32.85321550862505,
+      "lng": -97.18585936165144,
+      "departmentType": "municipal",
+      "website": "",
+      "careersUrl": "",
+      "phone": "",
+      "transportStatus": "unknown",
+      "hiringStatus": "unknown",
+      "scheduleType": "48/96",
+      "annualScheduledHours": 2912,
+      "population": 39304,
+      "flags": {
+        "paramedicIncentive": false,
+        "certPay": false,
+        "educationPay": false,
+        "longevity": false,
+        "lateralsAccepted": false,
+        "emtRequired": false,
+        "paramedicRequired": false
+      },
+      "dataStatus": "current",
+      "salary": {
+        "effectiveDate": "2025-08-07",
+        "includesScheduledOvertime": false,
+        "includesFlsaOvertime": false,
+        "sourceType": "official-pay-plan",
+        "sourceUrl": "https://irp.cdn-website.com/8a2e0383/files/uploaded/Hurst+FD.jpg",
+        "classification": "Firefighter",
+        "steps": [
+          {
+            "stepName": "Entry (0–12 mo)",
+            "minimumMonths": 0,
+            "maximumMonths": 12,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 82487.81
+          },
+          {
+            "stepName": "1+ years (top)",
+            "minimumMonths": 12,
+            "maximumMonths": null,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 90342.35
+          }
+        ],
+        "reports": [
+          {
+            "contributorId": "dfw-fire-import",
+            "submittedAt": "2025-08-07",
+            "entry": 82487.81,
+            "top": 90342.35,
+            "hasSource": true,
+            "departmentMaintained": false
+          }
+        ]
+      }
+    },
+    {
+      "slug": "irving-fd",
+      "name": "Irving Fire Department",
+      "city": "Irving",
+      "county": "Dallas",
+      "region": "north-texas",
+      "zip": "",
+      "lat": 32.81472544244373,
+      "lng": -96.95810999598598,
+      "departmentType": "municipal",
+      "website": "",
+      "careersUrl": "",
+      "phone": "",
+      "transportStatus": "unknown",
+      "hiringStatus": "unknown",
+      "scheduleType": null,
+      "annualScheduledHours": null,
+      "population": 254373,
+      "flags": {
+        "paramedicIncentive": false,
+        "certPay": false,
+        "educationPay": false,
+        "longevity": false,
+        "lateralsAccepted": false,
+        "emtRequired": false,
+        "paramedicRequired": false
+      },
+      "dataStatus": "current",
+      "salary": {
+        "effectiveDate": "2025-08-04",
+        "includesScheduledOvertime": false,
+        "includesFlsaOvertime": false,
+        "sourceType": "official-pay-plan",
+        "sourceUrl": "https://irp.cdn-website.com/8a2e0383/files/uploaded/Irving.pdf",
+        "classification": "Firefighter",
+        "steps": [
+          {
+            "stepName": "Entry (0–12 mo)",
+            "minimumMonths": 0,
+            "maximumMonths": 12,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 85632
+          },
+          {
+            "stepName": "1 year",
+            "minimumMonths": 12,
+            "maximumMonths": 24,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 89916
+          },
+          {
+            "stepName": "2 years",
+            "minimumMonths": 24,
+            "maximumMonths": 36,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 94416
+          },
+          {
+            "stepName": "3 years",
+            "minimumMonths": 36,
+            "maximumMonths": 48,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 99132
+          },
+          {
+            "stepName": "4+ years (top)",
+            "minimumMonths": 48,
+            "maximumMonths": null,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 104088
+          }
+        ],
+        "reports": [
+          {
+            "contributorId": "dfw-fire-import",
+            "submittedAt": "2025-08-04",
+            "entry": 85632,
+            "top": 104088,
+            "hasSource": true,
+            "departmentMaintained": false
+          }
+        ]
+      }
+    },
+    {
+      "slug": "keller-fd",
+      "name": "Keller Fire Department",
+      "city": "Keller",
+      "county": "Tarrant",
+      "region": "north-texas",
+      "zip": "",
+      "lat": 32.92984661037833,
+      "lng": -97.2271260817352,
+      "departmentType": "municipal",
+      "website": "",
+      "careersUrl": "",
+      "phone": "",
+      "transportStatus": "unknown",
+      "hiringStatus": "unknown",
+      "scheduleType": "24/48",
+      "annualScheduledHours": 2912,
+      "population": 46316,
+      "flags": {
+        "paramedicIncentive": false,
+        "certPay": false,
+        "educationPay": false,
+        "longevity": false,
+        "lateralsAccepted": false,
+        "emtRequired": false,
+        "paramedicRequired": false
+      },
+      "dataStatus": "current",
+      "salary": {
+        "effectiveDate": "2025-09-27",
+        "includesScheduledOvertime": false,
+        "includesFlsaOvertime": false,
+        "sourceType": "official-pay-plan",
+        "sourceUrl": "https://irp.cdn-website.com/8a2e0383/files/uploaded/Keller+FD.jpeg",
+        "classification": "Firefighter",
+        "steps": [
+          {
+            "stepName": "Entry (0–12 mo)",
+            "minimumMonths": 0,
+            "maximumMonths": 12,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 76061
+          },
+          {
+            "stepName": "1 year",
+            "minimumMonths": 12,
+            "maximumMonths": 24,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 77576
+          },
+          {
+            "stepName": "2 years",
+            "minimumMonths": 24,
+            "maximumMonths": 36,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 79119
+          },
+          {
+            "stepName": "3 years",
+            "minimumMonths": 36,
+            "maximumMonths": 48,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 80692
+          },
+          {
+            "stepName": "4 years",
+            "minimumMonths": 48,
+            "maximumMonths": 60,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 82293
+          },
+          {
+            "stepName": "5 years",
+            "minimumMonths": 60,
+            "maximumMonths": 72,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 83953
+          },
+          {
+            "stepName": "6 years",
+            "minimumMonths": 72,
+            "maximumMonths": 84,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 85642
+          },
+          {
+            "stepName": "7 years",
+            "minimumMonths": 84,
+            "maximumMonths": 96,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 87360
+          },
+          {
+            "stepName": "8 years",
+            "minimumMonths": 96,
+            "maximumMonths": 108,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 89107
+          },
+          {
+            "stepName": "9+ years (top)",
+            "minimumMonths": 108,
+            "maximumMonths": null,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 90884
+          }
+        ],
+        "reports": [
+          {
+            "contributorId": "dfw-fire-import",
+            "submittedAt": "2025-09-27",
+            "entry": 76061,
+            "top": 90884,
+            "hasSource": true,
+            "departmentMaintained": false
+          }
+        ]
+      }
+    },
+    {
+      "slug": "lake-cities-fd",
+      "name": "Lake Cities Fire Department",
+      "city": "Lake Cities",
+      "county": "Denton",
+      "region": "north-texas",
+      "zip": "",
+      "lat": 33.13057302700579,
+      "lng": -97.05206381138511,
+      "departmentType": "municipal",
+      "website": "",
+      "careersUrl": "",
+      "phone": "",
+      "transportStatus": "unknown",
+      "hiringStatus": "unknown",
+      "scheduleType": "48/96",
+      "annualScheduledHours": 2912,
+      "population": 42271,
+      "flags": {
+        "paramedicIncentive": false,
+        "certPay": false,
+        "educationPay": false,
+        "longevity": false,
+        "lateralsAccepted": false,
+        "emtRequired": false,
+        "paramedicRequired": false
+      },
+      "dataStatus": "current",
+      "salary": {
+        "effectiveDate": "2025-10-23",
+        "includesScheduledOvertime": false,
+        "includesFlsaOvertime": false,
+        "sourceType": "official-pay-plan",
+        "sourceUrl": "https://irp.cdn-website.com/8a2e0383/files/uploaded/Lake+Cities.pdf",
+        "classification": "Firefighter",
+        "steps": [
+          {
+            "stepName": "Entry (0–12 mo)",
+            "minimumMonths": 0,
+            "maximumMonths": 12,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 73235.31
+          },
+          {
+            "stepName": "1 year",
+            "minimumMonths": 12,
+            "maximumMonths": 24,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 75425.07
+          },
+          {
+            "stepName": "2 years",
+            "minimumMonths": 24,
+            "maximumMonths": 36,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 77675.65
+          },
+          {
+            "stepName": "3 years",
+            "minimumMonths": 36,
+            "maximumMonths": 48,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 79987.07
+          },
+          {
+            "stepName": "4 years",
+            "minimumMonths": 48,
+            "maximumMonths": 60,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 82359.31
+          },
+          {
+            "stepName": "5 years",
+            "minimumMonths": 60,
+            "maximumMonths": 72,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 84822.79
+          },
+          {
+            "stepName": "6+ years (top)",
+            "minimumMonths": 72,
+            "maximumMonths": null,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 87347.09
+          }
+        ],
+        "reports": [
+          {
+            "contributorId": "dfw-fire-import",
+            "submittedAt": "2025-10-23",
+            "entry": 73235.31,
+            "top": 87347.09,
+            "hasSource": true,
+            "departmentMaintained": false
+          }
+        ]
+      }
+    },
+    {
+      "slug": "lewisville-fd",
+      "name": "Lewisville Fire Department",
+      "city": "Lewisville",
+      "county": "Denton",
+      "region": "north-texas",
+      "zip": "",
+      "lat": 33.04368114797534,
+      "lng": -97.02105707319502,
+      "departmentType": "municipal",
+      "website": "",
+      "careersUrl": "",
+      "phone": "",
+      "transportStatus": "unknown",
+      "hiringStatus": "unknown",
+      "scheduleType": "24/48",
+      "annualScheduledHours": 2912,
+      "population": 133553,
+      "flags": {
+        "paramedicIncentive": false,
+        "certPay": false,
+        "educationPay": false,
+        "longevity": false,
+        "lateralsAccepted": false,
+        "emtRequired": false,
+        "paramedicRequired": false
+      },
+      "dataStatus": "current",
+      "salary": {
+        "effectiveDate": "2025-10-23",
+        "includesScheduledOvertime": false,
+        "includesFlsaOvertime": false,
+        "sourceType": "official-pay-plan",
+        "sourceUrl": "https://irp.cdn-website.com/8a2e0383/files/uploaded/Lewisville-8eeb2457.pdf",
+        "classification": "Firefighter",
+        "steps": [
+          {
+            "stepName": "Entry (0–12 mo)",
+            "minimumMonths": 0,
+            "maximumMonths": 12,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 82034
+          },
+          {
+            "stepName": "1 year",
+            "minimumMonths": 12,
+            "maximumMonths": 24,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 85279
+          },
+          {
+            "stepName": "2 years",
+            "minimumMonths": 24,
+            "maximumMonths": 36,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 88660
+          },
+          {
+            "stepName": "3 years",
+            "minimumMonths": 36,
+            "maximumMonths": 48,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 92199
+          },
+          {
+            "stepName": "4 years",
+            "minimumMonths": 48,
+            "maximumMonths": 60,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 95875
+          },
+          {
+            "stepName": "5 years",
+            "minimumMonths": 60,
+            "maximumMonths": 72,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 99659
+          },
+          {
+            "stepName": "6+ years (top)",
+            "minimumMonths": 72,
+            "maximumMonths": null,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 103641
+          }
+        ],
+        "reports": [
+          {
+            "contributorId": "dfw-fire-import",
+            "submittedAt": "2025-10-23",
+            "entry": 82034,
+            "top": 103641,
+            "hasSource": true,
+            "departmentMaintained": false
+          }
+        ]
+      }
+    },
+    {
+      "slug": "little-elm-fd",
+      "name": "Little Elm Fire Department",
+      "city": "Little Elm",
+      "county": "Denton",
+      "region": "north-texas",
+      "zip": "",
+      "lat": 33.159065232444064,
+      "lng": -96.93939342156477,
+      "departmentType": "municipal",
+      "website": "",
+      "careersUrl": "",
+      "phone": "",
+      "transportStatus": "unknown",
+      "hiringStatus": "unknown",
+      "scheduleType": "48/96",
+      "annualScheduledHours": 2912,
+      "population": 100000,
+      "flags": {
+        "paramedicIncentive": false,
+        "certPay": false,
+        "educationPay": false,
+        "longevity": false,
+        "lateralsAccepted": false,
+        "emtRequired": false,
+        "paramedicRequired": false
+      },
+      "dataStatus": "current",
+      "salary": {
+        "effectiveDate": "2025-08-04",
+        "includesScheduledOvertime": false,
+        "includesFlsaOvertime": false,
+        "sourceType": "official-pay-plan",
+        "sourceUrl": "https://irp.cdn-website.com/8a2e0383/files/uploaded/Little+Elm+FD.pdf",
+        "classification": "Firefighter",
+        "steps": [
+          {
+            "stepName": "Entry (0–12 mo)",
+            "minimumMonths": 0,
+            "maximumMonths": 12,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 78759.05
+          },
+          {
+            "stepName": "1 year",
+            "minimumMonths": 12,
+            "maximumMonths": 24,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 81476.99
+          },
+          {
+            "stepName": "2 years",
+            "minimumMonths": 24,
+            "maximumMonths": 36,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 84194.93
+          },
+          {
+            "stepName": "3 years",
+            "minimumMonths": 36,
+            "maximumMonths": 48,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 86912.87
+          },
+          {
+            "stepName": "4 years",
+            "minimumMonths": 48,
+            "maximumMonths": 60,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 89630.82
+          },
+          {
+            "stepName": "5 years",
+            "minimumMonths": 60,
+            "maximumMonths": 72,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 92348.76
+          },
+          {
+            "stepName": "6+ years (top)",
+            "minimumMonths": 72,
+            "maximumMonths": null,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 95066.7
+          }
+        ],
+        "reports": [
+          {
+            "contributorId": "dfw-fire-import",
+            "submittedAt": "2025-08-04",
+            "entry": 78759.05,
+            "top": 95066.7,
+            "hasSource": true,
+            "departmentMaintained": false
+          }
+        ]
+      }
+    },
+    {
+      "slug": "mansfield-fd",
+      "name": "Mansfield Fire Department",
+      "city": "Mansfield",
+      "county": "Tarrant",
+      "region": "north-texas",
+      "zip": "",
+      "lat": 32.5663698468401,
+      "lng": -97.12499921728859,
+      "departmentType": "municipal",
+      "website": "",
+      "careersUrl": "",
+      "phone": "",
+      "transportStatus": "unknown",
+      "hiringStatus": "unknown",
+      "scheduleType": "48/96",
+      "annualScheduledHours": 2912,
+      "population": 80803,
+      "flags": {
+        "paramedicIncentive": false,
+        "certPay": false,
+        "educationPay": false,
+        "longevity": false,
+        "lateralsAccepted": false,
+        "emtRequired": false,
+        "paramedicRequired": false
+      },
+      "dataStatus": "current",
+      "salary": {
+        "effectiveDate": "2025-10-23",
+        "includesScheduledOvertime": false,
+        "includesFlsaOvertime": false,
+        "sourceType": "official-pay-plan",
+        "sourceUrl": "https://irp.cdn-website.com/8a2e0383/files/uploaded/Mansfield-73ad6e78.jpg",
+        "classification": "Firefighter",
+        "steps": [
+          {
+            "stepName": "Entry (0–12 mo)",
+            "minimumMonths": 0,
+            "maximumMonths": 12,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 81000
+          },
+          {
+            "stepName": "1 year",
+            "minimumMonths": 12,
+            "maximumMonths": 24,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 85050
+          },
+          {
+            "stepName": "2 years",
+            "minimumMonths": 24,
+            "maximumMonths": 36,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 89303
+          },
+          {
+            "stepName": "3 years",
+            "minimumMonths": 36,
+            "maximumMonths": 48,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 93768
+          },
+          {
+            "stepName": "4 years",
+            "minimumMonths": 48,
+            "maximumMonths": 60,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 98456
+          },
+          {
+            "stepName": "5+ years (top)",
+            "minimumMonths": 60,
+            "maximumMonths": null,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 103379
+          }
+        ],
+        "reports": [
+          {
+            "contributorId": "dfw-fire-import",
+            "submittedAt": "2025-10-23",
+            "entry": 81000,
+            "top": 103379,
+            "hasSource": true,
+            "departmentMaintained": false
+          }
+        ]
+      }
+    },
+    {
+      "slug": "mckinney-fd",
+      "name": "McKinney Fire Department",
+      "city": "McKinney",
+      "county": "Collin",
+      "region": "north-texas",
+      "zip": "",
+      "lat": 33.22390361626024,
+      "lng": -96.64063967628549,
+      "departmentType": "municipal",
+      "website": "",
+      "careersUrl": "",
+      "phone": "",
+      "transportStatus": "unknown",
+      "hiringStatus": "unknown",
+      "scheduleType": null,
+      "annualScheduledHours": null,
+      "population": 213509,
+      "flags": {
+        "paramedicIncentive": false,
+        "certPay": false,
+        "educationPay": false,
+        "longevity": false,
+        "lateralsAccepted": false,
+        "emtRequired": false,
+        "paramedicRequired": false
+      },
+      "dataStatus": "current",
+      "salary": {
+        "effectiveDate": "2025-08-04",
+        "includesScheduledOvertime": false,
+        "includesFlsaOvertime": false,
+        "sourceType": "official-pay-plan",
+        "sourceUrl": "https://irp.cdn-website.com/8a2e0383/files/uploaded/McKinney.pdf",
+        "classification": "Firefighter",
+        "steps": [
+          {
+            "stepName": "Entry (0–12 mo)",
+            "minimumMonths": 0,
+            "maximumMonths": 12,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 83614.03
+          },
+          {
+            "stepName": "1 year",
+            "minimumMonths": 12,
+            "maximumMonths": 24,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 86996.66
+          },
+          {
+            "stepName": "2 years",
+            "minimumMonths": 24,
+            "maximumMonths": 36,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 90379.28
+          },
+          {
+            "stepName": "3 years",
+            "minimumMonths": 36,
+            "maximumMonths": 48,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 93761.91
+          },
+          {
+            "stepName": "4 years",
+            "minimumMonths": 48,
+            "maximumMonths": 60,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 97144.54
+          },
+          {
+            "stepName": "5 years",
+            "minimumMonths": 60,
+            "maximumMonths": 72,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 100527.17
+          },
+          {
+            "stepName": "6+ years (top)",
+            "minimumMonths": 72,
+            "maximumMonths": null,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 103909.8
+          }
+        ],
+        "reports": [
+          {
+            "contributorId": "dfw-fire-import",
+            "submittedAt": "2025-08-04",
+            "entry": 83614.03,
+            "top": 103909.8,
+            "hasSource": true,
+            "departmentMaintained": false
+          }
+        ]
+      }
+    },
+    {
+      "slug": "mesquite-fd",
+      "name": "Mesquite Fire Department",
+      "city": "Mesquite",
+      "county": "Dallas",
+      "region": "north-texas",
+      "zip": "",
+      "lat": 32.78290966807912,
+      "lng": -96.60222597942031,
+      "departmentType": "municipal",
+      "website": "",
+      "careersUrl": "",
+      "phone": "",
+      "transportStatus": "unknown",
+      "hiringStatus": "unknown",
+      "scheduleType": null,
+      "annualScheduledHours": null,
+      "population": 147317,
+      "flags": {
+        "paramedicIncentive": false,
+        "certPay": false,
+        "educationPay": false,
+        "longevity": false,
+        "lateralsAccepted": false,
+        "emtRequired": false,
+        "paramedicRequired": false
+      },
+      "dataStatus": "current",
+      "salary": {
+        "effectiveDate": "2025-08-04",
+        "includesScheduledOvertime": false,
+        "includesFlsaOvertime": false,
+        "sourceType": "official-pay-plan",
+        "sourceUrl": "https://irp.cdn-website.com/8a2e0383/files/uploaded/Mesquite.pdf",
+        "classification": "Firefighter",
+        "steps": [
+          {
+            "stepName": "Entry (0–12 mo)",
+            "minimumMonths": 0,
+            "maximumMonths": 12,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 77548.43
+          },
+          {
+            "stepName": "1 year",
+            "minimumMonths": 12,
+            "maximumMonths": 24,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 81425.85
+          },
+          {
+            "stepName": "2 years",
+            "minimumMonths": 24,
+            "maximumMonths": 36,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 85497.14
+          },
+          {
+            "stepName": "3 years",
+            "minimumMonths": 36,
+            "maximumMonths": 48,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 89772
+          },
+          {
+            "stepName": "4 years",
+            "minimumMonths": 48,
+            "maximumMonths": 60,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 94260.6
+          },
+          {
+            "stepName": "5 years",
+            "minimumMonths": 60,
+            "maximumMonths": 72,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 98973.63
+          },
+          {
+            "stepName": "6+ years (top)",
+            "minimumMonths": 72,
+            "maximumMonths": null,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 103922.31
+          }
+        ],
+        "reports": [
+          {
+            "contributorId": "dfw-fire-import",
+            "submittedAt": "2025-08-04",
+            "entry": 77548.43,
+            "top": 103922.31,
+            "hasSource": true,
+            "departmentMaintained": false
+          }
+        ]
+      }
+    },
+    {
+      "slug": "midlothian-fd",
+      "name": "Midlothian Fire Department",
+      "city": "Midlothian",
+      "county": "Ellis",
+      "region": "north-texas",
+      "zip": "",
+      "lat": 32.48326295390813,
+      "lng": -96.99376259260033,
+      "departmentType": "municipal",
+      "website": "",
+      "careersUrl": "",
+      "phone": "",
+      "transportStatus": "unknown",
+      "hiringStatus": "unknown",
+      "scheduleType": null,
+      "annualScheduledHours": null,
+      "population": 44104,
+      "flags": {
+        "paramedicIncentive": false,
+        "certPay": false,
+        "educationPay": false,
+        "longevity": false,
+        "lateralsAccepted": false,
+        "emtRequired": false,
+        "paramedicRequired": false
+      },
+      "dataStatus": "current",
+      "salary": {
+        "effectiveDate": "2025-10-24",
+        "includesScheduledOvertime": false,
+        "includesFlsaOvertime": false,
+        "sourceType": "official-pay-plan",
+        "sourceUrl": "https://irp.cdn-website.com/8a2e0383/files/uploaded/Midlothian.pdf",
+        "classification": "Firefighter",
+        "steps": [
+          {
+            "stepName": "Entry (0–12 mo)",
+            "minimumMonths": 0,
+            "maximumMonths": 12,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 76190.07
+          },
+          {
+            "stepName": "1 year",
+            "minimumMonths": 12,
+            "maximumMonths": 24,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 79237.67
+          },
+          {
+            "stepName": "2 years",
+            "minimumMonths": 24,
+            "maximumMonths": 36,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 82407.17
+          },
+          {
+            "stepName": "3 years",
+            "minimumMonths": 36,
+            "maximumMonths": 48,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 85703.46
+          },
+          {
+            "stepName": "4 years",
+            "minimumMonths": 48,
+            "maximumMonths": 60,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 89131.6
+          },
+          {
+            "stepName": "5 years",
+            "minimumMonths": 60,
+            "maximumMonths": 72,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 92696.86
+          },
+          {
+            "stepName": "6+ years (top)",
+            "minimumMonths": 72,
+            "maximumMonths": null,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 96404.74
+          }
+        ],
+        "reports": [
+          {
+            "contributorId": "dfw-fire-import",
+            "submittedAt": "2025-10-24",
+            "entry": 76190.07,
+            "top": 96404.74,
+            "hasSource": true,
+            "departmentMaintained": false
+          }
+        ]
+      }
+    },
+    {
+      "slug": "north-richland-hills-fd",
+      "name": "North Richland Hills Fire Department",
+      "city": "North Richland Hills",
+      "county": "Tarrant",
+      "region": "north-texas",
+      "zip": "",
+      "lat": 32.827213849136186,
+      "lng": -97.21722078443254,
+      "departmentType": "municipal",
+      "website": "",
+      "careersUrl": "",
+      "phone": "",
+      "transportStatus": "unknown",
+      "hiringStatus": "unknown",
+      "scheduleType": "24/48",
+      "annualScheduledHours": 2912,
+      "population": 70658,
+      "flags": {
+        "paramedicIncentive": false,
+        "certPay": false,
+        "educationPay": false,
+        "longevity": false,
+        "lateralsAccepted": false,
+        "emtRequired": false,
+        "paramedicRequired": false
+      },
+      "dataStatus": "current",
+      "salary": {
+        "effectiveDate": "2025-08-04",
+        "includesScheduledOvertime": false,
+        "includesFlsaOvertime": false,
+        "sourceType": "official-pay-plan",
+        "sourceUrl": "https://irp.cdn-website.com/8a2e0383/files/uploaded/NRH.pdf",
+        "classification": "Firefighter",
+        "steps": [
+          {
+            "stepName": "Entry (0–12 mo)",
+            "minimumMonths": 0,
+            "maximumMonths": 12,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 81565
+          },
+          {
+            "stepName": "1 year",
+            "minimumMonths": 12,
+            "maximumMonths": 24,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 84828
+          },
+          {
+            "stepName": "2 years",
+            "minimumMonths": 24,
+            "maximumMonths": 36,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 88221
+          },
+          {
+            "stepName": "3 years",
+            "minimumMonths": 36,
+            "maximumMonths": 48,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 90868
+          },
+          {
+            "stepName": "4 years",
+            "minimumMonths": 48,
+            "maximumMonths": 60,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 93594
+          },
+          {
+            "stepName": "5+ years (top)",
+            "minimumMonths": 60,
+            "maximumMonths": null,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 96402
+          }
+        ],
+        "reports": [
+          {
+            "contributorId": "dfw-fire-import",
+            "submittedAt": "2025-08-04",
+            "entry": 81565,
+            "top": 96402,
+            "hasSource": true,
+            "departmentMaintained": false
+          }
+        ]
+      }
+    },
+    {
+      "slug": "plano-fd",
+      "name": "Plano Fire Department",
+      "city": "Plano",
+      "county": "Collin",
+      "region": "north-texas",
+      "zip": "",
+      "lat": 33.02565258857293,
+      "lng": -96.69988136981769,
+      "departmentType": "municipal",
+      "website": "",
+      "careersUrl": "",
+      "phone": "",
+      "transportStatus": "unknown",
+      "hiringStatus": "unknown",
+      "scheduleType": "24/72",
+      "annualScheduledHours": 2184,
+      "population": 290190,
+      "flags": {
+        "paramedicIncentive": false,
+        "certPay": false,
+        "educationPay": false,
+        "longevity": false,
+        "lateralsAccepted": false,
+        "emtRequired": false,
+        "paramedicRequired": false
+      },
+      "dataStatus": "current",
+      "salary": {
+        "effectiveDate": "2025-09-25",
+        "includesScheduledOvertime": false,
+        "includesFlsaOvertime": false,
+        "sourceType": "official-pay-plan",
+        "sourceUrl": "https://irp.cdn-website.com/8a2e0383/files/uploaded/PlanoFD.pdf",
+        "classification": "Firefighter",
+        "steps": [
+          {
+            "stepName": "Entry (0–12 mo)",
+            "minimumMonths": 0,
+            "maximumMonths": 12,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 80862
+          },
+          {
+            "stepName": "1 year",
+            "minimumMonths": 12,
+            "maximumMonths": 24,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 87121
+          },
+          {
+            "stepName": "2 years",
+            "minimumMonths": 24,
+            "maximumMonths": 36,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 93380
+          },
+          {
+            "stepName": "3 years",
+            "minimumMonths": 36,
+            "maximumMonths": 48,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 99639
+          },
+          {
+            "stepName": "4+ years (top)",
+            "minimumMonths": 48,
+            "maximumMonths": null,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 105898
+          }
+        ],
+        "reports": [
+          {
+            "contributorId": "dfw-fire-import",
+            "submittedAt": "2025-09-25",
+            "entry": 80862,
+            "top": 105898,
+            "hasSource": true,
+            "departmentMaintained": false
+          }
+        ]
+      }
+    },
+    {
+      "slug": "princeton-fd",
+      "name": "Princeton Fire Department",
+      "city": "Princeton",
+      "county": "Collin",
+      "region": "north-texas",
+      "zip": "",
+      "lat": 33.1801973834173,
+      "lng": -96.49528101830363,
+      "departmentType": "municipal",
+      "website": "",
+      "careersUrl": "",
+      "phone": "",
+      "transportStatus": "unknown",
+      "hiringStatus": "unknown",
+      "scheduleType": null,
+      "annualScheduledHours": null,
+      "population": 28027,
+      "flags": {
+        "paramedicIncentive": false,
+        "certPay": false,
+        "educationPay": false,
+        "longevity": false,
+        "lateralsAccepted": false,
+        "emtRequired": false,
+        "paramedicRequired": false
+      },
+      "dataStatus": "current",
+      "salary": {
+        "effectiveDate": "2025-08-04",
+        "includesScheduledOvertime": false,
+        "includesFlsaOvertime": false,
+        "sourceType": "official-pay-plan",
+        "sourceUrl": "https://irp.cdn-website.com/8a2e0383/files/uploaded/Princeton.pdf",
+        "classification": "Firefighter",
+        "steps": [
+          {
+            "stepName": "Entry (0–12 mo)",
+            "minimumMonths": 0,
+            "maximumMonths": 12,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 73972.89
+          },
+          {
+            "stepName": "1 year",
+            "minimumMonths": 12,
+            "maximumMonths": 24,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 76192.07
+          },
+          {
+            "stepName": "2 years",
+            "minimumMonths": 24,
+            "maximumMonths": 36,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 78477.83
+          },
+          {
+            "stepName": "3 years",
+            "minimumMonths": 36,
+            "maximumMonths": 48,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 80832.17
+          },
+          {
+            "stepName": "4 years",
+            "minimumMonths": 48,
+            "maximumMonths": 60,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 83257.14
+          },
+          {
+            "stepName": "5+ years (top)",
+            "minimumMonths": 60,
+            "maximumMonths": null,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 85754.85
+          }
+        ],
+        "reports": [
+          {
+            "contributorId": "dfw-fire-import",
+            "submittedAt": "2025-08-04",
+            "entry": 73972.89,
+            "top": 85754.85,
+            "hasSource": true,
+            "departmentMaintained": false
+          }
+        ]
+      }
+    },
+    {
+      "slug": "prosper-fd",
+      "name": "Prosper Fire Department",
+      "city": "Prosper",
+      "county": "Collin",
+      "region": "north-texas",
+      "zip": "",
+      "lat": 33.240739005983805,
+      "lng": -96.81332926999734,
+      "departmentType": "municipal",
+      "website": "",
+      "careersUrl": "",
+      "phone": "",
+      "transportStatus": "unknown",
+      "hiringStatus": "unknown",
+      "scheduleType": "48/96",
+      "annualScheduledHours": 2912,
+      "population": 41660,
+      "flags": {
+        "paramedicIncentive": false,
+        "certPay": false,
+        "educationPay": false,
+        "longevity": false,
+        "lateralsAccepted": false,
+        "emtRequired": false,
+        "paramedicRequired": false
+      },
+      "dataStatus": "current",
+      "salary": {
+        "effectiveDate": "2025-10-23",
+        "includesScheduledOvertime": false,
+        "includesFlsaOvertime": false,
+        "sourceType": "official-pay-plan",
+        "sourceUrl": "https://irp.cdn-website.com/8a2e0383/files/uploaded/Prosper-096ca878.pdf",
+        "classification": "Firefighter",
+        "steps": [
+          {
+            "stepName": "Entry (0–12 mo)",
+            "minimumMonths": 0,
+            "maximumMonths": 12,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 79000
+          },
+          {
+            "stepName": "1 year",
+            "minimumMonths": 12,
+            "maximumMonths": 24,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 81370
+          },
+          {
+            "stepName": "2 years",
+            "minimumMonths": 24,
+            "maximumMonths": 36,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 83811.1
+          },
+          {
+            "stepName": "3 years",
+            "minimumMonths": 36,
+            "maximumMonths": 48,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 86325.43
+          },
+          {
+            "stepName": "4 years",
+            "minimumMonths": 48,
+            "maximumMonths": 60,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 88915.2
+          },
+          {
+            "stepName": "5 years",
+            "minimumMonths": 60,
+            "maximumMonths": 72,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 91582.65
+          },
+          {
+            "stepName": "6+ years (top)",
+            "minimumMonths": 72,
+            "maximumMonths": null,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 94330.13
+          }
+        ],
+        "reports": [
+          {
+            "contributorId": "dfw-fire-import",
+            "submittedAt": "2025-10-23",
+            "entry": 79000,
+            "top": 94330.13,
+            "hasSource": true,
+            "departmentMaintained": false
+          }
+        ]
+      }
+    },
+    {
+      "slug": "richardson-fd",
+      "name": "Richardson Fire Department",
+      "city": "Richardson",
+      "county": "Dallas",
+      "region": "north-texas",
+      "zip": "",
+      "lat": 32.950215277027354,
+      "lng": -96.72870480854318,
+      "departmentType": "municipal",
+      "website": "",
+      "careersUrl": "",
+      "phone": "",
+      "transportStatus": "unknown",
+      "hiringStatus": "unknown",
+      "scheduleType": "48/96",
+      "annualScheduledHours": 2912,
+      "population": 117435,
+      "flags": {
+        "paramedicIncentive": false,
+        "certPay": false,
+        "educationPay": false,
+        "longevity": false,
+        "lateralsAccepted": false,
+        "emtRequired": false,
+        "paramedicRequired": false
+      },
+      "dataStatus": "none"
+    },
+    {
+      "slug": "roanoke-fd",
+      "name": "Roanoke Fire Department",
+      "city": "Roanoke",
+      "county": "Denton",
+      "region": "north-texas",
+      "zip": "",
+      "lat": 33.00532769697098,
+      "lng": -97.23296058141482,
+      "departmentType": "municipal",
+      "website": "",
+      "careersUrl": "",
+      "phone": "",
+      "transportStatus": "unknown",
+      "hiringStatus": "unknown",
+      "scheduleType": "48/96",
+      "annualScheduledHours": 2912,
+      "population": 10798,
+      "flags": {
+        "paramedicIncentive": false,
+        "certPay": false,
+        "educationPay": false,
+        "longevity": false,
+        "lateralsAccepted": false,
+        "emtRequired": false,
+        "paramedicRequired": false
+      },
+      "dataStatus": "current",
+      "salary": {
+        "effectiveDate": "2025-08-07",
+        "includesScheduledOvertime": false,
+        "includesFlsaOvertime": false,
+        "sourceType": "official-pay-plan",
+        "sourceUrl": "https://irp.cdn-website.com/8a2e0383/files/uploaded/Roanoke+FD.pdf",
+        "classification": "Firefighter",
+        "steps": [
+          {
+            "stepName": "Entry (0–12 mo)",
+            "minimumMonths": 0,
+            "maximumMonths": null,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 79768
+          }
+        ],
+        "reports": [
+          {
+            "contributorId": "dfw-fire-import",
+            "submittedAt": "2025-08-07",
+            "entry": 79768,
+            "top": 79768,
+            "hasSource": true,
+            "departmentMaintained": false
+          }
+        ]
+      }
+    },
+    {
+      "slug": "rockwall-fd",
+      "name": "Rockwall Fire Department",
+      "city": "Rockwall",
+      "county": "Rockwall",
+      "region": "north-texas",
+      "zip": "",
+      "lat": 32.924661779561966,
+      "lng": -96.4584950079422,
+      "departmentType": "municipal",
+      "website": "",
+      "careersUrl": "",
+      "phone": "",
+      "transportStatus": "unknown",
+      "hiringStatus": "unknown",
+      "scheduleType": "48/96",
+      "annualScheduledHours": 2912,
+      "population": 52918,
+      "flags": {
+        "paramedicIncentive": false,
+        "certPay": false,
+        "educationPay": false,
+        "longevity": false,
+        "lateralsAccepted": false,
+        "emtRequired": false,
+        "paramedicRequired": false
+      },
+      "dataStatus": "current",
+      "salary": {
+        "effectiveDate": "2025-10-23",
+        "includesScheduledOvertime": false,
+        "includesFlsaOvertime": false,
+        "sourceType": "official-pay-plan",
+        "sourceUrl": "https://irp.cdn-website.com/8a2e0383/files/uploaded/Rockwall-70dd0a79.pdf",
+        "classification": "Firefighter",
+        "steps": [
+          {
+            "stepName": "Entry (0–12 mo)",
+            "minimumMonths": 0,
+            "maximumMonths": 12,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 73097.39
+          },
+          {
+            "stepName": "1 year",
+            "minimumMonths": 12,
+            "maximumMonths": 24,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 76743.58
+          },
+          {
+            "stepName": "2 years",
+            "minimumMonths": 24,
+            "maximumMonths": 36,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 80621.27
+          },
+          {
+            "stepName": "3 years",
+            "minimumMonths": 36,
+            "maximumMonths": 48,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 84672.59
+          },
+          {
+            "stepName": "4 years",
+            "minimumMonths": 48,
+            "maximumMonths": 60,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 88897.54
+          },
+          {
+            "stepName": "5+ years (top)",
+            "minimumMonths": 60,
+            "maximumMonths": null,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 93342.42
+          }
+        ],
+        "reports": [
+          {
+            "contributorId": "dfw-fire-import",
+            "submittedAt": "2025-10-23",
+            "entry": 73097.39,
+            "top": 93342.42,
+            "hasSource": true,
+            "departmentMaintained": false
+          }
+        ]
+      }
+    },
+    {
+      "slug": "rowlett-fd",
+      "name": "Rowlett Fire Department",
+      "city": "Rowlett",
+      "county": "Dallas",
+      "region": "north-texas",
+      "zip": "",
+      "lat": 32.90294738572583,
+      "lng": -96.56987677558539,
+      "departmentType": "municipal",
+      "website": "",
+      "careersUrl": "",
+      "phone": "",
+      "transportStatus": "unknown",
+      "hiringStatus": "unknown",
+      "scheduleType": "48/96",
+      "annualScheduledHours": 2912,
+      "population": 66813,
+      "flags": {
+        "paramedicIncentive": false,
+        "certPay": false,
+        "educationPay": false,
+        "longevity": false,
+        "lateralsAccepted": false,
+        "emtRequired": false,
+        "paramedicRequired": false
+      },
+      "dataStatus": "current",
+      "salary": {
+        "effectiveDate": "2025-08-04",
+        "includesScheduledOvertime": false,
+        "includesFlsaOvertime": false,
+        "sourceType": "official-pay-plan",
+        "sourceUrl": "https://irp.cdn-website.com/8a2e0383/files/uploaded/Rowlett.pdf",
+        "classification": "Firefighter",
+        "steps": [
+          {
+            "stepName": "Entry (0–12 mo)",
+            "minimumMonths": 0,
+            "maximumMonths": 12,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 77453.4
+          },
+          {
+            "stepName": "1 year",
+            "minimumMonths": 12,
+            "maximumMonths": 24,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 80299.2
+          },
+          {
+            "stepName": "2 years",
+            "minimumMonths": 24,
+            "maximumMonths": 36,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 83144.7
+          },
+          {
+            "stepName": "3 years",
+            "minimumMonths": 36,
+            "maximumMonths": 48,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 85990.8
+          },
+          {
+            "stepName": "4 years",
+            "minimumMonths": 48,
+            "maximumMonths": 60,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 88836
+          },
+          {
+            "stepName": "5+ years (top)",
+            "minimumMonths": 60,
+            "maximumMonths": null,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 91682.1
+          }
+        ],
+        "reports": [
+          {
+            "contributorId": "dfw-fire-import",
+            "submittedAt": "2025-08-04",
+            "entry": 77453.4,
+            "top": 91682.1,
+            "hasSource": true,
+            "departmentMaintained": false
+          }
+        ]
+      }
+    },
+    {
+      "slug": "sachse-fd",
+      "name": "Sachse Fire Department",
+      "city": "Sachse",
+      "county": "Dallas",
+      "region": "north-texas",
+      "zip": "",
+      "lat": 32.97590363648885,
+      "lng": -96.58417450570093,
+      "departmentType": "municipal",
+      "website": "",
+      "careersUrl": "",
+      "phone": "",
+      "transportStatus": "unknown",
+      "hiringStatus": "unknown",
+      "scheduleType": "24/48",
+      "annualScheduledHours": 2912,
+      "population": 32294,
+      "flags": {
+        "paramedicIncentive": false,
+        "certPay": false,
+        "educationPay": false,
+        "longevity": false,
+        "lateralsAccepted": false,
+        "emtRequired": false,
+        "paramedicRequired": false
+      },
+      "dataStatus": "current",
+      "salary": {
+        "effectiveDate": "2025-08-04",
+        "includesScheduledOvertime": false,
+        "includesFlsaOvertime": false,
+        "sourceType": "official-pay-plan",
+        "sourceUrl": "https://irp.cdn-website.com/8a2e0383/files/uploaded/Sachse.pdf",
+        "classification": "Firefighter",
+        "steps": [
+          {
+            "stepName": "Entry (0–12 mo)",
+            "minimumMonths": 0,
+            "maximumMonths": 12,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 72100
+          },
+          {
+            "stepName": "1 year",
+            "minimumMonths": 12,
+            "maximumMonths": 24,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 74623.5
+          },
+          {
+            "stepName": "2 years",
+            "minimumMonths": 24,
+            "maximumMonths": 36,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 77235.32
+          },
+          {
+            "stepName": "3 years",
+            "minimumMonths": 36,
+            "maximumMonths": 48,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 79938.56
+          },
+          {
+            "stepName": "4 years",
+            "minimumMonths": 48,
+            "maximumMonths": 60,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 82736.41
+          },
+          {
+            "stepName": "5 years",
+            "minimumMonths": 60,
+            "maximumMonths": 72,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 85632.18
+          },
+          {
+            "stepName": "6+ years (top)",
+            "minimumMonths": 72,
+            "maximumMonths": null,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 88629.31
+          }
+        ],
+        "reports": [
+          {
+            "contributorId": "dfw-fire-import",
+            "submittedAt": "2025-08-04",
+            "entry": 72100,
+            "top": 88629.31,
+            "hasSource": true,
+            "departmentMaintained": false
+          }
+        ]
+      }
+    },
+    {
+      "slug": "saginaw-fd",
+      "name": "Saginaw Fire Department",
+      "city": "Saginaw",
+      "county": "Tarrant",
+      "region": "north-texas",
+      "zip": "",
+      "lat": 32.85926858683183,
+      "lng": -97.37441979781407,
+      "departmentType": "municipal",
+      "website": "",
+      "careersUrl": "",
+      "phone": "",
+      "transportStatus": "unknown",
+      "hiringStatus": "unknown",
+      "scheduleType": "48/96",
+      "annualScheduledHours": 2912,
+      "population": 24450,
+      "flags": {
+        "paramedicIncentive": false,
+        "certPay": false,
+        "educationPay": false,
+        "longevity": false,
+        "lateralsAccepted": false,
+        "emtRequired": false,
+        "paramedicRequired": false
+      },
+      "dataStatus": "current",
+      "salary": {
+        "effectiveDate": "2025-10-23",
+        "includesScheduledOvertime": false,
+        "includesFlsaOvertime": false,
+        "sourceType": "official-pay-plan",
+        "sourceUrl": "https://irp.cdn-website.com/8a2e0383/files/uploaded/Saginaw.pdf",
+        "classification": "Firefighter",
+        "steps": [
+          {
+            "stepName": "Entry (0–12 mo)",
+            "minimumMonths": 0,
+            "maximumMonths": 12,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 72120
+          },
+          {
+            "stepName": "1 year",
+            "minimumMonths": 12,
+            "maximumMonths": 24,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 74284
+          },
+          {
+            "stepName": "2 years",
+            "minimumMonths": 24,
+            "maximumMonths": 36,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 76512
+          },
+          {
+            "stepName": "3 years",
+            "minimumMonths": 36,
+            "maximumMonths": 48,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 78808
+          },
+          {
+            "stepName": "4 years",
+            "minimumMonths": 48,
+            "maximumMonths": 60,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 81172
+          },
+          {
+            "stepName": "5 years",
+            "minimumMonths": 60,
+            "maximumMonths": 72,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 83607
+          },
+          {
+            "stepName": "6 years",
+            "minimumMonths": 72,
+            "maximumMonths": 84,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 86115
+          },
+          {
+            "stepName": "7 years",
+            "minimumMonths": 84,
+            "maximumMonths": 96,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 88699
+          },
+          {
+            "stepName": "8+ years (top)",
+            "minimumMonths": 96,
+            "maximumMonths": null,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 91360
+          }
+        ],
+        "reports": [
+          {
+            "contributorId": "dfw-fire-import",
+            "submittedAt": "2025-10-23",
+            "entry": 72120,
+            "top": 91360,
+            "hasSource": true,
+            "departmentMaintained": false
+          }
+        ]
+      }
+    },
+    {
+      "slug": "sherman-fd",
+      "name": "Sherman Fire Department",
+      "city": "Sherman",
+      "county": "Grayson",
+      "region": "north-texas",
+      "zip": "",
+      "lat": 33.63401380956214,
+      "lng": -96.60881913394553,
+      "departmentType": "municipal",
+      "website": "",
+      "careersUrl": "",
+      "phone": "",
+      "transportStatus": "unknown",
+      "hiringStatus": "unknown",
+      "scheduleType": null,
+      "annualScheduledHours": null,
+      "population": 47473,
+      "flags": {
+        "paramedicIncentive": false,
+        "certPay": false,
+        "educationPay": false,
+        "longevity": false,
+        "lateralsAccepted": false,
+        "emtRequired": false,
+        "paramedicRequired": false
+      },
+      "dataStatus": "current",
+      "salary": {
+        "effectiveDate": "2025-08-04",
+        "includesScheduledOvertime": false,
+        "includesFlsaOvertime": false,
+        "sourceType": "official-pay-plan",
+        "sourceUrl": "https://irp.cdn-website.com/8a2e0383/files/uploaded/Sherman.pdf",
+        "classification": "Firefighter",
+        "steps": [
+          {
+            "stepName": "Entry (0–12 mo)",
+            "minimumMonths": 0,
+            "maximumMonths": 12,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 49479.96
+          },
+          {
+            "stepName": "1 year",
+            "minimumMonths": 12,
+            "maximumMonths": 24,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 54578.16
+          },
+          {
+            "stepName": "2 years",
+            "minimumMonths": 24,
+            "maximumMonths": 36,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 55332.6
+          },
+          {
+            "stepName": "3 years",
+            "minimumMonths": 36,
+            "maximumMonths": 48,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 56087.04
+          },
+          {
+            "stepName": "4 years",
+            "minimumMonths": 48,
+            "maximumMonths": 60,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 56780.52
+          },
+          {
+            "stepName": "5+ years (top)",
+            "minimumMonths": 60,
+            "maximumMonths": null,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 58424.28
+          }
+        ],
+        "reports": [
+          {
+            "contributorId": "dfw-fire-import",
+            "submittedAt": "2025-08-04",
+            "entry": 49479.96,
+            "top": 58424.28,
+            "hasSource": true,
+            "departmentMaintained": false
+          }
+        ]
+      }
+    },
+    {
+      "slug": "southlake-fd",
+      "name": "Southlake Fire Department",
+      "city": "Southlake",
+      "county": "Tarrant",
+      "region": "north-texas",
+      "zip": "",
+      "lat": 32.947538299300064,
+      "lng": -97.13326283838838,
+      "departmentType": "municipal",
+      "website": "",
+      "careersUrl": "",
+      "phone": "",
+      "transportStatus": "unknown",
+      "hiringStatus": "unknown",
+      "scheduleType": null,
+      "annualScheduledHours": null,
+      "population": 31137,
+      "flags": {
+        "paramedicIncentive": false,
+        "certPay": false,
+        "educationPay": false,
+        "longevity": false,
+        "lateralsAccepted": false,
+        "emtRequired": false,
+        "paramedicRequired": false
+      },
+      "dataStatus": "current",
+      "salary": {
+        "effectiveDate": "2025-08-07",
+        "includesScheduledOvertime": false,
+        "includesFlsaOvertime": false,
+        "sourceType": "official-pay-plan",
+        "sourceUrl": "https://irp.cdn-website.com/8a2e0383/files/uploaded/Southlake+FD.pdf",
+        "classification": "Firefighter",
+        "steps": [
+          {
+            "stepName": "Entry (0–12 mo)",
+            "minimumMonths": 0,
+            "maximumMonths": null,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 81989.95
+          }
+        ],
+        "reports": [
+          {
+            "contributorId": "dfw-fire-import",
+            "submittedAt": "2025-08-07",
+            "entry": 81989.95,
+            "top": 81989.95,
+            "hasSource": true,
+            "departmentMaintained": false
+          }
+        ]
+      }
+    },
+    {
+      "slug": "terrell-fd",
+      "name": "Terrell Fire Department",
+      "city": "Terrell",
+      "county": "Kaufman",
+      "region": "north-texas",
+      "zip": "",
+      "lat": 32.7377480891583,
+      "lng": -96.27552356575748,
+      "departmentType": "municipal",
+      "website": "",
+      "careersUrl": "",
+      "phone": "",
+      "transportStatus": "unknown",
+      "hiringStatus": "unknown",
+      "scheduleType": "48/96",
+      "annualScheduledHours": 2912,
+      "population": 21480,
+      "flags": {
+        "paramedicIncentive": false,
+        "certPay": false,
+        "educationPay": false,
+        "longevity": false,
+        "lateralsAccepted": false,
+        "emtRequired": false,
+        "paramedicRequired": false
+      },
+      "dataStatus": "current",
+      "salary": {
+        "effectiveDate": "2025-08-04",
+        "includesScheduledOvertime": false,
+        "includesFlsaOvertime": false,
+        "sourceType": "official-pay-plan",
+        "sourceUrl": "https://irp.cdn-website.com/8a2e0383/files/uploaded/Terrell.pdf",
+        "classification": "Firefighter",
+        "steps": [
+          {
+            "stepName": "Entry (0–12 mo)",
+            "minimumMonths": 0,
+            "maximumMonths": 12,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 64480
+          },
+          {
+            "stepName": "1 year",
+            "minimumMonths": 12,
+            "maximumMonths": 24,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 67381.6
+          },
+          {
+            "stepName": "2 years",
+            "minimumMonths": 24,
+            "maximumMonths": 36,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 70413.77
+          },
+          {
+            "stepName": "3 years",
+            "minimumMonths": 36,
+            "maximumMonths": 48,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 73582.39
+          },
+          {
+            "stepName": "4 years",
+            "minimumMonths": 48,
+            "maximumMonths": 60,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 76893.6
+          },
+          {
+            "stepName": "5+ years (top)",
+            "minimumMonths": 60,
+            "maximumMonths": null,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 80353.81
+          }
+        ],
+        "reports": [
+          {
+            "contributorId": "dfw-fire-import",
+            "submittedAt": "2025-08-04",
+            "entry": 64480,
+            "top": 80353.81,
+            "hasSource": true,
+            "departmentMaintained": false
+          }
+        ]
+      }
+    },
+    {
+      "slug": "the-colony-fd",
+      "name": "The Colony Fire Department",
+      "city": "The Colony",
+      "county": "Denton",
+      "region": "north-texas",
+      "zip": "",
+      "lat": 33.080460834831804,
+      "lng": -96.8858351059237,
+      "departmentType": "municipal",
+      "website": "",
+      "careersUrl": "",
+      "phone": "",
+      "transportStatus": "unknown",
+      "hiringStatus": "unknown",
+      "scheduleType": null,
+      "annualScheduledHours": null,
+      "population": 45471,
+      "flags": {
+        "paramedicIncentive": false,
+        "certPay": false,
+        "educationPay": false,
+        "longevity": false,
+        "lateralsAccepted": false,
+        "emtRequired": false,
+        "paramedicRequired": false
+      },
+      "dataStatus": "current",
+      "salary": {
+        "effectiveDate": "2025-08-04",
+        "includesScheduledOvertime": false,
+        "includesFlsaOvertime": false,
+        "sourceType": "official-pay-plan",
+        "sourceUrl": "https://irp.cdn-website.com/8a2e0383/files/uploaded/The+Colony.pdf",
+        "classification": "Firefighter",
+        "steps": [
+          {
+            "stepName": "Entry (0–12 mo)",
+            "minimumMonths": 0,
+            "maximumMonths": 12,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 78559.34
+          },
+          {
+            "stepName": "1 year",
+            "minimumMonths": 12,
+            "maximumMonths": 24,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 80918.91
+          },
+          {
+            "stepName": "2 years",
+            "minimumMonths": 24,
+            "maximumMonths": 36,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 83347.53
+          },
+          {
+            "stepName": "3 years",
+            "minimumMonths": 36,
+            "maximumMonths": 48,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 85848.19
+          },
+          {
+            "stepName": "4 years",
+            "minimumMonths": 48,
+            "maximumMonths": 60,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 88423.91
+          },
+          {
+            "stepName": "5 years",
+            "minimumMonths": 60,
+            "maximumMonths": 72,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 91077.68
+          },
+          {
+            "stepName": "6 years",
+            "minimumMonths": 72,
+            "maximumMonths": 84,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 93812.5
+          },
+          {
+            "stepName": "7+ years (top)",
+            "minimumMonths": 84,
+            "maximumMonths": null,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 96628.38
+          }
+        ],
+        "reports": [
+          {
+            "contributorId": "dfw-fire-import",
+            "submittedAt": "2025-08-04",
+            "entry": 78559.34,
+            "top": 96628.38,
+            "hasSource": true,
+            "departmentMaintained": false
+          }
+        ]
+      }
+    },
+    {
+      "slug": "university-park-fd",
+      "name": "University Park Fire Department",
+      "city": "University Park",
+      "county": "Dallas",
+      "region": "north-texas",
+      "zip": "",
+      "lat": 32.84567834788973,
+      "lng": -96.79712711288762,
+      "departmentType": "municipal",
+      "website": "",
+      "careersUrl": "",
+      "phone": "",
+      "transportStatus": "unknown",
+      "hiringStatus": "unknown",
+      "scheduleType": null,
+      "annualScheduledHours": null,
+      "population": 24954,
+      "flags": {
+        "paramedicIncentive": false,
+        "certPay": false,
+        "educationPay": false,
+        "longevity": false,
+        "lateralsAccepted": false,
+        "emtRequired": false,
+        "paramedicRequired": false
+      },
+      "dataStatus": "current",
+      "salary": {
+        "effectiveDate": "2025-08-07",
+        "includesScheduledOvertime": false,
+        "includesFlsaOvertime": false,
+        "sourceType": "official-pay-plan",
+        "sourceUrl": "https://irp.cdn-website.com/8a2e0383/files/uploaded/University+Park+FD.jpg",
+        "classification": "Firefighter",
+        "steps": [
+          {
+            "stepName": "Entry (0–12 mo)",
+            "minimumMonths": 0,
+            "maximumMonths": 12,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 79595
+          },
+          {
+            "stepName": "1 year",
+            "minimumMonths": 12,
+            "maximumMonths": 24,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 87747
+          },
+          {
+            "stepName": "2 years",
+            "minimumMonths": 24,
+            "maximumMonths": 36,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 92130
+          },
+          {
+            "stepName": "3+ years (top)",
+            "minimumMonths": 36,
+            "maximumMonths": null,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 96747
+          }
+        ],
+        "reports": [
+          {
+            "contributorId": "dfw-fire-import",
+            "submittedAt": "2025-08-07",
+            "entry": 79595,
+            "top": 96747,
+            "hasSource": true,
+            "departmentMaintained": false
+          }
+        ]
+      }
+    },
+    {
+      "slug": "waxahachhie-fd",
+      "name": "Waxahachie Fire Department",
+      "city": "Waxahachie",
+      "county": "Ellis",
+      "region": "north-texas",
+      "zip": "",
+      "lat": 32.387073695768045,
+      "lng": -96.85020589879831,
+      "departmentType": "municipal",
+      "website": "",
+      "careersUrl": "",
+      "phone": "",
+      "transportStatus": "unknown",
+      "hiringStatus": "unknown",
+      "scheduleType": "48/96",
+      "annualScheduledHours": 2912,
+      "population": 47201,
+      "flags": {
+        "paramedicIncentive": false,
+        "certPay": false,
+        "educationPay": false,
+        "longevity": false,
+        "lateralsAccepted": false,
+        "emtRequired": false,
+        "paramedicRequired": false
+      },
+      "dataStatus": "current",
+      "salary": {
+        "effectiveDate": "2025-08-04",
+        "includesScheduledOvertime": false,
+        "includesFlsaOvertime": false,
+        "sourceType": "official-pay-plan",
+        "sourceUrl": "https://irp.cdn-website.com/8a2e0383/files/uploaded/Waxahachie.pdf",
+        "classification": "Firefighter",
+        "steps": [
+          {
+            "stepName": "Entry (0–12 mo)",
+            "minimumMonths": 0,
+            "maximumMonths": 12,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 79548.4
+          },
+          {
+            "stepName": "1 year",
+            "minimumMonths": 12,
+            "maximumMonths": 24,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 82730.34
+          },
+          {
+            "stepName": "2 years",
+            "minimumMonths": 24,
+            "maximumMonths": 36,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 86039.55
+          },
+          {
+            "stepName": "3 years",
+            "minimumMonths": 36,
+            "maximumMonths": 48,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 89481.13
+          },
+          {
+            "stepName": "4 years",
+            "minimumMonths": 48,
+            "maximumMonths": 60,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 93060.38
+          },
+          {
+            "stepName": "5+ years (top)",
+            "minimumMonths": 60,
+            "maximumMonths": null,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 96782.79
+          }
+        ],
+        "reports": [
+          {
+            "contributorId": "dfw-fire-import",
+            "submittedAt": "2025-08-04",
+            "entry": 79548.4,
+            "top": 96782.79,
+            "hasSource": true,
+            "departmentMaintained": false
+          }
+        ]
+      }
+    },
+    {
+      "slug": "wylie-fd",
+      "name": "Wylie Fire Department",
+      "city": "Wylie",
+      "county": "Collin",
+      "region": "north-texas",
+      "zip": "",
+      "lat": 33.02434679853972,
+      "lng": -96.51463980385397,
+      "departmentType": "municipal",
+      "website": "",
+      "careersUrl": "",
+      "phone": "",
+      "transportStatus": "unknown",
+      "hiringStatus": "unknown",
+      "scheduleType": null,
+      "annualScheduledHours": null,
+      "population": 61078,
+      "flags": {
+        "paramedicIncentive": false,
+        "certPay": false,
+        "educationPay": false,
+        "longevity": false,
+        "lateralsAccepted": false,
+        "emtRequired": false,
+        "paramedicRequired": false
+      },
+      "dataStatus": "current",
+      "salary": {
+        "effectiveDate": "2025-09-25",
+        "includesScheduledOvertime": false,
+        "includesFlsaOvertime": false,
+        "sourceType": "official-pay-plan",
+        "sourceUrl": "https://irp.cdn-website.com/8a2e0383/files/uploaded/WylieFD.png",
+        "classification": "Firefighter",
+        "steps": [
+          {
+            "stepName": "Entry (0–12 mo)",
+            "minimumMonths": 0,
+            "maximumMonths": 12,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 80931.99
+          },
+          {
+            "stepName": "1 year",
+            "minimumMonths": 12,
+            "maximumMonths": 24,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 94059.02
+          },
+          {
+            "stepName": "2 years",
+            "minimumMonths": 24,
+            "maximumMonths": 36,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 87311.01
+          },
+          {
+            "stepName": "3 years",
+            "minimumMonths": 36,
+            "maximumMonths": 48,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 90694.39
+          },
+          {
+            "stepName": "4 years",
+            "minimumMonths": 48,
+            "maximumMonths": 60,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 94211.1
+          },
+          {
+            "stepName": "5 years",
+            "minimumMonths": 60,
+            "maximumMonths": 72,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 97871.11
+          },
+          {
+            "stepName": "6 years",
+            "minimumMonths": 72,
+            "maximumMonths": 84,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 101675.2
+          },
+          {
+            "stepName": "7+ years (top)",
+            "minimumMonths": 84,
+            "maximumMonths": null,
+            "classification": "Firefighter",
+            "baseAnnualSalary": 105632.21
+          }
+        ],
+        "reports": [
+          {
+            "contributorId": "dfw-fire-import",
+            "submittedAt": "2025-09-25",
+            "entry": 80931.99,
+            "top": 105632.21,
+            "hasSource": true,
+            "departmentMaintained": false
+          }
+        ]
+      }
+    }
+  ]
+}
