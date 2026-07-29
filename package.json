@@ -19,8 +19,5 @@
     "compensation"
   ],
   "license": "UNLICENSED",
-  "devDependencies": {
-    "firebase-tools": "^15.14.0",
-    "wrangler": "^4.80.0"
-  }
+  "//devtools": "firebase-tools and wrangler are used via `npx` for deploy (see DEPLOY.md); they are intentionally NOT dependencies so the build install stays empty/fast and can't fail. The build + tests use only Node built-ins."
 }
