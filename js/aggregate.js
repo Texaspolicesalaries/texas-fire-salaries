@@ -29,20 +29,31 @@
     return isFinite(n) ? n : null;
   }
 
+  // Which displayed figure a quick-update `amount` refers to, from its salary type.
+  function metricFromType(t) {
+    t = String(t || '');
+    if (t === 'top-ff' || t === 'top-ff-medic') return 'top';
+    if (t === 'hourly-base') return 'skip';
+    return 'entry';
+  }
+
   // Normalize one Firestore `submissions` doc into the report shape derive.js uses.
-  // Returns null if it carries no usable entry figure.
+  // Maps a quick-update amount to entry or top by its salary type. Returns null if
+  // it carries no usable entry/top figure.
   function submissionToReport(sub) {
     if (!sub) return null;
     var pv = sub.proposedValues || {};
+    var amount = money(pv.amount);
     var entry = money(pv.entry);
-    if (entry == null && (pv.salaryType === 'annual-base' || String(pv.salaryType || '').indexOf('entry') !== -1)) {
-      entry = money(pv.amount);
-    }
-    if (entry == null) return null;
+    var top = money(pv.top);
+    var metric = metricFromType(pv.salaryType);
+    if (entry == null && metric === 'entry') entry = amount;
+    if (top == null && metric === 'top') top = amount;
+    if (entry == null && top == null) return null;
     return {
-      value: entry,
+      value: entry != null ? entry : top,
       entry: entry,
-      top: money(pv.top),
+      top: top,
       contributorId: sub.contributorId || null,
       submittedAt: toMs(sub.submittedAt),
       hasSource: !!(sub.sourceUrl || sub.sourceFile),

@@ -97,7 +97,7 @@
       '<div class="field"><label for="f-class">Position / classification</label><input id="f-class" placeholder="e.g. Firefighter, FF-Paramedic, Driver-Engineer"></div>' +
       '<div class="grid cols-2">' +
         numField('f-amount', 'Salary amount', '$') +
-        '<div class="field"><label for="f-type">Salary type</label><select id="f-type">' + SALARY_TYPES.map(function (t) { return '<option value="' + t[0] + '">' + t[1] + '</option>'; }).join('') + '</select></div>' +
+        '<div class="field"><label for="f-type">Salary type</label><select id="f-type">' + SALARY_TYPES.map(function (t) { return '<option value="' + t[0] + '"' + (t[0] === 'ff-emt-entry' ? ' selected' : '') + '>' + t[1] + '</option>'; }).join('') + '</select></div>' +
       '</div>' +
       '<div class="grid cols-2">' +
         '<div class="field"><label for="f-eff">Effective date (or year)</label><input id="f-eff" type="text" inputmode="numeric" placeholder="2026-01-01 or 2026"></div>' +
@@ -231,12 +231,16 @@
       });
       return Object.assign(base, { effectiveDate: v('f-eff'), classification: v('f-class'), includesScheduledOvertime: b('f-ot'), proposedValues: { steps: steps } });
     }
-    // quick update
+    // quick update — map the amount to the entry or top figure by salary type.
+    var amount = Lib.parseMoney(v('f-amount'));
+    var stype = v('f-type');
+    var metric = (stype === 'top-ff' || stype === 'top-ff-medic') ? 'top' : (stype === 'hourly-base' ? 'skip' : 'entry');
     return Object.assign(base, {
       classification: v('f-class'), effectiveDate: v('f-eff'), includesScheduledOvertime: b('f-ot'),
       proposedValues: {
-        amount: Lib.parseMoney(v('f-amount')), salaryType: v('f-type'), basis: v('f-basis'),
-        entry: v('f-type').indexOf('entry') !== -1 || v('f-type') === 'annual-base' ? Lib.parseMoney(v('f-amount')) : undefined,
+        amount: amount, salaryType: stype, basis: v('f-basis'),
+        entry: metric === 'entry' ? amount : undefined,
+        top: metric === 'top' ? amount : undefined,
         schedule: v('f-sched') || undefined, yearsToTop: Lib.parseNumber(v('f-ytt')) || undefined,
         paramedicPay: Lib.parseMoney(v('f-medic')) || undefined, annualScheduledHours: Lib.parseNumber(v('f-hours')) || undefined,
         hiringStatus: v('f-hiring') || undefined

@@ -20,19 +20,34 @@
     return isNaN(t) ? null : t;
   }
 
-  function buildReports(salary, extra) {
-    var reports = (salary.reports || []).map(function (r) {
+  // Build cluster-input reports for a given field ('entry' or 'top') from the
+  // department's stored reports plus any extra live reports. Extra reports from
+  // the live Firestore path carry entry as `.value`; overlay reports carry both
+  // `.entry` and `.top`.
+  function reportsForField(salary, extra, field) {
+    var out = (salary.reports || []).map(function (r) {
       return {
-        value: Lib.parseMoney(r.entry),
+        value: Lib.parseMoney(r[field]),
         contributorId: r.contributorId,
         submittedAt: toMs(r.submittedAt),
         hasSource: !!r.hasSource,
-        departmentMaintained: !!r.departmentMaintained,
-        raw: r
+        departmentMaintained: !!r.departmentMaintained
       };
     }).filter(function (r) { return typeof r.value === 'number' && r.value != null; });
-    if (Array.isArray(extra)) reports = reports.concat(extra);
-    return reports;
+    (extra || []).forEach(function (r) {
+      var raw = (r[field] != null) ? r[field] : (field === 'entry' ? r.value : null);
+      var v = Lib.parseMoney(raw);
+      if (typeof v === 'number' && v != null) {
+        out.push({
+          value: v,
+          contributorId: r.contributorId,
+          submittedAt: (typeof r.submittedAt === 'number') ? r.submittedAt : toMs(r.submittedAt),
+          hasSource: !!r.hasSource,
+          departmentMaintained: !!r.departmentMaintained
+        });
+      }
+    });
+    return out;
   }
 
   function uniqueContributorCount(reports) {
@@ -72,9 +87,8 @@
     var medics = steps.map(function (x) { return Lib.parseMoney(x.paramedicPay) || 0; });
     out.medicPay = Math.max.apply(null, medics.concat(0)) || null;
     out.yearsToTop = Lib.yearsToTop(steps);
-    // effectiveHourlyEntry is set after the displayed `entry` is chosen (below),
-    // so it matches the entry card rather than the recruit/academy step.
-    out.effectiveHourlyTop = Lib.effectiveHourly(out.topBase, annualHours);
+    // effectiveHourlyEntry / effectiveHourlyTop are set below, after the displayed
+    // entry and top figures are chosen (which may be community-overridden).
     out.includesScheduledOvertime = !!s.includesScheduledOvertime;
     out.includesFlsaOvertime = !!s.includesFlsaOvertime;
     out.effectiveDate = s.effectiveDate || null;
@@ -90,9 +104,10 @@
       }
     }
 
-    var reports = buildReports(s, extraReports);
-    if (reports.length === 0) {
-      reports = [{
+    // ── Entry consensus (the headline figure) ──
+    var entryReports = reportsForField(s, extraReports, 'entry');
+    if (entryReports.length === 0) {
+      entryReports = [{
         value: out.entryBase,
         contributorId: 'historical',
         submittedAt: toMs(s.effectiveDate) || now,
@@ -100,16 +115,25 @@
         departmentMaintained: !!dept.departmentMaintained
       }];
     }
-    var clusters = C.clusterValues(reports, { now: now });
+    var clusters = C.clusterValues(entryReports, { now: now });
     var current = C.selectCurrentCluster(clusters, { now: now });
     out.clusters = clusters;
     out.confidence = C.confidenceLabel(clusters, { now: now });
     out.hasConflict = C.hasRecentConflict(clusters, { now: now });
-    out.contributors = uniqueContributorCount(reports);
     out.entry = current ? current.value : out.entryBase;
     out.effectiveHourlyEntry = Lib.effectiveHourly(out.entry, annualHours);
 
-    var newest = reports.reduce(function (m, r) { return Math.max(m, r.submittedAt || 0); }, 0) || toMs(s.effectiveDate);
+    // ── Top consensus — community-reported top pay overrides the step-derived top ──
+    var topReports = reportsForField(s, extraReports, 'top');
+    if (topReports.length) {
+      var topCurrent = C.selectCurrentCluster(C.clusterValues(topReports, { now: now }), { now: now });
+      if (topCurrent) out.topBase = topCurrent.value;
+    }
+    out.effectiveHourlyTop = Lib.effectiveHourly(out.topBase, annualHours);
+
+    var allReports = entryReports.concat(topReports);
+    out.contributors = uniqueContributorCount(allReports);
+    var newest = allReports.reduce(function (m, r) { return Math.max(m, r.submittedAt || 0); }, 0) || toMs(s.effectiveDate);
     out.lastUpdated = newest || null;
     out.newestSubmission = newest || null;
     out.oldestCurrent = current ? current.oldest : null;

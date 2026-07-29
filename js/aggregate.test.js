@@ -44,6 +44,23 @@ test('submissionToReport returns null without an entry figure', () => {
   assert.strictEqual(Agg.submissionToReport({ proposedValues: { schedule: '24/48' } }), null);
 });
 
+test('submissionToReport maps a top-type amount to top pay', () => {
+  const r = Agg.submissionToReport({ proposedValues: { amount: 90000, salaryType: 'top-ff' }, contributorId: 'u3', submittedAt: NOW });
+  assert.strictEqual(r.top, 90000);
+  assert.strictEqual(r.entry, null);
+  assert.strictEqual(r.value, 90000);
+});
+
+test('community top-pay submission overrides the displayed top figure', () => {
+  const dept = deptFixture(); // baseline top step = 72000
+  const base = Agg.summarize(dept, [], NOW);
+  assert.strictEqual(base.topBase, 72000);
+  const extra = [{ contributorId: 'u1', submittedAt: iso(1), top: 80000 }];
+  const s = Agg.summarize(dept, extra, NOW);
+  assert.strictEqual(s.topBase, 80000);   // community consensus overrides the step-derived top
+  assert.strictEqual(s.entry, 60000);     // entry unchanged
+});
+
 test('applyOverlay appends community reports without mutating the baseline', () => {
   const dept = deptFixture();
   const before = dept.salary.reports.length;

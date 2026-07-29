@@ -38,17 +38,28 @@ function isoDay(ts) { try { const d = ts ? new Date(ts) : null; return d && !isN
 // Firestore REST wraps values as { stringValue | integerValue | doubleValue | booleanValue | ... }
 function fv(x) { if (!x) return undefined; return x.stringValue ?? x.integerValue ?? x.doubleValue ?? x.booleanValue ?? undefined; }
 
+// Which displayed figure a quick-update `amount` refers to, from its salary type.
+// Top types -> top pay; hourly -> skip (unit mismatch); everything else -> entry.
+function metricFromType(t) {
+  t = String(t || '');
+  if (t === 'top-ff' || t === 'top-ff-medic') return 'top';
+  if (t === 'hourly-base') return 'skip';
+  return 'entry';
+}
 function toReport(fields) {
   const pv = (fields.proposedValues && fields.proposedValues.mapValue && fields.proposedValues.mapValue.fields) || {};
+  const amount = money(fv(pv.amount));
   let entry = money(fv(pv.entry));
-  const stype = String(fv(pv.salaryType) || '');
-  if (entry == null && (stype === 'annual-base' || stype.indexOf('entry') !== -1)) entry = money(fv(pv.amount));
-  if (entry == null) return null;
+  let top = money(fv(pv.top));
+  const metric = metricFromType(fv(pv.salaryType));
+  if (entry == null && metric === 'entry') entry = amount;
+  if (top == null && metric === 'top') top = amount;
+  if (entry == null && top == null) return null;
   return {
     contributorId: fv(fields.contributorId) || null,
     submittedAt: isoDay(fields.submittedAt && fields.submittedAt.timestampValue) || isoDay(Date.now()),
     entry,
-    top: money(fv(pv.top)),
+    top,
     hasSource: !!(fv(fields.sourceUrl) || fv(fields.sourceFile)),
     departmentMaintained: fv(fields.contributorType) === 'department'
   };
