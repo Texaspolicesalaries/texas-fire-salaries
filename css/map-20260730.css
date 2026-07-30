@@ -1,0 +1,59 @@
+/* Map page filter drawer --------------------------------------------------- */
+.filter-drawer {
+  z-index: 1200;
+  top: var(--nav-h);
+  right: 0;
+  bottom: 0;
+  left: auto;
+  width: min(26rem, 100vw);
+  max-width: 100%;
+  transform: translateX(100%);
+  border-left: 1px solid var(--border);
+  box-shadow: -16px 0 40px color-mix(in srgb, var(--ink-900) 16%, transparent);
+}
+
+.filter-drawer-body {
+  min-width: 0;
+  min-height: 0;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+}
+
+.filter-drawer .filters,
+.filter-drawer .filter-group,
+.filter-drawer .filter-group > .stack,
+.filter-drawer .field,
+.filter-drawer .filter-row,
+.filter-drawer .filter-row > * {
+  min-width: 0;
+}
+
+.filter-drawer .filter-row {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+}
+
+.filter-drawer input,
+.filter-drawer select,
+.filter-drawer textarea {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.filter-drawer select {
+  text-overflow: ellipsis;
+}
+
+.filter-drawer-foot > * {
+  min-width: 0;
+}
+
+@media (max-width: 640px) {
+  .filter-drawer {
+    inset: 0;
+    width: 100%;
+    max-width: none;
+    border-left: 0;
+    box-shadow: none;
+  }
+}
