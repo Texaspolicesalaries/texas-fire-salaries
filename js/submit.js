@@ -1,42 +1,67 @@
 /*
- * submit.js — Community submission wizard (submit.html). Mobile-first, several
- * paths: Quick update · Complete pay plan · Add a department. Captures base pay
- * plus additive incentives (EMS/TCFP cert, education, bilingual), optional source
- * with a sensitive-document warning, and required contributor attestations. Writes
- * preserved revision docs to Firestore when
- * connected; otherwise runs in a clearly-labeled preview mode.
+ * submit.js — Guided submission wizard (submit.html).
+ *
+ * Four steps: (1) Department & type, (2) Compensation, (3) Source, (4) Review.
+ * Two flows: update an existing department, or add a new one. Compensation is
+ * captured as structured fields (position, career point, pay period, amount,
+ * basis, effective date, schedule) plus repeatable supplemental-pay rows that
+ * each carry a unit ($/yr, $/mo, $/hr, % of base). The Review step shows an
+ * old → new diff against the department's current values. Source provenance
+ * ("how do you know this?") drives whether a submission publishes as sourced or
+ * provisional. Writes preserved revision docs to Firestore; preview mode otherwise.
  */
 (function () {
   'use strict';
   var UI = window.FireUI, Lib = window.FireSalaryLib, D = window.FireData, A = window.FireAuth;
-  var tab = 'update';
 
-  var SALARY_TYPES = [
-    ['recruit', 'Recruit salary'], ['ff-emt-entry', 'Firefighter/EMT entry salary'],
-    ['ff-medic-entry', 'Firefighter/paramedic entry salary'], ['top-ff', 'Top firefighter salary'],
-    ['top-ff-medic', 'Top firefighter/paramedic salary'], ['hourly-base', 'Hourly base rate'],
-    ['annual-base', 'Annual base salary'], ['annual-total', 'Annual compensation incl. scheduled overtime']
+  var POSITIONS = ['Recruit', 'Firefighter/EMT', 'Firefighter/Paramedic', 'Driver/Engineer', 'Apparatus Operator', 'Lieutenant', 'Captain', 'Battalion Chief', 'Other'];
+  var CAREER = [['academy', 'Academy / recruit'], ['entry', 'Entry (post-academy)'], ['step', 'Step (mid-career)'], ['top', 'Top pay']];
+  var PERIODS = [['annual', 'Per year'], ['monthly', 'Per month'], ['hourly', 'Per hour']];
+  var BASIS = [['base', 'Base pay only'], ['base-ot', 'Base + scheduled overtime'], ['total', 'Reported total compensation']];
+  var UNITS = [['yr', '$/yr'], ['mo', '$/mo'], ['hr', '$/hr'], ['pct', '% of base']];
+  var SUPP_TYPES = [
+    ['emt', 'EMT certification'], ['paramedic-incentive', 'Paramedic incentive (on top of base)'],
+    ['tcfp-basic', 'TCFP Basic'], ['tcfp-intermediate', 'TCFP Intermediate'], ['tcfp-advanced', 'TCFP Advanced'], ['tcfp-master', 'TCFP Master'],
+    ['edu-hs', 'Education — HS diploma'], ['edu-associate', 'Education — Associate'], ['edu-bachelor', 'Education — Bachelor’s'], ['edu-master', 'Education — Master’s'],
+    ['bilingual', 'Bilingual pay'], ['longevity', 'Longevity pay'], ['driver-engineer', 'Driver/Engineer pay'], ['rank', 'Officer / rank pay'],
+    ['assignment', 'Assignment / specialty pay'], ['holiday', 'Holiday pay'], ['certification', 'Certification pay (other)'],
+    ['stipend', 'Stipend (uniform, phone, etc.)'], ['bonus', 'Hiring / retention bonus'], ['other', 'Other']
   ];
+  var PROVENANCE = [
+    ['official-pay-plan', 'Official pay plan / salary schedule'], ['department-website', 'Department or city website'],
+    ['cba', 'Collective bargaining agreement / meet-and-confer'], ['recruiting-flyer', 'Recruiting flyer or posting'],
+    ['personal', 'I work / worked here'], ['community', 'Community knowledge']
+  ];
+  var SOURCED_PROVENANCE = { 'official-pay-plan': 1, 'department-website': 1, 'cba': 1, 'recruiting-flyer': 1 };
+
+  // Wizard state
+  var st = {
+    type: 'update',     // 'update' | 'add'
+    step: 1,
+    dept: '',
+    supplemental: []    // [{type, amount, unit}]
+  };
+  var totalSteps = 4;
 
   document.addEventListener('DOMContentLoaded', function () {
     D.load().then(function () {
       var p = new URLSearchParams(location.search);
-      var mode = p.get('mode');
-      if (mode === 'add') tab = 'add'; else if (mode === 'step') tab = 'plan'; else tab = 'update';
-      wireTabs();
+      if (p.get('mode') === 'add') st.type = 'add';
+      st.dept = p.get('dept') || '';
       renderGate();
-      renderTab(p.get('dept') || '');
+      render();
     });
     if (A) A.onChange(renderGate);
   });
 
+  // ── Auth gate ───────────────────────────────────────────────────────────────
   function renderGate() {
     var g = document.getElementById('submit-gate');
     if (!g) return;
     if (A && A.canContribute()) { g.classList.remove('show'); return; }
     g.classList.add('show');
     if (!window.FireDB || !window.FireDB.configured) {
-      g.innerHTML = '<span aria-hidden="true">🔎</span><div><strong>Preview mode.</strong> Firebase isn\'t connected in this build, so submissions are validated and summarized but not saved. Connect Firebase to publish. You can still walk through every form.</div>';
+      g.innerHTML = '<span aria-hidden="true">🔎</span><div><strong>Preview mode.</strong> Firebase isn’t connected in this build, so submissions are validated and summarized but not saved. You can still walk through every step.</div>';
     } else if (A && A.isSignedIn() && !A.isVerified()) {
       g.innerHTML = '<span aria-hidden="true">📧</span><div>Please verify your email before publishing. <button class="btn btn-outline btn-sm" id="resend">Resend verification</button></div>';
       var r = document.getElementById('resend'); if (r) r.onclick = function () { A.sendVerification().then(function () { r.textContent = 'Sent'; }); };
@@ -45,242 +70,445 @@
     }
   }
 
-  function wireTabs() {
-    document.querySelectorAll('[data-tab]').forEach(function (b) {
-      b.classList.toggle('active', b.getAttribute('data-tab') === tab);
-      b.addEventListener('click', function () {
-        tab = b.getAttribute('data-tab');
-        document.querySelectorAll('[data-tab]').forEach(function (x) { x.classList.toggle('active', x === b); });
-        renderTab('');
+  // ── Field helpers ─────────────────────────────────────────────────────────────
+  function field(label, control, hint) {
+    return '<div class="field"><label>' + label + '</label>' + control + (hint ? '<div class="field-hint">' + hint + '</div>' : '') + '</div>';
+  }
+  function txt(id, ph, val) { return '<input id="' + id + '" type="text" placeholder="' + (ph || '') + '" value="' + (val != null ? UI.esc(val) : '') + '">'; }
+  function money(id, ph) { return '<input id="' + id + '" type="text" inputmode="numeric" class="money" placeholder="' + (ph || '$') + '">'; }
+  function sel(id, opts, selVal) {
+    return '<select id="' + id + '">' + opts.map(function (o) {
+      var v = Array.isArray(o) ? o[0] : o, l = Array.isArray(o) ? o[1] : o;
+      return '<option value="' + UI.esc(v) + '"' + (selVal === v ? ' selected' : '') + '>' + UI.esc(l) + '</option>';
+    }).join('') + '</select>';
+  }
+  function selPlaceholder(id, opts, ph) {
+    return '<select id="' + id + '"><option value="">' + (ph || 'Select…') + '</option>' +
+      opts.map(function (o) { var v = Array.isArray(o) ? o[0] : o, l = Array.isArray(o) ? o[1] : o; return '<option value="' + UI.esc(v) + '">' + UI.esc(l) + '</option>'; }).join('') + '</select>';
+  }
+  function v(id) { var el = document.getElementById(id); return el ? String(el.value).trim() : ''; }
+  function setv(id, val) { var el = document.getElementById(id); if (el) el.value = val; }
+
+  // ── Step indicator + shell ────────────────────────────────────────────────────
+  var STEP_LABELS = ['Department', 'Compensation', 'Source', 'Review'];
+  function indicator() {
+    return '<div class="wiz-steps">' + STEP_LABELS.map(function (lab, i) {
+      var n = i + 1, cls = n === st.step ? 'active' : (n < st.step ? 'done' : '');
+      return '<div class="wiz-step ' + cls + '"><span class="dot">' + (n < st.step ? '✓' : n) + '</span><span class="lab">' + lab + '</span></div>';
+    }).join('<span class="wiz-sep"></span>') + '</div>';
+  }
+
+  // All step panels stay in the DOM (only the active one shown) so field values
+  // persist across Back/Next and the Review reflects them.
+  function render() {
+    var host = document.getElementById('submit-body');
+    if (!host) return;
+    host.innerHTML =
+      '<div id="wiz-indicator"></div>' +
+      '<form id="the-form" novalidate onsubmit="return false">' +
+        '<div class="wiz-panel" data-step="1">' + step1() + '</div>' +
+        '<div class="wiz-panel" data-step="2">' + step2() + '</div>' +
+        '<div class="wiz-panel" data-step="3">' + step3() + '</div>' +
+        '<div class="wiz-panel" data-step="4" id="panel-review"></div>' +
+      '</form>' +
+      '<div id="wiz-nav-c"></div>' +
+      '<div id="form-status" style="margin-top:1rem"></div>';
+    wireStep();
+    updateChrome();
+  }
+
+  function updateChrome() {
+    var ind = document.getElementById('wiz-indicator'); if (ind) ind.innerHTML = indicator();
+    var navc = document.getElementById('wiz-nav-c'); if (navc) navc.innerHTML = nav();
+    document.querySelectorAll('.wiz-panel').forEach(function (p) {
+      p.style.display = (parseInt(p.getAttribute('data-step'), 10) === st.step) ? '' : 'none';
+    });
+    if (st.step === 4) { var rp = document.getElementById('panel-review'); if (rp) rp.innerHTML = step4(); }
+    wireNav();
+  }
+
+  function goStep(n) {
+    st.step = n;
+    var s = document.getElementById('form-status'); if (s) s.innerHTML = '';
+    updateChrome();
+    var top = document.querySelector('main'); if (top) window.scrollTo({ top: top.offsetTop, behavior: 'smooth' });
+  }
+
+  function wireNav() {
+    var back = document.getElementById('wiz-back'); if (back) back.onclick = function () { goStep(st.step - 1); };
+    var next = document.getElementById('wiz-next'); if (next) next.onclick = function () { if (validateStep()) goStep(st.step + 1); };
+    var submit = document.getElementById('wiz-submit'); if (submit) submit.onclick = onSubmit;
+  }
+
+  function nav() {
+    var back = st.step > 1 ? '<button class="btn btn-outline" id="wiz-back">← Back</button>' : '<span></span>';
+    var next = st.step < totalSteps
+      ? '<button class="btn btn-primary" id="wiz-next">Continue →</button>'
+      : '<button class="btn btn-primary btn-lg" id="wiz-submit">Submit for the community</button>';
+    return '<div class="wiz-nav">' + back + next + '</div>';
+  }
+
+  // ── Step 1: department + type ──────────────────────────────────────────────────
+  function step1() {
+    var typeToggle =
+      '<div class="seg" id="type-seg" role="group" aria-label="Submission type">' +
+        '<button type="button" data-type="update" class="' + (st.type === 'update' ? 'active' : '') + '">Update a department</button>' +
+        '<button type="button" data-type="add" class="' + (st.type === 'add' ? 'active' : '') + '">Add a new department</button>' +
+      '</div>';
+
+    if (st.type === 'add') {
+      return '<h2>Add a department</h2>' + typeToggle +
+        '<p class="muted">Add a Texas fire department that isn’t listed yet.</p>' +
+        '<div class="grid cols-2">' + field('Department name', txt('f-name', 'e.g. Sample Fire Department')) + field('City', txt('f-city')) + '</div>' +
+        '<div class="grid cols-3">' + field('County', txt('f-county')) + field('ZIP', '<input id="f-zip" type="text" inputmode="numeric" maxlength="5">') +
+          field('Type', sel('f-dtype', [['municipal', 'Municipal'], ['esd', 'Emergency services district'], ['county', 'County'], ['university', 'University'], ['airport', 'Airport'], ['fire-rescue-district', 'Fire-rescue district'], ['combination', 'Combination'], ['other', 'Other']])) + '</div>' +
+        field('Website or careers URL', '<input id="f-web" type="url" placeholder="https://">');
+    }
+
+    var opts = D.all().map(function (d) { return d.name + ' — ' + d.city; });
+    return '<h2>Which department?</h2>' + typeToggle +
+      field('Search for a department',
+        '<input id="f-dept-search" type="text" list="dept-list" autocomplete="off" placeholder="Type a department, city, or county…">' +
+        '<datalist id="dept-list">' + D.all().map(function (d) { return '<option value="' + UI.esc(d.name + ' — ' + d.city) + '"></option>'; }).join('') + '</datalist>',
+        'Start typing — 54 departments listed.') +
+      '<div id="current-values"></div>';
+  }
+
+  function currentValuesCard(dept) {
+    var s = dept.summary || {};
+    if (!s.hasSalary) return '<div class="notice info" style="margin-top:.5rem"><span class="notice-icon">ℹ</span><div><strong>' + UI.esc(dept.name) + '</strong> has no salary on file yet — anything you add will be its first report.</div></div>';
+    var row = function (k, val) { return '<div class="cv-row"><span>' + k + '</span><strong>' + val + '</strong></div>'; };
+    return '<div class="card card-tight cv-card" style="margin-top:.75rem"><div class="cv-title">Current values for ' + UI.esc(dept.name) + '</div>' +
+      row('Entry pay', UI.money(s.entry)) +
+      row('Top pay', s.topBase ? UI.money(s.topBase) : '—') +
+      row('Years to top', s.yearsToTop != null ? s.yearsToTop + ' yr' : '—') +
+      row('Schedule', dept.scheduleType || '—') +
+      row('Effective date', (dept.salary && dept.salary.effectiveDate) || '—') +
+      '<p class="field-hint" style="margin:.5rem 0 0">Only fill in what you’re changing on the next step.</p></div>';
+  }
+
+  // ── Step 2: compensation ────────────────────────────────────────────────────────
+  function step2() {
+    if (st.type === 'add') {
+      return '<h2>Compensation (optional)</h2><p class="muted">Add starting pay for ' + UI.esc(deptName()) + ' now, or skip and let the community fill it in.</p>' + compFields();
+    }
+    return '<h2>What are you changing?</h2><p class="muted">For ' + UI.esc(deptName()) + '. Fill in only the figures you’re updating.</p>' + compFields();
+  }
+
+  function compFields() {
+    return '' +
+      '<div class="grid cols-2">' +
+        field('Position', selPlaceholder('c-position', POSITIONS, 'Select position…')) +
+        field('Career point', selPlaceholder('c-career', CAREER, 'Select…')) +
+      '</div>' +
+      '<div class="grid cols-3">' +
+        field('Amount', money('c-amount', '$')) +
+        field('Pay period', sel('c-period', PERIODS, 'annual')) +
+        field('Amount represents', sel('c-basis', BASIS, 'base')) +
+      '</div>' +
+      '<div class="grid cols-3">' +
+        field('Effective date', '<input id="c-eff" type="text" inputmode="numeric" placeholder="2026-01-01 or 2026">') +
+        field('Shift schedule', sel('c-sched', [['', '—'], '24/48', '48/96', '24/72', '40-hour'], '')) +
+        field('Scheduled annual hours', '<input id="c-hours" type="text" inputmode="numeric" placeholder="2912">') +
+      '</div>' +
+      // Optional full step plan
+      '<details class="filter-group"><summary>Enter the full step plan (optional)</summary><div style="margin-top:.6rem">' +
+        '<p class="field-hint">One card per step. Fill only the columns you have.</p>' +
+        '<div id="step-cards"></div>' +
+        '<button type="button" class="btn btn-outline btn-sm" id="add-step">＋ Add step</button>' +
+      '</div></details>' +
+      // Supplemental pay
+      '<div class="divider-label">Additional / supplemental pay</div>' +
+      '<p class="field-hint">Longevity, certifications, education, assignment, holiday, stipends, bonuses — each with its own unit.</p>' +
+      '<div id="supp-rows"></div>' +
+      '<button type="button" class="btn btn-outline btn-sm" id="add-supp">＋ Add pay item</button>';
+  }
+
+  function suppRow(row) {
+    row = row || {};
+    return '<div class="supp-row">' +
+      selPlaceholder('', SUPP_TYPES, 'Pay type…').replace('<select id=""', '<select class="s-type"') +
+      '<input type="text" inputmode="numeric" class="money s-amt" placeholder="Amount">' +
+      sel('', UNITS, 'yr').replace('<select id=""', '<select class="s-unit"') +
+      '<button type="button" class="btn btn-ghost btn-sm s-rm" aria-label="Remove">✕</button>' +
+    '</div>';
+  }
+
+  function stepCard(i) {
+    return '<div class="step-card"><div class="sc-head">Step ' + (i + 1) + ' <button type="button" class="btn btn-ghost btn-sm sc-rm" aria-label="Remove step">✕</button></div>' +
+      '<div class="grid cols-2">' +
+        field('Step name', '<input type="text" class="k-name" placeholder="Firefighter">') +
+        field('Months in service (start)', '<input type="text" inputmode="numeric" class="k-months" placeholder="0">') +
+      '</div>' +
+      '<div class="grid cols-3">' +
+        field('Base annual', '<input type="text" inputmode="numeric" class="money k-base" placeholder="$">') +
+        field('Scheduled OT', '<input type="text" inputmode="numeric" class="money k-ot" placeholder="$">') +
+        field('Reported total', '<input type="text" inputmode="numeric" class="money k-total" placeholder="$">') +
+      '</div></div>';
+  }
+
+  // ── Step 3: source ──────────────────────────────────────────────────────────────
+  function step3() {
+    return '<h2>How do you know this?</h2>' +
+      '<p class="muted">Source-backed figures publish as <em>sourced</em>. Unsupported figures publish as <em>provisional</em> and may get extra review.</p>' +
+      field('Where does this come from?', selPlaceholder('src-prov', PROVENANCE, 'Select a source…')) +
+      field('Public source link (optional)', '<input id="src-url" type="url" placeholder="https:// — pay plan, careers page, CBA">') +
+      '<div class="divider-label">Attach a document (optional)</div>' +
+      '<label class="upload-area" for="src-file"><input id="src-file" type="file" accept="image/png,image/jpeg,application/pdf" hidden>' +
+        '<div class="up-icon" aria-hidden="true">📄</div>' +
+        '<div><strong>Click to upload</strong> or drag a file here<div class="field-hint" style="margin-top:2px">PDF, PNG or JPG · up to 10 MB</div></div>' +
+        '<div class="up-file" id="up-filename"></div>' +
+      '</label>' +
+      '<div id="file-confirms"></div>';
+  }
+
+  // ── Step 4: review ──────────────────────────────────────────────────────────────
+  function step4() {
+    var payload = gather();
+    return '<h2>Review &amp; submit</h2>' +
+      '<p class="muted">Confirm the changes below. Routine submissions publish automatically and are preserved as revisions.</p>' +
+      reviewDiff(payload) +
+      '<div class="divider-label">Confirm</div>' +
+      '<div class="checkline"><input type="checkbox" id="att-main" required><label for="att-main">I believe this information is accurate, and I understand my submission may be edited, compared, and displayed publicly.</label></div>' +
+      (hasFile() ? '<div class="checkline"><input type="checkbox" id="att-file" required><label for="att-file">The file I’m attaching is public/non-sensitive and I have the right to share it.</label></div>' : '');
+  }
+
+  function reviewDiff(payload) {
+    var rows = [];
+    var arrow = function (label, oldV, newV) { return '<div class="rv-row"><span class="rv-k">' + label + '</span><span class="rv-old">' + (oldV != null ? oldV : '—') + '</span><span class="rv-arw">→</span><span class="rv-new">' + newV + '</span></div>'; };
+    if (st.type === 'add') {
+      rows.push('<div class="rv-row"><span class="rv-k">New department</span><span class="rv-new">' + UI.esc(payload.name || '(unnamed)') + ' · ' + UI.esc(payload.city || '') + '</span></div>');
+    }
+    var dept = st.type === 'update' ? D.get(st.dept) : null;
+    var cur = dept && dept.summary ? dept.summary : {};
+    var pv = payload.proposedValues || {};
+    if (pv.amount != null) {
+      var careerTop = pv.careerPoint === 'top';
+      var oldVal = careerTop ? (cur.topBase != null ? UI.money(cur.topBase) : null) : (cur.entry != null ? UI.money(cur.entry) : null);
+      rows.push(arrow((careerTop ? 'Top' : (pv.position || 'Pay')) + ' — ' + periodLabel(pv.payPeriod), oldVal, UI.money(pv.amount) + basisSuffix(pv.basis)));
+    }
+    if (pv.effectiveDate) rows.push(arrow('Effective date', (dept && dept.salary && dept.salary.effectiveDate) || null, UI.esc(pv.effectiveDate)));
+    if (pv.schedule) rows.push(arrow('Schedule', dept ? (dept.scheduleType || null) : null, UI.esc(pv.schedule)));
+    if (pv.hoursAnnual) rows.push(arrow('Scheduled hours', dept ? (dept.annualScheduledHours || null) : null, UI.esc(pv.hoursAnnual)));
+    (pv.steps || []).length && rows.push('<div class="rv-row"><span class="rv-k">Full step plan</span><span class="rv-new">' + pv.steps.length + ' step' + (pv.steps.length === 1 ? '' : 's') + '</span></div>');
+    (pv.supplemental || []).forEach(function (s) {
+      rows.push('<div class="rv-row"><span class="rv-k">' + UI.esc(suppLabel(s.type)) + '</span><span class="rv-new">' + UI.money(s.amount) + '/' + unitLabel(s.unit) + '</span></div>');
+    });
+    var prov = payload.sourceType;
+    rows.push('<div class="rv-row"><span class="rv-k">Source</span><span class="rv-new">' + (prov ? UI.esc(provLabel(prov)) : 'Not specified') + ' · ' + (payload.sourceStatus === 'sourced' ? '<span class="chip strong" style="padding:1px 8px">Sourced</span>' : '<span class="chip reported" style="padding:1px 8px">Provisional</span>') + '</span></div>');
+    if (!rows.length) return '<div class="notice warn"><span class="notice-icon">⚠</span><div>No changes yet — go back and enter at least one figure.</div></div>';
+    return '<div class="review-card">' + rows.join('') + '</div>';
+  }
+
+  // ── Wiring ────────────────────────────────────────────────────────────────────
+  function wireStep() {
+    // type toggle
+    document.querySelectorAll('#type-seg [data-type]').forEach(function (b) {
+      b.onclick = function () { st.type = b.getAttribute('data-type'); st.step = 1; render(); };
+    });
+
+    // money comma formatting
+    document.querySelectorAll('input.money').forEach(function (el) {
+      el.addEventListener('input', function () {
+        var digits = el.value.replace(/[^\d]/g, '');
+        el.value = digits ? Number(digits).toLocaleString('en-US') : '';
       });
+    });
+
+    // step 1: dept search
+    var ds = document.getElementById('f-dept-search');
+    if (ds) {
+      if (st.dept) { var d0 = D.get(st.dept); if (d0) ds.value = d0.name + ' — ' + d0.city; }
+      renderCurrent();
+      ds.addEventListener('input', function () {
+        var m = matchDept(ds.value);
+        st.dept = m ? m.slug : '';
+        renderCurrent();
+      });
+    }
+
+    // step 2: step-plan cards + supplemental rows
+    var addStep = document.getElementById('add-step');
+    if (addStep) {
+      var cards = document.getElementById('step-cards');
+      var idx = { n: 0 };
+      addStep.onclick = function () { cards.insertAdjacentHTML('beforeend', stepCard(idx.n++)); rewireMoney(cards); rewireStepRemove(cards); };
+    }
+    var addSupp = document.getElementById('add-supp');
+    if (addSupp) {
+      var supp = document.getElementById('supp-rows');
+      addSupp.onclick = function () { supp.insertAdjacentHTML('beforeend', suppRow()); rewireMoney(supp); rewireSuppRemove(supp); };
+    }
+
+    // step 3: file upload
+    var file = document.getElementById('src-file');
+    if (file) file.addEventListener('change', function () {
+      var f = file.files && file.files[0];
+      var name = document.getElementById('up-filename');
+      var confirms = document.getElementById('file-confirms');
+      if (f) {
+        if (f.size > 10 * 1024 * 1024) { name.innerHTML = '<span class="field-error">That file is over 10 MB.</span>'; file.value = ''; if (confirms) confirms.innerHTML = ''; return; }
+        name.textContent = '✓ ' + f.name;
+      } else { name.textContent = ''; }
     });
   }
 
-  function deptSelect(id, selected) {
-    var opts = '<option value="">— Select a department —</option>' + D.all().map(function (d) {
-      return '<option value="' + UI.esc(d.slug) + '"' + (d.slug === selected ? ' selected' : '') + '>' + UI.esc(d.name) + ' (' + UI.esc(d.city) + ')</option>';
-    }).join('');
-    return '<div class="field"><label for="' + id + '">Department</label><select id="' + id + '" required>' + opts + '</select></div>';
+  function rewireMoney(scope) {
+    scope.querySelectorAll('input.money').forEach(function (el) {
+      if (el._wired) return; el._wired = true;
+      el.addEventListener('input', function () { var d = el.value.replace(/[^\d]/g, ''); el.value = d ? Number(d).toLocaleString('en-US') : ''; });
+    });
   }
+  function rewireStepRemove(scope) { scope.querySelectorAll('.sc-rm').forEach(function (b) { b.onclick = function () { b.closest('.step-card').remove(); }; }); }
+  function rewireSuppRemove(scope) { scope.querySelectorAll('.s-rm').forEach(function (b) { b.onclick = function () { b.closest('.supp-row').remove(); }; }); }
 
-  function sourceBlock() {
-    return '<div class="divider-label">Optional source</div>' +
-      '<div class="notice warn" style="margin-bottom:1rem"><span class="notice-icon">⚠</span><div><strong>Do not upload sensitive material.</strong> No personal pay stubs, employee numbers, SSNs, medical info, disciplinary records, or confidential personnel documents. Only share public pay plans, flyers, or documents you are authorized to share. Image metadata is stripped when practical.</div></div>' +
-      '<div class="field"><label for="src-url">Public source URL (pay plan, careers page, CBA)</label><input id="src-url" type="url" placeholder="https://"></div>' +
-      '<div class="field"><label for="src-file">Upload a pay plan / flyer (optional)</label><input id="src-file" type="file" accept="image/*,application/pdf"></div>';
-  }
-
-  function attestBlock() {
-    return '<div class="divider-label">Confirm</div>' +
-      '<div class="stack">' +
-      check('att1', 'I believe this information is accurate.') +
-      check('att2', 'I am not uploading personal pay stubs or other sensitive personal information.') +
-      check('att3', 'I have the right to share any material I upload.') +
-      check('att4', 'I understand my submission may be edited, compared, and displayed publicly.') +
-      '</div>';
-  }
-  function check(id, label) { return '<div class="checkline"><input type="checkbox" id="' + id + '" required><label for="' + id + '">' + label + '</label></div>'; }
-  function numField(id, label, hint) { return '<div class="field"><label for="' + id + '">' + label + '</label><input id="' + id + '" type="number" inputmode="decimal" placeholder="' + (hint || '') + '"></div>'; }
-
-  // Texas firefighter pay is usually base FF pay plus additive incentives. This block
-  // captures the common ones: EMS cert, TCFP cert levels, education levels, bilingual.
-  function additionalPayBlock() {
-    return '<details class="filter-group" style="margin-top:1rem"><summary>Additional pay — certifications, education, bilingual</summary>' +
-      '<div class="stack" style="margin-top:.6rem">' +
-        '<p class="field-hint">Most departments pay extra on top of base firefighter pay. Enter the annual amount ($/yr) for any that apply and leave the rest blank.</p>' +
-        '<strong>EMS certification pay</strong>' +
-        '<div class="grid cols-2">' + numField('f-emt-pay', 'EMT', '$/yr') + numField('f-medic-pay', 'Paramedic', '$/yr') + '</div>' +
-        '<strong>TCFP certification pay <span class="faint" style="font-weight:400">(Texas Commission on Fire Protection)</span></strong>' +
-        '<div class="grid cols-2">' + numField('f-tcfp-basic', 'Basic', '$/yr') + numField('f-tcfp-int', 'Intermediate', '$/yr') +
-          numField('f-tcfp-adv', 'Advanced', '$/yr') + numField('f-tcfp-master', 'Master', '$/yr') + '</div>' +
-        '<strong>Education pay</strong>' +
-        '<div class="grid cols-2">' + numField('f-edu-hs', 'High school diploma', '$/yr') + numField('f-edu-assoc', 'Associate degree', '$/yr') +
-          numField('f-edu-bach', 'Bachelor\'s degree', '$/yr') + numField('f-edu-master', 'Master\'s degree', '$/yr') + '</div>' +
-        '<strong>Other</strong>' +
-        '<div class="grid cols-2">' + numField('f-bilingual', 'Bilingual pay', '$/yr') + '</div>' +
-      '</div></details>';
-  }
-
-  // Collect the additional-pay fields into a compact object (undefined when all blank).
-  function gatherIncentives(v) {
-    var m = function (id) { var n = Lib.parseMoney(v(id)); return n != null ? n : undefined; };
-    var inc = {
-      emt: m('f-emt-pay'), paramedic: m('f-medic-pay'),
-      tcfpBasic: m('f-tcfp-basic'), tcfpIntermediate: m('f-tcfp-int'), tcfpAdvanced: m('f-tcfp-adv'), tcfpMaster: m('f-tcfp-master'),
-      eduHighSchool: m('f-edu-hs'), eduAssociate: m('f-edu-assoc'), eduBachelor: m('f-edu-bach'), eduMaster: m('f-edu-master'),
-      bilingual: m('f-bilingual')
-    };
-    return Object.keys(inc).some(function (k) { return inc[k] != null; }) ? inc : undefined;
-  }
-
-  function renderTab(prefillDept) {
-    var host = document.getElementById('submit-body');
+  function renderCurrent() {
+    var host = document.getElementById('current-values');
     if (!host) return;
-    if (tab === 'update') host.innerHTML = quickUpdateForm(prefillDept);
-    else if (tab === 'plan') host.innerHTML = payPlanForm(prefillDept);
-    else host.innerHTML = addDeptForm();
-    wireForm();
+    var d = st.dept ? D.get(st.dept) : null;
+    host.innerHTML = d ? currentValuesCard(d) : '';
   }
 
-  function quickUpdateForm(prefill) {
-    return '<form id="the-form" novalidate><h2>Quick update</h2>' +
-      '<p class="muted">Update one or more fields for an existing department. Every submission is preserved as a revision.</p>' +
-      deptSelect('f-dept', prefill) +
-      '<div class="field"><label for="f-class">Position / classification</label><input id="f-class" placeholder="e.g. Firefighter, FF-Paramedic, Driver-Engineer"></div>' +
-      '<div class="grid cols-2">' +
-        numField('f-amount', 'Salary amount', '$') +
-        '<div class="field"><label for="f-type">Salary type</label><select id="f-type">' + SALARY_TYPES.map(function (t) { return '<option value="' + t[0] + '"' + (t[0] === 'ff-emt-entry' ? ' selected' : '') + '>' + t[1] + '</option>'; }).join('') + '</select></div>' +
-      '</div>' +
-      '<div class="grid cols-2">' +
-        '<div class="field"><label for="f-eff">Effective date (or year)</label><input id="f-eff" type="text" inputmode="numeric" placeholder="2026-01-01 or 2026"></div>' +
-        '<div class="field"><label for="f-basis">This amount is…</label><select id="f-basis"><option value="base">Base salary only</option><option value="total">Total reported comp (incl. scheduled OT)</option></select></div>' +
-      '</div>' +
-      '<div class="checkline"><input type="checkbox" id="f-ot"><label for="f-ot">This amount includes scheduled overtime</label></div>' +
-      '<details class="filter-group" style="margin-top:1rem"><summary>Optional details</summary><div class="stack" style="margin-top:.6rem">' +
-        '<div class="grid cols-2">' +
-          '<div class="field"><label for="f-sched">Shift schedule</label><input id="f-sched" placeholder="24/48"></div>' +
-          numField('f-ytt', 'Years to top', 'yrs') +
-        '</div>' +
-        '<div class="grid cols-2">' + numField('f-hours', 'Annual scheduled hours', '2912') +
-          '<div class="field"><label for="f-hiring">Hiring status</label><select id="f-hiring"><option value="">No change</option><option value="hiring">Currently hiring</option><option value="not-hiring">Not hiring</option></select></div>' +
-        '</div>' +
-      '</div></details>' +
-      additionalPayBlock() +
-      '<div class="field" style="margin-top:1rem"><label for="f-notes">Notes (context only, not the main data)</label><textarea id="f-notes" placeholder="e.g. amount reflects the 2026 approved pay scale, step 1."></textarea></div>' +
-      sourceBlock() + attestBlock() +
-      submitButtons() + '</form>';
+  function matchDept(text) {
+    text = String(text || '').toLowerCase().trim();
+    if (!text) return null;
+    var all = D.all();
+    var exact = all.find(function (d) { return (d.name + ' — ' + d.city).toLowerCase() === text; });
+    if (exact) return exact;
+    return all.find(function (d) { return d.name.toLowerCase().indexOf(text) !== -1 || (d.city && d.city.toLowerCase().indexOf(text) !== -1) || (d.county && d.county.toLowerCase().indexOf(text) !== -1); });
   }
+  function deptName() { var d = D.get(st.dept); return d ? d.name : 'this department'; }
 
-  function payPlanForm(prefill) {
-    return '<form id="the-form" novalidate><h2>Complete pay plan</h2>' +
-      '<p class="muted">Enter each step. Only fill the columns you have — blank cells are fine.</p>' +
-      deptSelect('f-dept', prefill) +
-      '<div class="grid cols-2">' +
-        '<div class="field"><label for="f-eff">Effective date</label><input id="f-eff" type="text" inputmode="numeric" placeholder="2026-01-01"></div>' +
-        '<div class="field"><label for="f-class">Classification</label><input id="f-class" placeholder="Firefighter"></div>' +
-      '</div>' +
-      '<div class="checkline"><input type="checkbox" id="f-ot"><label for="f-ot">Reported compensation includes scheduled overtime</label></div>' +
-      '<div class="table-scroll" style="margin:1rem 0"><table class="data" id="step-table" style="min-width:640px"><thead><tr>' +
-        '<th>Step</th><th class="num">Min months</th><th class="num">Base annual</th><th class="num">Sched. OT</th><th class="num">Paramedic</th><th class="num">Reported total</th><th></th>' +
-      '</tr></thead><tbody></tbody></table></div>' +
-      '<button type="button" class="btn btn-outline btn-sm" id="add-step">＋ Add step</button>' +
-      additionalPayBlock() +
-      sourceBlock() + attestBlock() + submitButtons() + '</form>';
-  }
-
-  function addDeptForm() {
-    return '<form id="the-form" novalidate><h2>Add a department</h2>' +
-      '<p class="muted">Add a Texas fire department that isn\'t listed yet. It publishes for the community to build on.</p>' +
-      '<div class="divider-label">New department details</div>' +
-      '<div class="grid cols-2">' +
-        '<div class="field"><label for="f-name">Department name</label><input id="f-name" required></div>' +
-        '<div class="field"><label for="f-city">City</label><input id="f-city" required></div>' +
-      '</div>' +
-      '<div class="grid cols-3">' +
-        '<div class="field"><label for="f-county">County</label><input id="f-county"></div>' +
-        '<div class="field"><label for="f-zip">ZIP</label><input id="f-zip" inputmode="numeric"></div>' +
-        '<div class="field"><label for="f-type">Type</label><select id="f-type"><option value="municipal">Municipal</option><option value="esd">Emergency services district</option><option value="county">County</option><option value="university">University</option><option value="airport">Airport</option><option value="fire-rescue-district">Fire-rescue district</option><option value="combination">Combination</option><option value="other">Other</option></select></div>' +
-      '</div>' +
-      '<div class="field"><label for="f-web">Website or careers URL (helps us avoid duplicates)</label><input id="f-web" type="url" placeholder="https://"></div>' +
-      attestBlock() + submitButtons('Add department') + '</form>';
-  }
-
-  function submitButtons(label) {
-    return '<div style="display:flex;gap:.75rem;margin-top:1.5rem;flex-wrap:wrap">' +
-      '<button type="submit" class="btn btn-primary btn-lg">' + (label || 'Submit for the community') + '</button>' +
-      '<a class="btn btn-ghost" href="/how-it-works.html">How submissions work</a></div>' +
-      '<div id="form-status" style="margin-top:1rem"></div>';
-  }
-
-  function wireForm() {
-    // pay-plan step rows
-    var addStep = document.getElementById('add-step');
-    if (addStep) {
-      var tbody = document.querySelector('#step-table tbody');
-      function addRow() {
-        var tr = document.createElement('tr');
-        tr.innerHTML = '<td><input placeholder="Firefighter"></td>' +
-          ['months', 'base', 'ot', 'medic', 'reported'].map(function () { return '<td><input type="number" inputmode="decimal" style="min-width:90px"></td>'; }).join('') +
-          '<td><button type="button" class="btn btn-ghost btn-sm rm">✕</button></td>';
-        tr.querySelector('.rm').onclick = function () { tr.remove(); };
-        tbody.appendChild(tr);
-      }
-      addStep.onclick = addRow; addRow(); addRow();
-    }
-    var form = document.getElementById('the-form');
-    if (form) form.addEventListener('submit', onSubmit);
-  }
-
-  function onSubmit(e) {
-    e.preventDefault();
+  // ── Validation ────────────────────────────────────────────────────────────────
+  function validateStep() {
     var status = document.getElementById('form-status');
-    // attestations
-    var missing = ['att1', 'att2', 'att3', 'att4'].filter(function (id) { var el = document.getElementById(id); return el && !el.checked; });
-    if (missing.length) { status.innerHTML = notice('warn', 'Please confirm all four statements before submitting.'); return; }
+    function fail(msg) { if (status) status.innerHTML = notice('warn', msg); return false; }
+    if (status) status.innerHTML = '';
+    if (st.step === 1) {
+      if (st.type === 'add') { if (!v('f-name')) return fail('Enter the department name.'); if (!v('f-city')) return fail('Enter the city.'); }
+      else if (!st.dept) return fail('Pick a department from the list.');
+      return true;
+    }
+    if (st.step === 2) {
+      var amt = Lib.parseMoney(v('c-amount'));
+      var steps = readSteps();
+      var supp = readSupp();
+      if (st.type === 'update' && amt == null && !steps.length && !supp.length && !v('c-sched') && !v('c-eff')) {
+        return fail('Add at least one change — a pay amount, schedule, effective date, step plan, or supplemental pay item.');
+      }
+      if (amt != null) {
+        if (amt < 0) return fail('Pay amounts can’t be negative.');
+        if (!v('c-position')) return fail('Choose the position this pay is for.');
+        if (!v('c-eff')) return fail('Add an effective date for the pay amount.');
+      }
+      var bad = supp.find(function (s) { return s.amount != null && s.amount < 0; });
+      if (bad) return fail('Supplemental pay amounts can’t be negative.');
+      return true;
+    }
+    return true;
+  }
+
+  // ── Gather ────────────────────────────────────────────────────────────────────
+  function readSteps() {
+    var out = [];
+    document.querySelectorAll('#step-cards .step-card').forEach(function (c) {
+      var name = (c.querySelector('.k-name') || {}).value || '';
+      var base = Lib.parseMoney((c.querySelector('.k-base') || {}).value);
+      if (!name.trim() && base == null) return;
+      out.push({ stepName: name.trim(), minimumMonths: Lib.parseNumber((c.querySelector('.k-months') || {}).value),
+        baseAnnualSalary: base, scheduledOvertime: Lib.parseMoney((c.querySelector('.k-ot') || {}).value),
+        reportedAnnualCompensation: Lib.parseMoney((c.querySelector('.k-total') || {}).value) });
+    });
+    return out;
+  }
+  function readSupp() {
+    var out = [];
+    document.querySelectorAll('#supp-rows .supp-row').forEach(function (r) {
+      var type = (r.querySelector('.s-type') || {}).value;
+      var amount = Lib.parseMoney((r.querySelector('.s-amt') || {}).value);
+      if (!type || amount == null) return;
+      out.push({ type: type, amount: amount, unit: (r.querySelector('.s-unit') || {}).value || 'yr' });
+    });
+    return out;
+  }
+
+  function gather() {
+    var base = { submissionType: st.type === 'add' ? 'add' : 'update', contributorType: (A && A.profile && A.profile.role === 'department') ? 'department' : 'community' };
+    var prov = v('src-prov') || null;
+    base.sourceType = prov;
+    base.sourceUrl = v('src-url') || null;
+    base.sourceStatus = (prov && SOURCED_PROVENANCE[prov]) || base.sourceUrl ? 'sourced' : 'provisional';
+    base.hasFile = hasFile();
+
+    if (st.type === 'add') {
+      Object.assign(base, { name: v('f-name'), city: v('f-city'), county: v('f-county'), zip: v('f-zip'), departmentType: v('f-dtype'), website: v('f-web') });
+    } else {
+      base.departmentSlug = st.dept;
+    }
+
+    var amount = Lib.parseMoney(v('c-amount'));
+    var career = v('c-career');
+    // Map the amount to an annual entry/top figure for the consensus engine.
+    var annual = toAnnual(amount, v('c-period'), Lib.parseNumber(v('c-hours')));
+    var pv = {
+      position: v('c-position') || undefined,
+      careerPoint: career || undefined,
+      payPeriod: v('c-period') || undefined,
+      amount: amount != null ? amount : undefined,
+      basis: v('c-basis') || undefined,
+      effectiveDate: v('c-eff') || undefined,
+      schedule: v('c-sched') || undefined,
+      hoursAnnual: Lib.parseNumber(v('c-hours')) || undefined,
+      steps: readSteps(),
+      supplemental: readSupp()
+    };
+    // Feed the consensus engine's entry/top keys.
+    if (annual != null) { if (career === 'top') pv.top = annual; else pv.entry = annual; }
+    if (!pv.steps.length) delete pv.steps;
+    if (!pv.supplemental.length) delete pv.supplemental;
+    base.effectiveDate = pv.effectiveDate;
+    base.proposedValues = pv;
+    base.notes = '';
+    return base;
+  }
+
+  function toAnnual(amount, period, hours) {
+    if (amount == null) return null;
+    if (period === 'monthly') return Math.round(amount * 12);
+    if (period === 'hourly') return Math.round(amount * (hours || 2912));
+    return amount;
+  }
+
+  // ── Submit ────────────────────────────────────────────────────────────────────
+  function onSubmit() {
+    var status = document.getElementById('form-status');
+    if (!document.getElementById('att-main') || !document.getElementById('att-main').checked) { status.innerHTML = notice('warn', 'Please confirm the accuracy statement.'); return; }
+    var fileC = document.getElementById('att-file');
+    if (fileC && !fileC.checked) { status.innerHTML = notice('warn', 'Please confirm you can share the attached file.'); return; }
 
     var payload = gather();
-    if (tab !== 'add' && !payload.departmentSlug) { status.innerHTML = notice('warn', 'Please choose a department.'); return; }
-    if (tab === 'add' && !payload.name) { status.innerHTML = notice('warn', 'Please enter a department name.'); return; }
+    var pv = payload.proposedValues || {};
+    var hasChange = pv.amount != null || (pv.steps && pv.steps.length) || (pv.supplemental && pv.supplemental.length) || pv.schedule || pv.effectiveDate || st.type === 'add';
+    if (!hasChange) { status.innerHTML = notice('warn', 'No changes to submit — go back and add at least one figure.'); return; }
 
     if (!(A && A.canContribute())) {
       if (!window.FireDB || !window.FireDB.configured) {
-        status.innerHTML = notice('info', '<strong>Preview mode — validated, not saved.</strong> This submission would be published without owner approval and preserved as a revision. Payload:<pre class="mono" style="white-space:pre-wrap;font-size:.75rem;margin:.5rem 0 0">' + UI.esc(JSON.stringify(payload, null, 2)) + '</pre>');
+        status.innerHTML = notice('info', '<strong>Preview mode — validated, not saved.</strong> This would publish as a preserved revision. Payload:<pre class="mono" style="white-space:pre-wrap;font-size:.72rem;margin:.5rem 0 0">' + UI.esc(JSON.stringify(payload, null, 2)) + '</pre>');
         return;
       }
       status.innerHTML = notice('warn', 'Please sign in with a verified email to publish. <a href="/sign-in.html">Sign in →</a>');
       return;
     }
     save(payload).then(function () {
-      status.innerHTML = notice('info', 'Thank you — your submission is published and preserved as a revision. The community consensus will update automatically.');
-      document.getElementById('the-form').reset();
+      var host = document.getElementById('submit-body');
+      host.innerHTML = '<div class="notice info" style="font-size:1rem"><span class="notice-icon">✓</span><div><strong>Thank you — your submission is published</strong> and preserved as a revision. The community consensus will update automatically.<div style="margin-top:.75rem"><a class="btn btn-outline btn-sm" href="/departments/' + UI.esc(st.dept) + '/">View department</a> <button class="btn btn-ghost btn-sm" onclick="location.reload()">Submit another</button></div></div></div>';
     }).catch(function (err) { status.innerHTML = notice('warn', 'Could not save: ' + UI.esc(err.message)); });
   }
 
-  function gather() {
-    function v(id) { var el = document.getElementById(id); return el ? el.value.trim() : ''; }
-    function b(id) { var el = document.getElementById(id); return !!(el && el.checked); }
-    var base = { submissionType: tab, contributorType: (A && A.profile && A.profile.role === 'department') ? 'department' : 'community', sourceUrl: v('src-url') || null };
-    if (tab === 'add') {
-      return Object.assign(base, { name: v('f-name'), city: v('f-city'), county: v('f-county'), zip: v('f-zip'), departmentType: v('f-type'), website: v('f-web') });
-    }
-    base.departmentSlug = v('f-dept');
-    if (tab === 'plan') {
-      var steps = [];
-      document.querySelectorAll('#step-table tbody tr').forEach(function (tr) {
-        var i = tr.querySelectorAll('input');
-        var name = i[0].value.trim();
-        if (!name && !i[2].value) return;
-        steps.push({ stepName: name, minimumMonths: Lib.parseNumber(i[1].value), baseAnnualSalary: Lib.parseMoney(i[2].value), scheduledOvertime: Lib.parseMoney(i[3].value), paramedicPay: Lib.parseMoney(i[4].value), reportedAnnualCompensation: Lib.parseMoney(i[5].value) });
-      });
-      return Object.assign(base, { effectiveDate: v('f-eff'), classification: v('f-class'), includesScheduledOvertime: b('f-ot'), proposedValues: { steps: steps, incentives: gatherIncentives(v) } });
-    }
-    // quick update — map the amount to the entry or top figure by salary type.
-    var amount = Lib.parseMoney(v('f-amount'));
-    var stype = v('f-type');
-    var metric = (stype === 'top-ff' || stype === 'top-ff-medic') ? 'top' : (stype === 'hourly-base' ? 'skip' : 'entry');
-    return Object.assign(base, {
-      classification: v('f-class'), effectiveDate: v('f-eff'), includesScheduledOvertime: b('f-ot'),
-      proposedValues: {
-        amount: amount, salaryType: stype, basis: v('f-basis'),
-        entry: metric === 'entry' ? amount : undefined,
-        top: metric === 'top' ? amount : undefined,
-        schedule: v('f-sched') || undefined, yearsToTop: Lib.parseNumber(v('f-ytt')) || undefined,
-        annualScheduledHours: Lib.parseNumber(v('f-hours')) || undefined,
-        hiringStatus: v('f-hiring') || undefined,
-        incentives: gatherIncentives(v)
-      },
-      notes: v('f-notes').slice(0, 800)
-    });
-  }
-
-  // Recursively drop undefined keys (blank optional fields) so the stored doc is
-  // clean; also belt-and-suspenders with firebase-init's ignoreUndefinedProperties.
   function pruneUndefined(o) {
+    if (Array.isArray(o)) { o.forEach(pruneUndefined); return o; }
     if (o && typeof o === 'object' && o.constructor === Object) {
-      Object.keys(o).forEach(function (k) {
-        if (o[k] === undefined) delete o[k];
-        else pruneUndefined(o[k]);
-      });
+      Object.keys(o).forEach(function (k) { if (o[k] === undefined) delete o[k]; else pruneUndefined(o[k]); });
     }
     return o;
   }
@@ -292,11 +520,18 @@
     pruneUndefined(payload);
     payload.contributorId = A.user.uid;
     payload.submittedAt = F.serverTimestamp();
-    payload.status = 'published';          // no owner approval for routine submissions
+    payload.status = payload.sourceStatus === 'sourced' ? 'published' : 'published'; // both publish; status field records provenance
     payload.automatedFlags = [];
     var col = payload.submissionType === 'add' ? 'department_requests' : 'submissions';
     await F.addDoc(F.collection(db.db, col), payload);
   }
 
+  // ── Labels ────────────────────────────────────────────────────────────────────
+  function hasFile() { var f = document.getElementById('src-file'); return !!(f && f.files && f.files.length); }
+  function periodLabel(p) { var m = { annual: 'per year', monthly: 'per month', hourly: 'per hour' }; return m[p] || 'per year'; }
+  function unitLabel(u) { var m = { yr: 'yr', mo: 'mo', hr: 'hr', pct: '% base' }; return m[u] || 'yr'; }
+  function basisSuffix(b) { return b === 'total' ? ' (total comp)' : b === 'base-ot' ? ' (base + OT)' : ''; }
+  function suppLabel(t) { var f = SUPP_TYPES.find(function (x) { return x[0] === t; }); return f ? f[1] : t; }
+  function provLabel(t) { var f = PROVENANCE.find(function (x) { return x[0] === t; }); return f ? f[1] : t; }
   function notice(kind, html) { return '<div class="notice ' + kind + '"><span class="notice-icon">' + (kind === 'warn' ? '⚠' : 'ℹ') + '</span><div>' + html + '</div></div>'; }
 })();

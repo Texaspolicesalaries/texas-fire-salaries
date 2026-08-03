@@ -12,6 +12,40 @@
   <link rel="stylesheet" href="/css/tokens-20260729b.css">
   <link rel="stylesheet" href="/css/base-20260729b.css">
   <link rel="stylesheet" href="/css/components-20260729b.css">
+  <style>
+    .wiz-steps { display:flex; align-items:center; gap:.4rem; margin:0 0 1.5rem; flex-wrap:wrap; }
+    .wiz-step { display:flex; align-items:center; gap:.4rem; color:var(--text-faint); font-size:var(--fs-sm); font-weight:600; }
+    .wiz-step .dot { width:26px; height:26px; border-radius:50%; display:grid; place-items:center; background:var(--bg-inset); color:var(--text-soft); font-weight:700; font-size:.8rem; }
+    .wiz-step.active { color:var(--text); }
+    .wiz-step.active .dot { background:var(--accent); color:#fff; }
+    .wiz-step.done .dot { background:var(--accent-2); color:#fff; }
+    .wiz-sep { flex:1; height:1px; background:var(--border); min-width:10px; max-width:36px; }
+    @media (max-width:560px){ .wiz-step .lab{ display:none; } .wiz-sep{ max-width:none; } }
+    .wiz-nav { display:flex; justify-content:space-between; align-items:center; gap:1rem; margin-top:1.5rem; }
+    .seg { display:inline-flex; border:1px solid var(--border-strong); border-radius:var(--r-pill); overflow:hidden; margin-bottom:1.25rem; }
+    .seg button { background:transparent; border:0; padding:.5rem 1.1rem; font-weight:650; font-size:var(--fs-sm); cursor:pointer; color:var(--text-soft); }
+    .seg button.active { background:var(--accent); color:#fff; }
+    .cv-card .cv-title { font-weight:700; font-size:var(--fs-sm); margin-bottom:.5rem; }
+    .cv-row { display:flex; justify-content:space-between; padding:3px 0; font-size:var(--fs-sm); border-bottom:1px dashed var(--border); }
+    .cv-row:last-of-type { border-bottom:0; }
+    .cv-row span { color:var(--text-soft); }
+    .review-card { border:1px solid var(--border); border-radius:var(--r-md); overflow:hidden; }
+    .rv-row { display:grid; grid-template-columns:1fr auto auto auto; gap:.6rem; align-items:center; padding:.6rem .9rem; border-bottom:1px solid var(--border); font-size:var(--fs-sm); }
+    .rv-row:last-child { border-bottom:0; }
+    .rv-k { color:var(--text-soft); font-weight:600; }
+    .rv-old { color:var(--text-faint); text-decoration:line-through; }
+    .rv-arw { color:var(--text-faint); }
+    .rv-new { font-weight:700; color:var(--text); }
+    @media (max-width:560px){ .rv-row{ grid-template-columns:1fr auto; } .rv-old,.rv-arw{ display:none; } }
+    .supp-row { display:grid; grid-template-columns:1.5fr 1fr .9fr auto; gap:.5rem; align-items:center; margin-bottom:.5rem; }
+    @media (max-width:560px){ .supp-row{ grid-template-columns:1fr 1fr; } .supp-row .s-rm{ grid-column:2; justify-self:end; } }
+    .step-card { border:1px solid var(--border); border-radius:var(--r-md); padding:1rem; margin-bottom:.75rem; background:var(--bg-raised); }
+    .step-card .sc-head { display:flex; justify-content:space-between; align-items:center; font-weight:700; margin-bottom:.5rem; }
+    .upload-area { display:flex; align-items:center; gap:.75rem; border:2px dashed var(--border-strong); border-radius:var(--r-md); padding:1.1rem; cursor:pointer; transition:border-color .15s, background .15s; }
+    .upload-area:hover { border-color:var(--accent-2); background:var(--bg-sunken); }
+    .upload-area .up-icon { font-size:1.6rem; }
+    .upload-area .up-file { margin-left:auto; font-size:var(--fs-sm); color:var(--accent-2); font-weight:650; }
+  </style>
 </head>
 <body data-page="submit">
   <div id="site-header"></div>
@@ -22,12 +56,6 @@
     <p class="lede">Firefighters, applicants, recruiters, and departments keep this database current. Routine submissions publish automatically and are preserved as revisions — history is never erased.</p>
 
     <div class="gate" id="submit-gate"></div>
-
-    <div class="wizard-tabs" role="tablist">
-      <button data-tab="update" role="tab"><strong>Quick update</strong><span>Change one or more fields</span></button>
-      <button data-tab="plan" role="tab"><strong>Complete pay plan</strong><span>Enter every step</span></button>
-      <button data-tab="add" role="tab"><strong>Add a department</strong><span>Not listed yet</span></button>
-    </div>
 
     <div id="submit-body"><p class="muted">Loading…</p></div>
   </main>
