@@ -18,6 +18,7 @@
     state = F.fromURL();
     buildSortUI();
     wireChrome();
+    wireSearch();
     window.FireData.load().then(function () {
       allDepts = window.FireData.all();
       var host = document.getElementById('filter-panel');
@@ -52,7 +53,7 @@
     if (clearBtn) clearBtn.addEventListener('click', function () {
       var view = state.view; state = F.defaults(); state.view = view;
       var host = document.getElementById('filter-panel'); if (host) { FU.render(host, state); FU.wire(host, state, onChange); }
-      buildSortUI(); onChange();
+      resetSearchInput(); buildSortUI(); onChange();
     });
     CS.onChange(updateTray); updateTray();
     document.addEventListener('click', function (e) {
@@ -61,11 +62,34 @@
     });
   }
 
+  // Free-text search over department name / city / county / ZIP.
+  function wireSearch() {
+    var input = document.getElementById('dept-search');
+    if (!input) return;
+    input.value = state.q || '';
+    var clearBtn = document.getElementById('dept-search-clear');
+    function toggleClear() { if (clearBtn) clearBtn.style.display = (input.value.trim() ? 'flex' : 'none'); }
+    input.addEventListener('input', function () { state.q = input.value.trim(); toggleClear(); onChange(); });
+    if (clearBtn) clearBtn.addEventListener('click', function () { input.value = ''; state.q = ''; toggleClear(); onChange(); input.focus(); });
+    toggleClear();
+  }
+
+  function matchesQuery(d, q) {
+    return d.name.toLowerCase().indexOf(q) !== -1 ||
+      (d.city && d.city.toLowerCase().indexOf(q) !== -1) ||
+      (d.county && d.county.toLowerCase().indexOf(q) !== -1) ||
+      (d.zip && String(d.zip).indexOf(q) === 0);
+  }
+
+  function resetSearchInput() { var si = document.getElementById('dept-search'); if (si) si.value = ''; var cb = document.getElementById('dept-search-clear'); if (cb) cb.style.display = 'none'; }
+
   function onChange() { F.syncURL(state); refresh(); }
 
   function refresh() {
     var origin = F.resolveOrigin(state, allDepts);
     var list = allDepts.filter(F.makePredicate(state, { origin: origin }));
+    var q = (state.q || '').toLowerCase();
+    if (q) list = list.filter(function (d) { return matchesQuery(d, q); });
     list.sort(F.comparator(state.sort, state.dir, { origin: origin }));
 
     var count = document.getElementById('result-count');
@@ -76,8 +100,8 @@
     var grid = document.getElementById('dept-grid');
     if (!grid) return;
     if (!list.length) {
-      grid.innerHTML = '<div class="empty-state" style="grid-column:1/-1">No departments match your filters. <button class="btn btn-outline btn-sm" id="reset3">Reset</button></div>';
-      var r = document.getElementById('reset3'); if (r) r.onclick = function () { state = F.defaults(); var host = document.getElementById('filter-panel'); if (host) { FU.render(host, state); FU.wire(host, state, onChange); } buildSortUI(); onChange(); };
+      grid.innerHTML = '<div class="empty-state" style="grid-column:1/-1">No departments match your search or filters. <button class="btn btn-outline btn-sm" id="reset3">Reset</button></div>';
+      var r = document.getElementById('reset3'); if (r) r.onclick = function () { state = F.defaults(); var host = document.getElementById('filter-panel'); if (host) { FU.render(host, state); FU.wire(host, state, onChange); } resetSearchInput(); buildSortUI(); onChange(); };
       return;
     }
     grid.innerHTML = list.map(function (d) {

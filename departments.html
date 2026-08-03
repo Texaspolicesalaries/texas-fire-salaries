@@ -23,6 +23,13 @@
       #filter-drawer .filter-drawer-foot .btn-primary { display: none; }
     }
     @media (max-width: 900px) { .dir-grid { grid-template-columns: 1fr; } }
+    /* Directory search box */
+    .dir-search { max-width: none; margin-bottom: 1rem; }
+    .dir-search input { height: 48px; font-size: 1rem; padding-right: 44px; }
+    .dir-search-clear { position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+      width: 30px; height: 30px; border: 0; background: var(--bg-sunken); color: var(--text-soft);
+      border-radius: 50%; cursor: pointer; align-items: center; justify-content: center; }
+    .dir-search-clear:hover { background: var(--bg-inset); color: var(--text); }
   </style>
 </head>
 <body data-page="departments" class="has-mobile-bar">
@@ -53,6 +60,11 @@
       </aside>
 
       <section>
+        <div class="searchbox dir-search">
+          <span class="search-icon" aria-hidden="true">🔍</span>
+          <input id="dept-search" type="search" autocomplete="off" placeholder="Search by department, city, or county…" aria-label="Search departments">
+          <button id="dept-search-clear" class="dir-search-clear" type="button" aria-label="Clear search" style="display:none">✕</button>
+        </div>
         <div class="toolbar">
           <span class="result-count" id="result-count">Loading…</span>
           <div class="spacer"></div>

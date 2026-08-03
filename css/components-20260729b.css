@@ -12,21 +12,45 @@
 .card-hover { transition: box-shadow .18s ease, transform .12s ease, border-color .18s ease; }
 .card-hover:hover { box-shadow: var(--shadow-md); border-color: color-mix(in srgb, var(--accent-2) 45%, var(--border)); transform: translateY(-2px); }
 
-/* Department directory card */
-.dept-card { display: flex; flex-direction: column; gap: var(--sp-3); }
-.dept-card-head { display: flex; justify-content: space-between; gap: var(--sp-3); align-items: flex-start; }
-.dept-card h3 { margin: 0; font-size: 1.15rem; }
-.dept-card h3 a { color: var(--text); }
-.dept-card h3 a:hover { color: var(--accent); }
-.dept-card .loc { font-size: var(--fs-sm); color: var(--text-soft); }
-.dept-card .type-tag { font-size: var(--fs-xs); color: var(--text-faint); text-transform: uppercase; letter-spacing: .06em; font-weight: 700; }
-.dept-metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--sp-3); margin-top: var(--sp-1); }
-.metric { display: flex; flex-direction: column; }
-.metric .val { font-family: var(--font-display); font-size: 1.35rem; font-weight: 750; color: var(--text); line-height: 1; }
-.metric .lab { font-size: var(--fs-xs); color: var(--text-faint); margin-top: 3px; text-transform: uppercase; letter-spacing: .04em; }
-.dept-card-foot { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2); margin-top: auto; padding-top: var(--sp-3); border-top: 1px solid var(--border); }
+/* ---------------- Department directory card (redesigned) ---------------- */
+.dept-card { display: flex; flex-direction: column; gap: var(--sp-4); position: relative;
+  border-left: 3px solid var(--border-strong); transition: box-shadow .18s ease, transform .12s ease; }
+.dept-card:hover { box-shadow: var(--shadow-md); transform: translateY(-2px); }
+/* Left-edge accent mirrors the confidence chip (which carries the accessible text label) */
+.dept-card.conf-strong { border-left-color: var(--c-strong-fg); }
+.dept-card.conf-department_maintained { border-left-color: var(--c-dept-fg); }
+.dept-card.conf-conflicting { border-left-color: var(--c-conflicting-fg); }
+.dept-card.conf-reported { border-left-color: var(--border-strong); }
+.dept-card.conf-needed, .dept-card.incomplete { border-left-color: var(--border); }
 
-.dept-card.incomplete { border-style: dashed; }
+.dc-head { display: flex; justify-content: space-between; gap: var(--sp-3); align-items: flex-start; }
+.dept-card h3 { margin: 0; font-size: 1.15rem; line-height: 1.2; }
+.dept-card h3 a { color: var(--text); text-decoration: none; }
+.dept-card h3 a:hover { color: var(--accent); }
+.dc-sub { font-size: var(--fs-sm); color: var(--text-soft); margin-top: 3px; }
+.dc-flag { flex: 0 0 auto; color: var(--c-dept-fg); font-size: 1rem; line-height: 1; }
+
+/* Pay block: entry as the hero figure, secondary stats aligned to the right */
+.dc-pay { display: flex; align-items: flex-end; justify-content: space-between; gap: var(--sp-4); flex-wrap: wrap; }
+.dc-entry { display: flex; flex-direction: column; }
+.dc-amt { font-family: var(--font-display); font-size: 1.9rem; font-weight: 600; color: var(--text); line-height: 1; letter-spacing: -0.01em; }
+.dc-amt-lab { font-size: var(--fs-xs); color: var(--text-faint); margin-top: 6px; text-transform: uppercase; letter-spacing: .05em; font-weight: 600; }
+.dc-stats { display: flex; gap: var(--sp-5); }
+.dc-stat { display: flex; flex-direction: column; text-align: right; }
+.dc-stat .s-val { font-size: 1rem; font-weight: 700; color: var(--text); line-height: 1.1; }
+.dc-stat .s-lab { font-size: var(--fs-xs); color: var(--text-faint); margin-top: 4px; text-transform: uppercase; letter-spacing: .04em; }
+
+.dc-needs { display: flex; align-items: center; gap: var(--sp-2); color: var(--text-soft); font-size: var(--fs-sm);
+  background: var(--bg-sunken); border-radius: var(--r-md); padding: var(--sp-3) var(--sp-4); }
+.dc-needs-icon { color: var(--text-faint); font-weight: 700; }
+
+.dc-foot { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2);
+  margin-top: auto; padding-top: var(--sp-3); border-top: 1px solid var(--border); flex-wrap: wrap; }
+.dc-foot .tag-row { flex: 1; }
+
+/* Compat styles still used by generated county/region/ranking cards + map popups */
+.type-tag { font-size: var(--fs-xs); color: var(--text-faint); text-transform: uppercase; letter-spacing: .06em; font-weight: 700; }
+.dept-card .loc, .loc { font-size: var(--fs-sm); color: var(--text-soft); }
 .needs-data { color: var(--text-soft); font-size: var(--fs-sm); font-style: italic; }
 
 /* ---------------- Status chips (never color-only: icon glyph + text) ---------------- */

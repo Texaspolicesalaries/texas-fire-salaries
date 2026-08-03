@@ -67,39 +67,48 @@
     var s = dept.summary || {};
     var href = '/departments/' + esc(dept.slug) + '/';
     var incomplete = !s.hasSalary;
-    var metrics = incomplete ? '' :
-      '<div class="dept-metrics">' +
-        metric(money(s.entry), 'Entry FF') +
-        metric(s.entryMedic ? money(s.entryMedic) : (s.topBase ? money(s.topBase) : '—'), s.entryMedic ? 'FF-Paramedic' : 'Top FF') +
-        metric(s.yearsToTop != null ? (s.yearsToTop + ' yr') : '—', 'To top pay') +
+    var confKey = (s.confidence && s.confidence.key) || 'needed';
+
+    var distance = (opts.distanceMi != null) ? ' · ' + (Math.round(opts.distanceMi * 10) / 10) + ' mi' : '';
+    var sub = esc(shortType(dept.departmentType)) + ' · ' + esc(dept.city) + ', ' + esc(dept.county) + ' County' + distance;
+    var flag = s.departmentMaintained
+      ? '<span class="dc-flag" title="Department maintained" aria-label="Department maintained">◆</span>' : '';
+
+    var body;
+    if (incomplete) {
+      body = '<div class="dc-needs"><span class="dc-needs-icon" aria-hidden="true">○</span> Salary not reported yet</div>';
+    } else {
+      // Secondary stats — only the meaningful ones (skip a "top" that just repeats entry).
+      var stats = [];
+      if (s.topBase != null && s.topBase !== s.entry) stats.push(statCell(money(s.topBase), 'Top pay'));
+      if (s.yearsToTop != null && s.yearsToTop > 0) stats.push(statCell(s.yearsToTop + ' yr', 'To top'));
+      if (dept.scheduleType) stats.push(statCell(esc(dept.scheduleType), 'Schedule'));
+      if (stats.length < 3 && s.effectiveHourlyEntry != null) stats.push(statCell(hourly(s.effectiveHourlyEntry).replace('/hr', ''), 'Per hour'));
+      body = '<div class="dc-pay">' +
+        '<div class="dc-entry"><span class="dc-amt">' + money(s.entry) + '</span>' +
+          '<span class="dc-amt-lab">Entry firefighter · per year</span></div>' +
+        (stats.length ? '<div class="dc-stats">' + stats.slice(0, 3).join('') + '</div>' : '') +
       '</div>';
-    var distance = (opts.distanceMi != null)
-      ? '<span class="pill">' + (Math.round(opts.distanceMi * 10) / 10) + ' mi</span>' : '';
-    var cmp = opts.compareBtn
-      ? '<button class="btn btn-ghost btn-sm add-compare" data-slug="' + esc(dept.slug) + '">＋ Compare</button>' : '';
-    return '' +
-    '<article class="card card-hover dept-card' + (incomplete ? ' incomplete' : '') + '">' +
-      '<div class="dept-card-head">' +
-        '<div>' +
-          '<div class="type-tag">' + esc(shortType(dept.departmentType)) + '</div>' +
-          '<h3><a href="' + href + '">' + esc(dept.name) + '</a></h3>' +
-          '<div class="loc">' + esc(dept.city) + ' · ' + esc(dept.county) + ' County ' + distance + '</div>' +
-        '</div>' +
-        (s.departmentMaintained ? '<span aria-hidden="true">◆</span>' : '') +
-      '</div>' +
-      metrics +
-      (incomplete ? '<p class="needs-data">Current salary information has not yet been submitted.</p>' : '') +
-      '<div class="dept-card-foot">' +
-        '<div class="tag-row">' + confidenceChip(s.confidence) + freshnessChip(s.freshness) + '</div>' +
-        (incomplete
-          ? '<a class="btn btn-primary btn-sm" href="/submit.html?dept=' + esc(dept.slug) + '">Add salary info</a>'
-          : cmp) +
+    }
+
+    var action = incomplete
+      ? '<a class="btn btn-primary btn-sm" href="/submit.html?dept=' + esc(dept.slug) + '">Add salary</a>'
+      : (opts.compareBtn ? '<button class="btn btn-ghost btn-sm add-compare" data-slug="' + esc(dept.slug) + '">＋ Compare</button>' : '');
+
+    return '<article class="card dept-card conf-' + confKey + (incomplete ? ' incomplete' : '') + '">' +
+      '<div class="dc-head"><div class="dc-title">' +
+        '<h3><a href="' + href + '">' + esc(dept.name) + '</a></h3>' +
+        '<div class="dc-sub">' + sub + '</div>' +
+      '</div>' + flag + '</div>' +
+      body +
+      '<div class="dc-foot"><div class="tag-row">' + confidenceChip(s.confidence) + freshnessChip(s.freshness) + '</div>' +
+        action +
       '</div>' +
     '</article>';
   }
 
-  function metric(val, lab) {
-    return '<div class="metric"><span class="val">' + val + '</span><span class="lab">' + esc(lab) + '</span></div>';
+  function statCell(val, lab) {
+    return '<div class="dc-stat"><span class="s-val">' + val + '</span><span class="s-lab">' + esc(lab) + '</span></div>';
   }
   function shortType(t) {
     return ({ municipal: 'Municipal', esd: 'ESD', county: 'County', university: 'University',
