@@ -59,6 +59,8 @@
       var host = document.getElementById('filter-panel'); if (host) { FU.render(host, state); FU.wire(host, state, onChange); }
       resetSearchInput(); buildSortUI(); onChange();
     });
+    var clearCmp = document.getElementById('compare-clear');
+    if (clearCmp) clearCmp.addEventListener('click', function () { CS.clear(); refresh(); });
     CS.onChange(updateTray); updateTray();
     document.addEventListener('click', function (e) {
       var b = e.target.closest && e.target.closest('.add-compare');

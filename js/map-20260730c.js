@@ -87,6 +87,8 @@
     });
 
     // Compare tray
+    var clearCmp = document.getElementById('compare-clear');
+    if (clearCmp) clearCmp.addEventListener('click', function () { CS.clear(); refresh(); });
     CS.onChange(updateCompareTray);
     updateCompareTray();
     document.addEventListener('click', function (e) {
