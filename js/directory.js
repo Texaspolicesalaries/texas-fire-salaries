@@ -7,6 +7,9 @@
   'use strict';
   var UI = window.FireUI, F = window.FireFilters, FU = window.FireFiltersUI, CS = window.FireCompareStore;
   var state, allDepts = [];
+  // Card grid vs. compact list — remembered across visits.
+  var layout = 'cards';
+  try { layout = localStorage.getItem('fireDirLayout') || 'cards'; } catch (e) {}
 
   var SORTS = [
     ['name', 'Department name'], ['entry', 'Entry pay'], ['medic', 'Paramedic pay'],
@@ -19,6 +22,7 @@
     buildSortUI();
     wireChrome();
     wireSearch();
+    wireLayout();
     window.FireData.load().then(function () {
       allDepts = window.FireData.all();
       var host = document.getElementById('filter-panel');
@@ -83,6 +87,44 @@
 
   function resetSearchInput() { var si = document.getElementById('dept-search'); if (si) si.value = ''; var cb = document.getElementById('dept-search-clear'); if (cb) cb.style.display = 'none'; }
 
+  // Cards <-> compact list toggle.
+  function wireLayout() {
+    var wrap = document.getElementById('layout-toggle');
+    if (!wrap) return;
+    Array.prototype.forEach.call(wrap.querySelectorAll('[data-layout]'), function (b) {
+      b.classList.toggle('active', b.getAttribute('data-layout') === layout);
+      b.addEventListener('click', function () {
+        layout = b.getAttribute('data-layout');
+        try { localStorage.setItem('fireDirLayout', layout); } catch (e) {}
+        Array.prototype.forEach.call(wrap.querySelectorAll('[data-layout]'), function (x) { x.classList.toggle('active', x === b); });
+        refresh();
+      });
+    });
+  }
+
+  // Dense table row per department for the compact list view.
+  function renderList(list, origin) {
+    var rows = list.map(function (d) {
+      var s = d.summary || {};
+      var dist = origin ? F.distanceFor(d, origin) : null;
+      return '<tr>' +
+        '<td class="dl-name"><a href="/departments/' + UI.esc(d.slug) + '/">' + UI.esc(d.name) + '</a>' +
+          (s.departmentMaintained ? ' <span class="dc-flag" title="Department maintained" aria-label="Department maintained">◆</span>' : '') + '</td>' +
+        '<td class="muted">' + UI.esc(d.city) + ', ' + UI.esc(d.county) + (dist != null ? ' · ' + (Math.round(dist * 10) / 10) + ' mi' : '') + '</td>' +
+        '<td class="num">' + (s.hasSalary ? UI.money(s.entry) : '—') + '</td>' +
+        '<td class="num">' + (s.hasSalary && s.topBase ? UI.money(s.topBase) : '—') + '</td>' +
+        '<td class="num">' + (s.yearsToTop != null && s.yearsToTop > 0 ? s.yearsToTop + ' yr' : '—') + '</td>' +
+        '<td>' + (d.scheduleType || '—') + '</td>' +
+        '<td>' + (s.confidence ? UI.confidenceChip(s.confidence) : '') + '</td>' +
+        '<td class="num"><button class="btn btn-ghost btn-sm add-compare" data-slug="' + UI.esc(d.slug) + '" title="Add to comparison" aria-label="Add ' + UI.esc(d.name) + ' to comparison">＋</button></td>' +
+      '</tr>';
+    }).join('');
+    return '<div class="table-scroll"><table class="data dir-table"><thead><tr>' +
+      '<th scope="col">Department</th><th scope="col">Location</th><th class="num" scope="col">Entry</th>' +
+      '<th class="num" scope="col">Top</th><th class="num" scope="col">To top</th><th scope="col">Schedule</th>' +
+      '<th scope="col">Data</th><th aria-label="Compare"></th></tr></thead><tbody>' + rows + '</tbody></table></div>';
+  }
+
   function onChange() { F.syncURL(state); refresh(); }
 
   function refresh() {
@@ -100,13 +142,20 @@
     var grid = document.getElementById('dept-grid');
     if (!grid) return;
     if (!list.length) {
-      grid.innerHTML = '<div class="empty-state" style="grid-column:1/-1">No departments match your search or filters. <button class="btn btn-outline btn-sm" id="reset3">Reset</button></div>';
+      grid.className = '';
+      grid.innerHTML = '<div class="empty-state">No departments match your search or filters. <button class="btn btn-outline btn-sm" id="reset3">Reset</button></div>';
       var r = document.getElementById('reset3'); if (r) r.onclick = function () { state = F.defaults(); var host = document.getElementById('filter-panel'); if (host) { FU.render(host, state); FU.wire(host, state, onChange); } resetSearchInput(); buildSortUI(); onChange(); };
       return;
     }
-    grid.innerHTML = list.map(function (d) {
-      return UI.deptCard(d, { compareBtn: true, distanceMi: origin ? F.distanceFor(d, origin) : null });
-    }).join('');
+    if (layout === 'list') {
+      grid.className = '';
+      grid.innerHTML = renderList(list, origin);
+    } else {
+      grid.className = 'grid cols-2';
+      grid.innerHTML = list.map(function (d) {
+        return UI.deptCard(d, { compareBtn: true, distanceMi: origin ? F.distanceFor(d, origin) : null });
+      }).join('');
+    }
   }
 
   function updateTray() {

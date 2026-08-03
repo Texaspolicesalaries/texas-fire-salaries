@@ -30,6 +30,13 @@
       width: 30px; height: 30px; border: 0; background: var(--bg-sunken); color: var(--text-soft);
       border-radius: 50%; cursor: pointer; align-items: center; justify-content: center; }
     .dir-search-clear:hover { background: var(--bg-inset); color: var(--text); }
+    /* Compact list (table) view */
+    .dir-table { min-width: 720px; }
+    .dir-table td.dl-name a { font-weight: 650; color: var(--text); text-decoration: none; }
+    .dir-table td.dl-name a:hover { color: var(--accent); }
+    .dir-table .chip { font-size: var(--fs-xs); padding: 2px 8px; white-space: nowrap; }
+    .dir-table .add-compare { padding: 3px 9px; }
+    .view-toggle button { font-size: var(--fs-xs); }
   </style>
 </head>
 <body data-page="departments" class="has-mobile-bar">
@@ -67,6 +74,10 @@
         </div>
         <div class="toolbar">
           <span class="result-count" id="result-count">Loading…</span>
+          <div class="view-toggle" id="layout-toggle" role="group" aria-label="View">
+            <button type="button" data-layout="cards" aria-label="Card view">▦ Cards</button>
+            <button type="button" data-layout="list" aria-label="List view">☰ List</button>
+          </div>
           <div class="spacer"></div>
           <label for="sort-select" class="visually-hidden">Sort by</label>
           <select id="sort-select" style="width:auto"></select>
