@@ -75,7 +75,7 @@
   <div id="compare-tray" style="display:none;position:fixed;bottom:76px;left:50%;transform:translateX(-50%);z-index:1100;background:var(--ink-900);color:#fff;border-radius:var(--r-pill);padding:.5rem 1rem;align-items:center;gap:.75rem;box-shadow:var(--shadow-lg)">
     <span><strong id="compare-tray-count">0</strong> selected</span>
     <a class="btn btn-primary btn-sm" href="/compare.html">Compare →</a>
-    <button class="btn btn-ghost btn-sm" id="compare-clear" style="color:#fff" aria-label="Clear comparison">Clear ✕</button>
+    <button class="btn btn-ghost btn-sm" id="compare-clear" style="color:#fff" aria-label="Clear comparison" onclick="window.FireCompareStore&&window.FireCompareStore.clear();document.querySelectorAll('.add-compare').forEach(function(b){b.textContent='＋ Compare';})">Clear ✕</button>
   </div>
 
   <!-- Mobile map/list toggle -->
