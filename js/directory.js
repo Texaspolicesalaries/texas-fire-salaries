@@ -116,7 +116,7 @@
         '<td class="num">' + (s.yearsToTop != null && s.yearsToTop > 0 ? s.yearsToTop + ' yr' : '—') + '</td>' +
         '<td>' + (d.scheduleType || '—') + '</td>' +
         '<td>' + (s.confidence ? UI.confidenceChip(s.confidence) : '') + '</td>' +
-        '<td class="num"><button class="btn btn-ghost btn-sm add-compare" data-slug="' + UI.esc(d.slug) + '" title="Add to comparison" aria-label="Add ' + UI.esc(d.name) + ' to comparison">＋</button></td>' +
+        '<td class="num"><button class="btn btn-ghost btn-sm add-compare" data-slug="' + UI.esc(d.slug) + '" aria-label="Add ' + UI.esc(d.name) + ' to comparison">' + (CS.has(d.slug) ? '✓ Added' : '＋ Compare') + '</button></td>' +
       '</tr>';
     }).join('');
     return '<div class="table-scroll"><table class="data dir-table"><thead><tr>' +

@@ -93,7 +93,7 @@
 
     var action = incomplete
       ? '<a class="btn btn-primary btn-sm" href="/submit.html?dept=' + esc(dept.slug) + '">Add salary</a>'
-      : (opts.compareBtn ? '<button class="btn btn-ghost btn-sm add-compare" data-slug="' + esc(dept.slug) + '">＋ Compare</button>' : '');
+      : (opts.compareBtn ? '<button class="btn btn-ghost btn-sm add-compare" data-slug="' + esc(dept.slug) + '">' + ((window.FireCompareStore && window.FireCompareStore.has(dept.slug)) ? '✓ Added' : '＋ Compare') + '</button>' : '');
 
     return '<article class="card dept-card conf-' + confKey + (incomplete ? ' incomplete' : '') + '">' +
       '<div class="dc-head"><div class="dc-title">' +
