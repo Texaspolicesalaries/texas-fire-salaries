@@ -1,8 +1,9 @@
 /*
  * submit.js — Community submission wizard (submit.html). Mobile-first, several
- * paths: Quick update · Complete pay plan · Add a department. Duplicate search
- * before adding, optional source with a sensitive-document warning, and required
- * contributor attestations. Writes preserved revision docs to Firestore when
+ * paths: Quick update · Complete pay plan · Add a department. Captures base pay
+ * plus additive incentives (EMS/TCFP cert, education, bilingual), optional source
+ * with a sensitive-document warning, and required contributor attestations. Writes
+ * preserved revision docs to Firestore when
  * connected; otherwise runs in a clearly-labeled preview mode.
  */
 (function () {
@@ -81,6 +82,37 @@
   function check(id, label) { return '<div class="checkline"><input type="checkbox" id="' + id + '" required><label for="' + id + '">' + label + '</label></div>'; }
   function numField(id, label, hint) { return '<div class="field"><label for="' + id + '">' + label + '</label><input id="' + id + '" type="number" inputmode="decimal" placeholder="' + (hint || '') + '"></div>'; }
 
+  // Texas firefighter pay is usually base FF pay plus additive incentives. This block
+  // captures the common ones: EMS cert, TCFP cert levels, education levels, bilingual.
+  function additionalPayBlock() {
+    return '<details class="filter-group" style="margin-top:1rem"><summary>Additional pay — certifications, education, bilingual</summary>' +
+      '<div class="stack" style="margin-top:.6rem">' +
+        '<p class="field-hint">Most departments pay extra on top of base firefighter pay. Enter the annual amount ($/yr) for any that apply and leave the rest blank.</p>' +
+        '<strong>EMS certification pay</strong>' +
+        '<div class="grid cols-2">' + numField('f-emt-pay', 'EMT', '$/yr') + numField('f-medic-pay', 'Paramedic', '$/yr') + '</div>' +
+        '<strong>TCFP certification pay <span class="faint" style="font-weight:400">(Texas Commission on Fire Protection)</span></strong>' +
+        '<div class="grid cols-2">' + numField('f-tcfp-basic', 'Basic', '$/yr') + numField('f-tcfp-int', 'Intermediate', '$/yr') +
+          numField('f-tcfp-adv', 'Advanced', '$/yr') + numField('f-tcfp-master', 'Master', '$/yr') + '</div>' +
+        '<strong>Education pay</strong>' +
+        '<div class="grid cols-2">' + numField('f-edu-hs', 'High school diploma', '$/yr') + numField('f-edu-assoc', 'Associate degree', '$/yr') +
+          numField('f-edu-bach', 'Bachelor\'s degree', '$/yr') + numField('f-edu-master', 'Master\'s degree', '$/yr') + '</div>' +
+        '<strong>Other</strong>' +
+        '<div class="grid cols-2">' + numField('f-bilingual', 'Bilingual pay', '$/yr') + '</div>' +
+      '</div></details>';
+  }
+
+  // Collect the additional-pay fields into a compact object (undefined when all blank).
+  function gatherIncentives(v) {
+    var m = function (id) { var n = Lib.parseMoney(v(id)); return n != null ? n : undefined; };
+    var inc = {
+      emt: m('f-emt-pay'), paramedic: m('f-medic-pay'),
+      tcfpBasic: m('f-tcfp-basic'), tcfpIntermediate: m('f-tcfp-int'), tcfpAdvanced: m('f-tcfp-adv'), tcfpMaster: m('f-tcfp-master'),
+      eduHighSchool: m('f-edu-hs'), eduAssociate: m('f-edu-assoc'), eduBachelor: m('f-edu-bach'), eduMaster: m('f-edu-master'),
+      bilingual: m('f-bilingual')
+    };
+    return Object.keys(inc).some(function (k) { return inc[k] != null; }) ? inc : undefined;
+  }
+
   function renderTab(prefillDept) {
     var host = document.getElementById('submit-body');
     if (!host) return;
@@ -109,9 +141,11 @@
           '<div class="field"><label for="f-sched">Shift schedule</label><input id="f-sched" placeholder="24/48"></div>' +
           numField('f-ytt', 'Years to top', 'yrs') +
         '</div>' +
-        '<div class="grid cols-2">' + numField('f-medic', 'Paramedic incentive', '$/yr') + numField('f-hours', 'Annual scheduled hours', '2912') + '</div>' +
-        '<div class="field"><label for="f-hiring">Hiring status</label><select id="f-hiring"><option value="">No change</option><option value="hiring">Currently hiring</option><option value="not-hiring">Not hiring</option></select></div>' +
+        '<div class="grid cols-2">' + numField('f-hours', 'Annual scheduled hours', '2912') +
+          '<div class="field"><label for="f-hiring">Hiring status</label><select id="f-hiring"><option value="">No change</option><option value="hiring">Currently hiring</option><option value="not-hiring">Not hiring</option></select></div>' +
+        '</div>' +
       '</div></details>' +
+      additionalPayBlock() +
       '<div class="field" style="margin-top:1rem"><label for="f-notes">Notes (context only, not the main data)</label><textarea id="f-notes" placeholder="e.g. amount reflects the 2026 approved pay scale, step 1."></textarea></div>' +
       sourceBlock() + attestBlock() +
       submitButtons() + '</form>';
@@ -130,13 +164,13 @@
         '<th>Step</th><th class="num">Min months</th><th class="num">Base annual</th><th class="num">Sched. OT</th><th class="num">Paramedic</th><th class="num">Reported total</th><th></th>' +
       '</tr></thead><tbody></tbody></table></div>' +
       '<button type="button" class="btn btn-outline btn-sm" id="add-step">＋ Add step</button>' +
+      additionalPayBlock() +
       sourceBlock() + attestBlock() + submitButtons() + '</form>';
   }
 
   function addDeptForm() {
     return '<form id="the-form" novalidate><h2>Add a department</h2>' +
-      '<p class="muted">First, let\'s make sure it isn\'t already listed.</p>' +
-      '<div class="field"><label for="f-search">Search existing departments</label><input id="f-search" placeholder="Name, city, or ZIP"><div id="dup-results" class="stack" style="margin-top:.5rem"></div></div>' +
+      '<p class="muted">Add a Texas fire department that isn\'t listed yet. It publishes for the community to build on.</p>' +
       '<div class="divider-label">New department details</div>' +
       '<div class="grid cols-2">' +
         '<div class="field"><label for="f-name">Department name</label><input id="f-name" required></div>' +
@@ -172,17 +206,6 @@
         tbody.appendChild(tr);
       }
       addStep.onclick = addRow; addRow(); addRow();
-    }
-    // duplicate search
-    var search = document.getElementById('f-search');
-    if (search) {
-      var res = document.getElementById('dup-results');
-      search.addEventListener('input', function () {
-        var list = search.value.trim() ? D.search(search.value.trim()) : [];
-        res.innerHTML = list.length
-          ? '<div class="notice info"><span class="notice-icon">ℹ</span><div>Possible matches — is it one of these?<ul style="margin:.3rem 0 0;padding-left:1.1rem">' + list.map(function (d) { return '<li><a href="/departments/' + UI.esc(d.slug) + '/">' + UI.esc(d.name) + '</a> — ' + UI.esc(d.city) + '</li>'; }).join('') + '</ul></div></div>'
-          : '';
-      });
     }
     var form = document.getElementById('the-form');
     if (form) form.addEventListener('submit', onSubmit);
@@ -229,7 +252,7 @@
         if (!name && !i[2].value) return;
         steps.push({ stepName: name, minimumMonths: Lib.parseNumber(i[1].value), baseAnnualSalary: Lib.parseMoney(i[2].value), scheduledOvertime: Lib.parseMoney(i[3].value), paramedicPay: Lib.parseMoney(i[4].value), reportedAnnualCompensation: Lib.parseMoney(i[5].value) });
       });
-      return Object.assign(base, { effectiveDate: v('f-eff'), classification: v('f-class'), includesScheduledOvertime: b('f-ot'), proposedValues: { steps: steps } });
+      return Object.assign(base, { effectiveDate: v('f-eff'), classification: v('f-class'), includesScheduledOvertime: b('f-ot'), proposedValues: { steps: steps, incentives: gatherIncentives(v) } });
     }
     // quick update — map the amount to the entry or top figure by salary type.
     var amount = Lib.parseMoney(v('f-amount'));
@@ -242,8 +265,9 @@
         entry: metric === 'entry' ? amount : undefined,
         top: metric === 'top' ? amount : undefined,
         schedule: v('f-sched') || undefined, yearsToTop: Lib.parseNumber(v('f-ytt')) || undefined,
-        paramedicPay: Lib.parseMoney(v('f-medic')) || undefined, annualScheduledHours: Lib.parseNumber(v('f-hours')) || undefined,
-        hiringStatus: v('f-hiring') || undefined
+        annualScheduledHours: Lib.parseNumber(v('f-hours')) || undefined,
+        hiringStatus: v('f-hiring') || undefined,
+        incentives: gatherIncentives(v)
       },
       notes: v('f-notes').slice(0, 800)
     });
