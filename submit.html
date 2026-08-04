@@ -45,6 +45,39 @@
     .upload-area:hover { border-color:var(--accent-2); background:var(--bg-sunken); }
     .upload-area .up-icon { font-size:1.6rem; }
     .upload-area .up-file { margin-left:auto; font-size:var(--fs-sm); color:var(--accent-2); font-weight:650; }
+    /* Full step-plan editor */
+    .plan-grid { border:1px solid var(--border); border-radius:var(--r-md); overflow:hidden; }
+    .plan-head, .plan-row { display:grid; grid-template-columns:40px minmax(80px,1.3fr) 78px minmax(66px,1fr) minmax(66px,1fr) minmax(66px,1fr) 120px; gap:.35rem; align-items:center; }
+    .plan-head { background:var(--bg-sunken); padding:.45rem .55rem; font-size:var(--fs-xs); text-transform:uppercase; letter-spacing:.02em; color:var(--text-faint); font-weight:700; }
+    .plan-row { padding:.45rem .55rem; border-top:1px solid var(--border); }
+    .plan-row .cl { display:none; }
+    .plan-grid input { padding:.4rem .45rem !important; }
+    .plan-row .pc-top { display:flex; justify-content:center; }
+    .pc-act { display:flex; gap:2px; justify-content:flex-end; }
+    .ib { width:24px; height:28px; border:1px solid var(--border); background:var(--bg-raised); border-radius:6px; cursor:pointer; color:var(--text-soft); font-size:.8rem; line-height:1; padding:0; }
+    .ib:hover { background:var(--bg-sunken); color:var(--text); }
+    .ib:disabled { opacity:.35; cursor:default; }
+    .ib-rm:hover { color:var(--f-outdated-fg); }
+    .plan-controls { display:flex; flex-wrap:wrap; gap:.5rem; margin-top:.6rem; }
+    #plan-paste { margin-top:.6rem; } #plan-paste textarea, #p-notes { min-height:70px; }
+    .derived-card { margin-top:1rem; border:1px solid color-mix(in srgb, var(--accent-2) 30%, var(--border)); background:var(--accent-2-soft); border-radius:var(--r-md); padding:.75rem 1rem; }
+    .derived-card .dv-title { font-size:var(--fs-xs); text-transform:uppercase; letter-spacing:.05em; color:var(--accent-2); font-weight:700; margin-bottom:.45rem; }
+    .dv-grid { display:flex; flex-wrap:wrap; gap:1.25rem; }
+    .dv { display:flex; flex-direction:column; }
+    .dv-v { font-family:var(--font-display); font-size:1.2rem; font-weight:600; color:var(--text); line-height:1; }
+    .dv-l { font-size:var(--fs-xs); color:var(--text-soft); margin-top:3px; }
+    .rv-steps { margin-top:.75rem; border:1px solid var(--border); border-radius:var(--r-md); overflow:hidden; }
+    .rv-steps-title { background:var(--bg-sunken); padding:.4rem .9rem; font-size:var(--fs-xs); text-transform:uppercase; letter-spacing:.04em; color:var(--text-soft); font-weight:700; }
+    .rv-step { display:grid; grid-template-columns:1fr auto auto; gap:.75rem; padding:.4rem .9rem; border-top:1px solid var(--border); font-size:var(--fs-sm); }
+    @media (max-width:640px){
+      .plan-head { display:none; }
+      .plan-row { display:block; padding:.75rem; border-top:6px solid var(--bg-inset); }
+      .plan-row .pc { display:flex; align-items:center; gap:.5rem; margin-bottom:.45rem; }
+      .plan-row .cl { display:block; flex:0 0 42%; font-size:var(--fs-sm); color:var(--text-soft); font-weight:600; }
+      .plan-row .pc input:not([type=radio]) { flex:1; width:auto; }
+      .plan-row .pc-top { justify-content:flex-start; }
+      .pc-act { justify-content:flex-start; margin-top:.3rem; }
+    }
   </style>
 </head>
 <body data-page="submit">

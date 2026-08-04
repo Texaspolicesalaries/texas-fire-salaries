@@ -158,6 +158,39 @@ function yearsToTop(payStepDocs) {
   return Math.round((maxMin / 12) * 10) / 10;
 }
 
+// Derived summary of a full step pay plan. steps: [{ startMonths, basePay, isTopStep }].
+// Entry = earliest valid step; top = the designated top step, else the latest step.
+// Years-to-top = top step's startMonths / 12 (the underlying month value is preserved
+// by the caller). entryToTopPct = percentage increase from entry base to top base.
+function planSummary(steps) {
+  var valid = (steps || []).filter(function (s) { return s && typeof s.basePay === 'number' && isFinite(s.basePay); });
+  if (!valid.length) return { entry: null, top: null, topMonths: null, yearsToTop: null, entryToTopPct: null, count: 0 };
+  var sorted = valid.slice().sort(function (a, b) { return (a.startMonths || 0) - (b.startMonths || 0); });
+  var entry = sorted[0].basePay;
+  var topStep = sorted.filter(function (s) { return s.isTopStep; })[0] || sorted[sorted.length - 1];
+  var top = topStep.basePay;
+  var topMonths = topStep.startMonths || 0;
+  return {
+    entry: entry,
+    top: top,
+    topMonths: topMonths,
+    yearsToTop: Math.round((topMonths / 12) * 10) / 10,
+    entryToTopPct: entry > 0 ? Math.round(((top - entry) / entry) * 1000) / 10 : null,
+    count: valid.length
+  };
+}
+
+// Per-step percentage increase in base pay vs the previous (sorted) step.
+function stepIncreases(steps) {
+  var sorted = (steps || []).filter(function (s) { return s && typeof s.basePay === 'number'; })
+    .slice().sort(function (a, b) { return (a.startMonths || 0) - (b.startMonths || 0); });
+  return sorted.map(function (s, i) {
+    if (i === 0) return null;
+    var prev = sorted[i - 1].basePay;
+    return prev > 0 ? Math.round(((s.basePay - prev) / prev) * 1000) / 10 : null;
+  });
+}
+
 var FireSalaryLib = {
   parseMoney: parseMoney,
   parseNumber: parseNumber,
@@ -167,7 +200,9 @@ var FireSalaryLib = {
   SCHEDULE_HOURS: SCHEDULE_HOURS,
   projectEarnings: projectEarnings,
   stepsForField: stepsForField,
-  yearsToTop: yearsToTop
+  yearsToTop: yearsToTop,
+  planSummary: planSummary,
+  stepIncreases: stepIncreases
 };
 
 if (typeof window !== 'undefined') window.FireSalaryLib = FireSalaryLib;

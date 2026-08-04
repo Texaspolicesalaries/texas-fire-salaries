@@ -3,6 +3,46 @@ const test = require('node:test');
 const assert = require('node:assert');
 const L = require('./salary-lib.js');
 
+test('planSummary derives entry, top, years-to-top, entry-to-top %', () => {
+  var steps = [
+    { startMonths: 0, basePay: 60000 },
+    { startMonths: 12, basePay: 66000 },
+    { startMonths: 48, basePay: 78000 }
+  ];
+  var s = L.planSummary(steps);
+  assert.strictEqual(s.entry, 60000);          // earliest step
+  assert.strictEqual(s.top, 78000);            // latest step (no explicit top)
+  assert.strictEqual(s.topMonths, 48);
+  assert.strictEqual(s.yearsToTop, 4);         // 48/12
+  assert.strictEqual(s.entryToTopPct, 30);     // (78000-60000)/60000
+  assert.strictEqual(s.count, 3);
+});
+
+test('planSummary honors an explicit top step and unordered input', () => {
+  var steps = [
+    { startMonths: 48, basePay: 90000 },       // latest, but NOT marked top
+    { startMonths: 0, basePay: 60000 },
+    { startMonths: 24, basePay: 80000, isTopStep: true }  // designated top
+  ];
+  var s = L.planSummary(steps);
+  assert.strictEqual(s.entry, 60000);
+  assert.strictEqual(s.top, 80000);            // the designated top, not the latest
+  assert.strictEqual(s.topMonths, 24);
+  assert.strictEqual(s.yearsToTop, 2);
+});
+
+test('planSummary is null-safe with no valid steps', () => {
+  assert.strictEqual(L.planSummary([]).entry, null);
+  assert.strictEqual(L.planSummary([{ startMonths: 0 }]).top, null);
+});
+
+test('stepIncreases gives per-step percentage lift', () => {
+  var inc = L.stepIncreases([{ startMonths: 0, basePay: 100 }, { startMonths: 12, basePay: 110 }, { startMonths: 24, basePay: 121 }]);
+  assert.strictEqual(inc[0], null);
+  assert.strictEqual(inc[1], 10);
+  assert.strictEqual(inc[2], 10);
+});
+
 test('parseMoney handles strings, numbers, junk', () => {
   assert.strictEqual(L.parseMoney('$74,356'), 74356);
   assert.strictEqual(L.parseMoney('74356'), 74356);
