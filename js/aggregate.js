@@ -98,6 +98,9 @@
     var d = Object.assign({}, dept);
     var salary = dept.salary ? Object.assign({}, dept.salary) : {};
     salary.steps = stepPlan.steps;
+    // Carried through so the page can offer "flag this pay-step plan" against
+    // the exact submission currently showing (see js/department.js).
+    salary.stepPlanId = stepPlan.id || null;
     if (stepPlan.classification) salary.classification = stepPlan.classification;
     if (stepPlan.effectiveDate) salary.effectiveDate = stepPlan.effectiveDate;
     if (stepPlan.sourceType) salary.sourceType = stepPlan.sourceType;

@@ -50,6 +50,7 @@
     renderConfidence();
     renderRevisions();
     wireActions();
+    wireStepPlanFlag();
   }
 
   // ---- Career earnings ----
@@ -238,6 +239,46 @@
       departmentSlug: dept.slug, field: 'entry', disputedValue: summary.entry,
       proposedValue: Lib.parseMoney(value), contributorId: A.user.uid, reason: String(reason || '').slice(0, 1000),
       status: 'open', createdAt: F.serverTimestamp()
+    });
+  }
+
+  // ---- Flag a specific pay-step plan (distinct from the generic "entry" dispute
+  // above) — targets the exact live submission the "Pay-step plan" table is
+  // currently showing, so scripts/export-overlay.js can exclude it and fall back
+  // to the next most recent undisputed plan on the next refresh. ----
+  function wireStepPlanFlag() {
+    var btn = document.getElementById('flag-step-plan');
+    if (!btn || btn._wired) return;
+    btn._wired = true;
+    var host = document.getElementById('flag-step-plan-status');
+    var stepPlanId = btn.getAttribute('data-step-plan-id');
+    btn.addEventListener('click', function () {
+      if (!(A && A.canContribute())) {
+        host.innerHTML = (window.FireDB && window.FireDB.configured)
+          ? '<a href="/sign-in.html">Sign in with a verified email</a> to flag this pay-step plan.'
+          : 'Flagging requires a connected Firebase project (not configured in this preview).';
+        return;
+      }
+      host.innerHTML = '<div class="card card-tight" style="margin-top:.5rem">' +
+        '<div class="field"><label for="fpr">What looks wrong with this pay-step plan?</label><textarea id="fpr" placeholder="Explain what should change and how you know."></textarea></div>' +
+        '<button class="btn btn-primary btn-sm" id="fpsub">Submit flag</button></div>';
+      document.getElementById('fpsub').addEventListener('click', function () {
+        var reason = document.getElementById('fpr').value;
+        writeStepPlanDispute(stepPlanId, reason).then(function () {
+          host.innerHTML = '<p class="field-hint">Thanks — this pay-step plan has been flagged for review and will be excluded from the next data refresh.</p>';
+          btn.disabled = true;
+        }).catch(function (e) { host.innerHTML = '<p class="field-error">Could not submit: ' + UI.esc(e.message) + '</p>'; });
+      });
+    });
+  }
+
+  async function writeStepPlanDispute(stepPlanId, reason) {
+    var db = window.FireDB;
+    if (!db || !db.ready) throw new Error('Firebase not configured');
+    var F = db.sdk.firestore;
+    await F.addDoc(F.collection(db.db, 'disputes'), {
+      departmentSlug: dept.slug, field: 'stepPlan', disputedSubmissionId: stepPlanId,
+      reason: String(reason || '').slice(0, 1000), contributorId: A.user.uid, status: 'open', createdAt: F.serverTimestamp()
     });
   }
 })();

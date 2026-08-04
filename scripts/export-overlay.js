@@ -120,8 +120,24 @@ function decodeValue(v) {
 // "Most recent submission wins" per department — no cross-plan clustering yet;
 // that's a known v1 limitation, tracked separately from the (unaffected) numeric
 // entry/top/midpoint consensus above.
-function extractStepPlans(rows) {
-  const plans = {};
+// The `document.name` REST field is always the full resource path
+// (.../documents/submissions/{docId}) — the last segment is the doc ID.
+function docId(doc) {
+  const name = doc && doc.name;
+  if (!name) return null;
+  const parts = String(name).split('/');
+  return parts[parts.length - 1] || null;
+}
+
+// disputedIds: submission doc IDs a community member has flagged as wrong
+// (disputes: field == 'stepPlan', status == 'open' — see queryOpenStepPlanDisputes).
+// A disputed plan is skipped in favor of the next most recent undisputed one for
+// that department, rather than requiring pre-approval before ANY plan can show —
+// the safety net only kicks in once something is actually reported wrong, matching
+// how every other automatic-promotion path on this site already works.
+function extractStepPlans(rows, disputedIds) {
+  disputedIds = disputedIds || new Set();
+  const bySlug = {};
   rows.forEach(r => {
     if (!r.document || !r.document.fields) return;
     const f = r.document.fields;
@@ -131,11 +147,10 @@ function extractStepPlans(rows) {
     const pv = decodeValue(f.proposedValues) || {};
     const rawSteps = Array.isArray(pv.steps) ? pv.steps.filter(s => s && s.basePay != null && s.label) : [];
     if (!rawSteps.length) return;
-    const submittedAt = isoDay(f.submittedAt && f.submittedAt.timestampValue) || isoDay(Date.now());
-    const existing = plans[slug];
-    if (existing && existing.submittedAt >= submittedAt) return; // keep the newer plan
     const plan = decodeValue(f.plan) || {};
-    plans[slug] = {
+    (bySlug[slug] = bySlug[slug] || []).push({
+      id: docId(r.document),
+      submittedAt: isoDay(f.submittedAt && f.submittedAt.timestampValue) || isoDay(Date.now()),
       steps: rawSteps.map((s, i) => ({
         stepName: s.label,
         minimumMonths: s.startMonths,
@@ -147,11 +162,45 @@ function extractStepPlans(rows) {
       effectiveDate: plan.effectiveDate || undefined,
       sourceType: fv(f.sourceType) || undefined,
       sourceUrl: fv(f.sourceUrl) || undefined,
-      contributorId: fv(f.contributorId) || null,
-      submittedAt
-    };
+      contributorId: fv(f.contributorId) || null
+    });
+  });
+  const plans = {};
+  Object.keys(bySlug).forEach(slug => {
+    const sorted = bySlug[slug].slice().sort((a, b) => (a.submittedAt < b.submittedAt ? 1 : a.submittedAt > b.submittedAt ? -1 : 0));
+    const chosen = sorted.find(p => !p.id || !disputedIds.has(p.id));
+    if (chosen) plans[slug] = chosen;
   });
   return plans;
+}
+
+// Public-read per firestore.rules (disputes: allow read: if true), no auth needed.
+async function queryOpenStepPlanDisputes(baseUrl) {
+  const body = {
+    structuredQuery: {
+      from: [{ collectionId: 'disputes' }],
+      where: {
+        compositeFilter: {
+          op: 'AND',
+          filters: [
+            { fieldFilter: { field: { fieldPath: 'field' }, op: 'EQUAL', value: { stringValue: 'stepPlan' } } },
+            { fieldFilter: { field: { fieldPath: 'status' }, op: 'EQUAL', value: { stringValue: 'open' } } }
+          ]
+        }
+      }
+    }
+  };
+  const res = await fetch(baseUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  if (!res.ok) throw new Error('Firestore REST ' + res.status + ': ' + (await res.text()).slice(0, 300));
+  const rows = await res.json();
+  if (rows && rows.error) throw new Error(rows.error.status + ' ' + rows.error.message);
+  const ids = new Set();
+  (Array.isArray(rows) ? rows : []).forEach(r => {
+    if (!r.document || !r.document.fields) return;
+    const id = fv(r.document.fields.disputedSubmissionId);
+    if (id) ids.add(id);
+  });
+  return ids;
 }
 
 async function queryPublished(baseUrl, collectionId) {
@@ -268,7 +317,16 @@ async function main() {
     n++;
   });
 
-  const stepPlans = extractStepPlans(subRows);
+  // A flagged plan must not block every other plan from showing — an isolated
+  // lookup failure just means nothing gets excluded this run, not that step
+  // plans stop working entirely.
+  let disputedStepPlanIds = new Set();
+  try {
+    disputedStepPlanIds = await queryOpenStepPlanDisputes(url);
+  } catch (e) {
+    console.warn('[export-overlay] step-plan dispute lookup failed (treating none as disputed):', e.message);
+  }
+  const stepPlans = extractStepPlans(subRows, disputedStepPlanIds);
 
   // New departments: geocode from ZIP + auto-promote. Failures here (bad seed
   // read, missing ZIP table, Firestore hiccup) must not block the salary-report
@@ -296,11 +354,12 @@ async function main() {
   console.log(`Promoted ${departments.length} new department(s) to the map` +
     (skippedDup ? `, skipped ${skippedDup} possible duplicate(s)` : '') +
     (skippedNoZip ? `, skipped ${skippedNoZip} with a missing/unrecognized ZIP` : '') + '.');
-  console.log(`Full step plans: ${Object.keys(stepPlans).length} department(s) now showing a live community-submitted pay-step table.`);
+  console.log(`Full step plans: ${Object.keys(stepPlans).length} department(s) now showing a live community-submitted pay-step table` +
+    (disputedStepPlanIds.size ? ` (${disputedStepPlanIds.size} flagged plan(s) excluded)` : '') + '.');
 }
 
 if (require.main === module) {
   main().catch(e => { console.error('[export-overlay] failed (keeping existing overlay.json):', e.message); process.exit(0); });
 } else {
-  module.exports = { slugify, normName, isDuplicate, makeRegionResolver, promoteDepartments, readZipCentroids, toReport, decodeValue, extractStepPlans };
+  module.exports = { slugify, normName, isDuplicate, makeRegionResolver, promoteDepartments, readZipCentroids, toReport, decodeValue, extractStepPlans, docId };
 }

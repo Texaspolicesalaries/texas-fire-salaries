@@ -94,6 +94,7 @@ test('applyOverlay appends community reports without mutating the baseline', () 
 test('applyStepPlan replaces the step table with a live community-submitted plan', () => {
   const dept = deptFixture();
   const stepPlan = {
+    id: 'sub-123',
     steps: [
       { stepName: 'Entry', minimumMonths: 0, maximumMonths: 12, baseAnnualSalary: 62000 },
       { stepName: 'Top', minimumMonths: 12, maximumMonths: null, baseAnnualSalary: 79000 }
@@ -105,6 +106,7 @@ test('applyStepPlan replaces the step table with a live community-submitted plan
   assert.strictEqual(merged.salary.steps[0].baseAnnualSalary, 62000);
   assert.strictEqual(merged.salary.classification, 'Firefighter/EMT');
   assert.strictEqual(merged.salary.effectiveDate, '2026-01-01');
+  assert.strictEqual(merged.salary.stepPlanId, 'sub-123'); // lets the page target this exact submission for flagging
   assert.strictEqual(dept.salary.steps.length, 3); // original untouched
 });
 

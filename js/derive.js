@@ -114,6 +114,10 @@
     out.sourceType = s.sourceType || null;
     out.sourceUrl = s.sourceUrl || null;
     out.classification = s.classification || null;
+    // Lets the page target a "flag this pay-step plan" dispute at the exact live
+    // submission currently showing — null for seed-only data, which has no
+    // submission to flag against.
+    out.stepPlanId = s.stepPlanId || null;
 
     var flags = dept.flags || {};
     if (hasSteps && flags.paramedicIncentive) {

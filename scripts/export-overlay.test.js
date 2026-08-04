@@ -4,10 +4,12 @@ const assert = require('node:assert');
 const M = require('./export-overlay.js');
 
 function s(v) { return { stringValue: v }; }
-function row(fields, submittedAt) {
+function row(fields, submittedAt, docName) {
   const f = Object.assign({}, fields);
   if (submittedAt) f.submittedAt = { timestampValue: submittedAt };
-  return { document: { fields: f } };
+  const doc = { fields: f };
+  if (docName) doc.name = `projects/p/databases/(default)/documents/submissions/${docName}`;
+  return { document: doc };
 }
 
 const SEED_DEPTS = [
@@ -137,12 +139,12 @@ function stepVal(step) {
   if (step.isTopStep) f.isTopStep = boolVal(true);
   return mapVal(f);
 }
-function planRow(slug, steps, submittedAt, extra) {
+function planRow(slug, steps, submittedAt, extra, docName) {
   return row(Object.assign({
     mode: s('plan'), departmentSlug: s(slug),
     proposedValues: mapVal({ steps: arrVal(steps.map(stepVal)) }),
     plan: mapVal({ classification: s('Firefighter'), effectiveDate: s('2026-01-01') })
-  }, extra), submittedAt);
+  }, extra), submittedAt, docName);
 }
 
 test('decodeValue unwraps scalars, arrays, and nested maps', () => {
@@ -185,4 +187,33 @@ test('extractStepPlans keeps the most recently submitted plan per department', (
   ];
   const plans = M.extractStepPlans(rows);
   assert.strictEqual(plans['addison-fd'].steps[0].baseAnnualSalary, 65000);
+});
+
+test('docId reads the doc ID from the Firestore REST resource name', () => {
+  assert.strictEqual(M.docId({ name: 'projects/p/databases/(default)/documents/submissions/AbC123' }), 'AbC123');
+  assert.strictEqual(M.docId({}), null);
+  assert.strictEqual(M.docId(null), null);
+});
+
+test('extractStepPlans falls back to the next undisputed plan when the newest one is flagged', () => {
+  const rows = [
+    planRow('addison-fd', [{ label: 'Entry', startMonths: 0, basePay: 60000 }], '2026-01-01T00:00:00Z', null, 'older'),
+    planRow('addison-fd', [{ label: 'Entry', startMonths: 0, basePay: 999999 }], '2026-03-01T00:00:00Z', null, 'newer-bad')
+  ];
+  const disputed = new Set(['newer-bad']);
+  const plans = M.extractStepPlans(rows, disputed);
+  assert.strictEqual(plans['addison-fd'].steps[0].baseAnnualSalary, 60000);
+  assert.strictEqual(plans['addison-fd'].id, 'older');
+});
+
+test('extractStepPlans shows no plan for a department when every submission is flagged', () => {
+  const rows = [planRow('addison-fd', [{ label: 'Entry', startMonths: 0, basePay: 60000 }], '2026-01-01T00:00:00Z', null, 'only-one')];
+  const plans = M.extractStepPlans(rows, new Set(['only-one']));
+  assert.strictEqual(plans['addison-fd'], undefined);
+});
+
+test('extractStepPlans is unaffected by disputes for a different department', () => {
+  const rows = [planRow('addison-fd', [{ label: 'Entry', startMonths: 0, basePay: 60000 }], '2026-01-01T00:00:00Z', null, 'x')];
+  const plans = M.extractStepPlans(rows, new Set(['some-other-dept-plan-id']));
+  assert.ok(plans['addison-fd']);
 });
