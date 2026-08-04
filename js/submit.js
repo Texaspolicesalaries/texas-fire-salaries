@@ -78,6 +78,9 @@
   function txt(id, ph, val) { return '<input id="' + id + '" type="text" placeholder="' + (ph || '') + '" value="' + (val != null ? UI.esc(val) : '') + '">'; }
   function money(id, ph) { return '<input id="' + id + '" type="text" inputmode="decimal" class="money" placeholder="' + (ph || '$') + '">'; }
   function numI(id, ph) { return '<input id="' + id + '" type="text" inputmode="numeric" placeholder="' + (ph || '') + '">'; }
+  function dateI(id) { return '<input id="' + id + '" type="date">'; }
+  // Display-only: "2026-01-15" -> "01/15/2026". Non-ISO/legacy values pass through unchanged.
+  function fmtDate(iso) { var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso || ''); return m ? (m[2] + '/' + m[3] + '/' + m[1]) : (iso || null); }
   function sel(id, opts, selVal) {
     return '<select id="' + id + '">' + opts.map(function (o) {
       var val = Array.isArray(o) ? o[0] : o, l = Array.isArray(o) ? o[1] : o;
@@ -174,7 +177,7 @@
     return '<div class="card card-tight cv-card" style="margin-top:.75rem"><div class="cv-title">Current values for ' + UI.esc(dept.name) + '</div>' +
       row('Entry pay', UI.money(s.entry)) + row('Top pay', s.topBase ? UI.money(s.topBase) : '—') +
       row('Years to top', s.yearsToTop != null ? s.yearsToTop + ' yr' : '—') + row('Schedule', dept.scheduleType || '—') +
-      row('Effective date', (dept.salary && dept.salary.effectiveDate) || '—') +
+      row('Effective date', fmtDate(dept.salary && dept.salary.effectiveDate) || '—') +
       '<p class="field-hint" style="margin:.5rem 0 0">Only fill in what you’re changing on the next step.</p></div>';
   }
 
@@ -206,7 +209,7 @@
         field('Amount represents', sel('c-basis', BASIS, 'base'), null, 'c-basis') +
       '</div>' +
       '<div class="grid cols-3">' +
-        field('Effective date', numI('c-eff', '2026-01-01 or 2026'), null, 'c-eff') +
+        field('Effective date', dateI('c-eff'), null, 'c-eff') +
         field('Shift schedule', sel('c-sched', SCHEDULES, ''), null, 'c-sched') +
         field('Scheduled annual hours', numI('c-hours', '2912'), null, 'c-hours') +
       '</div>';
@@ -216,7 +219,7 @@
     return '' +
       '<div class="grid cols-2">' +
         field('Classification / position', selP('p-position', POSITIONS, 'e.g. Firefighter/EMT'), 'Stored once for the whole plan — don’t repeat it per step.', 'p-position') +
-        field('Effective date', numI('p-eff', '2026-01-01'), null, 'p-eff') +
+        field('Effective date', dateI('p-eff'), null, 'p-eff') +
       '</div>' +
       '<div class="grid cols-3">' +
         field('Pay period', sel('p-period', PLAN_PERIODS, 'annual'), 'Sets the unit for every dollar figure in the steps below — switch to “Per hour” if you’re entering hourly rates, not annual salaries.', 'p-period') +
@@ -356,7 +359,7 @@
     if (payload.mode === 'plan') {
       var pl = payload.plan || {};
       if (pl.classification) rows.push(kv('Classification', UI.esc(pl.classification)));
-      rows.push(arrow('Effective date', (dept && dept.salary && dept.salary.effectiveDate) || null, UI.esc(pl.effectiveDate || '—')));
+      rows.push(arrow('Effective date', fmtDate(dept && dept.salary && dept.salary.effectiveDate) || null, UI.esc(fmtDate(pl.effectiveDate) || '—')));
       if (pl.schedule) rows.push(arrow('Schedule', dept ? (dept.scheduleType || null) : null, UI.esc(pl.schedule)));
       if (pl.hoursAnnual) rows.push(kv('Scheduled hours', UI.esc(pl.hoursAnnual)));
       rows.push(kv('Number of steps', (pv.steps || []).length));
@@ -367,12 +370,12 @@
       var careerTop = pv.careerPoint === 'top';
       var oldVal = careerTop ? (cur.topBase != null ? UI.money(cur.topBase) : null) : (cur.entry != null ? UI.money(cur.entry) : null);
       rows.push(arrow((pv.position || 'Pay') + (careerTop ? ' (top)' : '') + ' — ' + periodLabel(pv.payPeriod), oldVal, UI.money(pv.amount) + basisSuffix(pv.basis)));
-      if (pv.effectiveDate) rows.push(arrow('Effective date', (dept && dept.salary && dept.salary.effectiveDate) || null, UI.esc(pv.effectiveDate)));
+      if (pv.effectiveDate) rows.push(arrow('Effective date', fmtDate(dept && dept.salary && dept.salary.effectiveDate) || null, UI.esc(fmtDate(pv.effectiveDate))));
       if (pv.schedule) rows.push(arrow('Schedule', dept ? (dept.scheduleType || null) : null, UI.esc(pv.schedule)));
       if (pv.hoursAnnual) rows.push(arrow('Scheduled hours', dept ? (dept.annualScheduledHours || null) : null, UI.esc(pv.hoursAnnual)));
     } else if (pv.schedule || pv.effectiveDate) {
       if (pv.schedule) rows.push(arrow('Schedule', dept ? (dept.scheduleType || null) : null, UI.esc(pv.schedule)));
-      if (pv.effectiveDate) rows.push(arrow('Effective date', (dept && dept.salary && dept.salary.effectiveDate) || null, UI.esc(pv.effectiveDate)));
+      if (pv.effectiveDate) rows.push(arrow('Effective date', fmtDate(dept && dept.salary && dept.salary.effectiveDate) || null, UI.esc(fmtDate(pv.effectiveDate))));
     }
 
     (pv.supplemental || []).forEach(function (s) { rows.push(kv(suppLabel(s.type), UI.money(s.amount) + '/' + unitLabel(s.unit))); });
