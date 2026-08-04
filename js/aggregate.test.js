@@ -44,6 +44,19 @@ test('submissionToReport returns null without an entry figure', () => {
   assert.strictEqual(Agg.submissionToReport({ proposedValues: { schedule: '24/48' } }), null);
 });
 
+test('submissionToReport carries reportedEntry/reportedTop from a "total comp" submission', () => {
+  const r = Agg.submissionToReport({ proposedValues: { reportedTop: 95000 }, contributorId: 'u5', submittedAt: NOW });
+  assert.strictEqual(r.reportedTop, 95000);
+  assert.strictEqual(r.entry, null);
+  assert.strictEqual(r.top, null); // never conflated with base pay
+});
+
+test('submissionToReport is non-null for a reported-total-only submission even with no entry/top', () => {
+  const r = Agg.submissionToReport({ proposedValues: { reportedEntry: 68000 }, contributorId: 'u6', submittedAt: NOW });
+  assert.ok(r);
+  assert.strictEqual(r.reportedEntry, 68000);
+});
+
 test('submissionToReport maps a top-type amount to top pay', () => {
   const r = Agg.submissionToReport({ proposedValues: { amount: 90000, salaryType: 'top-ff' }, contributorId: 'u3', submittedAt: NOW });
   assert.strictEqual(r.top, 90000);

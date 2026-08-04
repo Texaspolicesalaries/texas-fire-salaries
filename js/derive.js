@@ -131,7 +131,22 @@
     }
     out.effectiveHourlyTop = Lib.effectiveHourly(out.topBase, annualHours);
 
-    var allReports = entryReports.concat(topReports);
+    // ── Reported total compensation consensus — kept on its own track, never
+    // merged into entry/topBase. A submission tagged "Reported total compensation"
+    // lands here instead, so it can't silently masquerade as base pay in
+    // comparisons (compare.js's "reported" mode is what displays this).
+    var reportedEntryReports = reportsForField(s, extraReports, 'reportedEntry');
+    if (reportedEntryReports.length) {
+      var reCurrent = C.selectCurrentCluster(C.clusterValues(reportedEntryReports, { now: now }), { now: now });
+      if (reCurrent) out.reportedEntry = reCurrent.value;
+    }
+    var reportedTopReports = reportsForField(s, extraReports, 'reportedTop');
+    if (reportedTopReports.length) {
+      var rtCurrent = C.selectCurrentCluster(C.clusterValues(reportedTopReports, { now: now }), { now: now });
+      if (rtCurrent) out.reportedTop = rtCurrent.value;
+    }
+
+    var allReports = entryReports.concat(topReports).concat(reportedEntryReports).concat(reportedTopReports);
     out.contributors = uniqueContributorCount(allReports);
     var newest = allReports.reduce(function (m, r) { return Math.max(m, r.submittedAt || 0); }, 0) || toMs(s.effectiveDate);
     out.lastUpdated = newest || null;

@@ -38,22 +38,29 @@
   }
 
   // Normalize one Firestore `submissions` doc into the report shape derive.js uses.
-  // Maps a quick-update amount to entry or top by its salary type. Returns null if
-  // it carries no usable entry/top figure.
+  // Maps a quick-update amount to entry or top by its salary type. `reportedEntry`/
+  // `reportedTop` (set when a submission is tagged "Reported total compensation")
+  // stay on their own track — never merged into entry/top — so a total-comp figure
+  // can't get treated as base pay in comparisons. Returns null if it carries none
+  // of these four figures.
   function submissionToReport(sub) {
     if (!sub) return null;
     var pv = sub.proposedValues || {};
     var amount = money(pv.amount);
     var entry = money(pv.entry);
     var top = money(pv.top);
+    var reportedEntry = money(pv.reportedEntry);
+    var reportedTop = money(pv.reportedTop);
     var metric = metricFromType(pv.salaryType);
     if (entry == null && metric === 'entry') entry = amount;
     if (top == null && metric === 'top') top = amount;
-    if (entry == null && top == null) return null;
+    if (entry == null && top == null && reportedEntry == null && reportedTop == null) return null;
     return {
       value: entry != null ? entry : top,
       entry: entry,
       top: top,
+      reportedEntry: reportedEntry,
+      reportedTop: reportedTop,
       contributorId: sub.contributorId || null,
       submittedAt: toMs(sub.submittedAt),
       hasSource: !!(sub.sourceUrl || sub.sourceFile),

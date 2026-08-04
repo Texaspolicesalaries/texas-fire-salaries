@@ -60,20 +60,27 @@ function metricFromType(t) {
   if (t === 'hourly-base') return 'skip';
   return 'entry';
 }
+// reportedEntry/reportedTop (a submission tagged "Reported total compensation")
+// stay on their own track from entry/top — never merged into base pay — so
+// derive.js can keep them out of entry/topBase-based comparisons.
 function toReport(fields) {
   const pv = (fields.proposedValues && fields.proposedValues.mapValue && fields.proposedValues.mapValue.fields) || {};
   const amount = money(fv(pv.amount));
   let entry = money(fv(pv.entry));
   let top = money(fv(pv.top));
+  const reportedEntry = money(fv(pv.reportedEntry));
+  const reportedTop = money(fv(pv.reportedTop));
   const metric = metricFromType(fv(pv.salaryType));
   if (entry == null && metric === 'entry') entry = amount;
   if (top == null && metric === 'top') top = amount;
-  if (entry == null && top == null) return null;
+  if (entry == null && top == null && reportedEntry == null && reportedTop == null) return null;
   return {
     contributorId: fv(fields.contributorId) || null,
     submittedAt: isoDay(fields.submittedAt && fields.submittedAt.timestampValue) || isoDay(Date.now()),
     entry,
     top,
+    reportedEntry,
+    reportedTop,
     hasSource: !!(fv(fields.sourceUrl) || fv(fields.sourceFile)),
     departmentMaintained: fv(fields.contributorType) === 'department'
   };
@@ -223,5 +230,5 @@ async function main() {
 if (require.main === module) {
   main().catch(e => { console.error('[export-overlay] failed (keeping existing overlay.json):', e.message); process.exit(0); });
 } else {
-  module.exports = { slugify, normName, isDuplicate, makeRegionResolver, promoteDepartments, readZipCentroids };
+  module.exports = { slugify, normName, isDuplicate, makeRegionResolver, promoteDepartments, readZipCentroids, toReport };
 }

@@ -370,7 +370,12 @@
       if (pl.yearsToTop != null) rows.push(kv('Years to top', pl.yearsToTop + ' yr'));
     } else if (pv.amount != null) {
       var careerTop = pv.careerPoint === 'top';
-      var oldVal = careerTop ? (cur.topBase != null ? UI.money(cur.topBase) : null) : (cur.entry != null ? UI.money(cur.entry) : null);
+      // Compare against the same kind of figure being submitted — a "reported total
+      // compensation" amount is never diffed against base pay, and vice versa.
+      var oldBasisVal = pv.basis === 'total'
+        ? (careerTop ? cur.reportedTop : cur.reportedEntry)
+        : (careerTop ? cur.topBase : cur.entry);
+      var oldVal = oldBasisVal != null ? UI.money(oldBasisVal) : null;
       rows.push(arrow((pv.position || 'Pay') + (careerTop ? ' (top)' : '') + ' — ' + periodLabel(pv.payPeriod), oldVal, UI.money(pv.amount) + basisSuffix(pv.basis)));
       if (pv.effectiveDate) rows.push(arrow('Effective date', fmtDate(dept && dept.salary && dept.salary.effectiveDate) || null, UI.esc(fmtDate(pv.effectiveDate))));
       if (pv.schedule) rows.push(arrow('Schedule', dept ? (dept.scheduleType || null) : null, UI.esc(pv.schedule)));
@@ -604,14 +609,20 @@
       base.plan.yearsToTop = sum.yearsToTop != null ? sum.yearsToTop : undefined;
       base.effectiveDate = base.plan.effectiveDate;
     } else {
-      var amount = Lib.parseMoney(v('c-amount')), career = v('c-career');
+      var amount = Lib.parseMoney(v('c-amount')), career = v('c-career'), basis = v('c-basis');
       var annual = toAnnual(amount, v('c-period'), Lib.parseNumber(v('c-hours')));
       Object.assign(pv, {
         position: v('c-position') || undefined, careerPoint: career || undefined, payPeriod: v('c-period') || undefined,
-        amount: amount != null ? amount : undefined, basis: v('c-basis') || undefined, effectiveDate: v('c-eff') || undefined,
+        amount: amount != null ? amount : undefined, basis: basis || undefined, effectiveDate: v('c-eff') || undefined,
         schedule: v('c-sched') || undefined, hoursAnnual: Lib.parseNumber(v('c-hours')) || undefined
       });
-      if (annual != null) { if (career === 'top') pv.top = annual; else pv.entry = annual; }
+      // "Reported total compensation" is kept out of entry/top (base pay) entirely —
+      // it lands in reportedEntry/reportedTop instead so it can never get displayed
+      // or compared as if it were base salary. See derive.js's reported consensus.
+      if (annual != null) {
+        if (basis === 'total') { if (career === 'top') pv.reportedTop = annual; else pv.reportedEntry = annual; }
+        else { if (career === 'top') pv.top = annual; else pv.entry = annual; }
+      }
       base.effectiveDate = pv.effectiveDate;
     }
     if (!pv.supplemental.length) delete pv.supplemental;

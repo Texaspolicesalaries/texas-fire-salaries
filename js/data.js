@@ -134,10 +134,18 @@
       var reports = [];
       snap.forEach(function (doc) {
         var d = doc.data();
-        var entry = Lib.parseMoney(d.proposedValues && d.proposedValues.entry);
-        if (entry == null) return;
+        var pv = d.proposedValues || {};
+        var entry = Lib.parseMoney(pv.entry);
+        var top = Lib.parseMoney(pv.top);
+        var reportedEntry = Lib.parseMoney(pv.reportedEntry);
+        var reportedTop = Lib.parseMoney(pv.reportedTop);
+        if (entry == null && top == null && reportedEntry == null && reportedTop == null) return;
         reports.push({
           value: entry,
+          entry: entry,
+          top: top,
+          reportedEntry: reportedEntry,
+          reportedTop: reportedTop,
           contributorId: d.contributorId,
           submittedAt: toMs(d.submittedAt),
           hasSource: !!(d.sourceUrl || d.sourceFile),

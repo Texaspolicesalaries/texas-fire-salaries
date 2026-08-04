@@ -97,3 +97,27 @@ test('promoteDepartments resolves slug collisions with a numeric suffix', () => 
   assert.strictEqual(departments[0].slug, 'frisco-fire-department');
   assert.strictEqual(departments[1].slug, 'frisco-fire-department-2');
 });
+
+function num(v) { return { doubleValue: v }; }
+function mapVal(fields) { return { mapValue: { fields } } }
+
+test('toReport keeps reportedEntry/reportedTop ("total comp") separate from entry/top', () => {
+  const r = M.toReport({
+    contributorId: s('u1'),
+    proposedValues: mapVal({ reportedTop: num(95000) })
+  });
+  assert.strictEqual(r.reportedTop, 95000);
+  assert.strictEqual(r.entry, null);
+  assert.strictEqual(r.top, null);
+});
+
+test('toReport returns null when a submission carries none of entry/top/reportedEntry/reportedTop', () => {
+  const r = M.toReport({ contributorId: s('u2'), proposedValues: mapVal({ schedule: s('24/48') }) });
+  assert.strictEqual(r, null);
+});
+
+test('toReport still handles an ordinary base-pay submission unchanged', () => {
+  const r = M.toReport({ contributorId: s('u3'), proposedValues: mapVal({ entry: num(61000) }) });
+  assert.strictEqual(r.entry, 61000);
+  assert.strictEqual(r.reportedEntry, null);
+});
