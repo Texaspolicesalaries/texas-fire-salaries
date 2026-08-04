@@ -6,9 +6,9 @@
  *   • Single pay figure — one structured amount (position, career point, period,
  *     basis, effective date, schedule, hours) + supplemental pay.
  *   • Full step pay plan — plan-level fields + a state-backed step editor
- *     (spreadsheet grid on desktop, stacked cards on mobile) storing one record
- *     per step {label,startMonths,basePay,scheduledOvertime,reportedTotal,isTopStep}
- *     with live derived values (entry/top/years-to-top/entry→top %/effective hourly).
+ *     (grid on desktop, stacked cards on mobile) storing one record per step
+ *     {label,startMonths,basePay,scheduledOvertime,isTopStep} with live derived
+ *     values (entry/top/years-to-top/entry→top %/effective hourly).
  * Plan mode never emits a duplicate single-pay figure; entry/top for the consensus
  * engine are derived from the steps. Review shows an old→new diff. Backward compatible
  * with existing single-pay submissions and seed step plans.
@@ -225,17 +225,13 @@
       '</div>' +
       field('Plan notes (optional)', '<textarea id="p-notes" placeholder="e.g. steps from the 2026 approved pay scale"></textarea>', null, 'p-notes') +
       '<div class="divider-label">Pay steps</div>' +
-      '<p class="field-hint">Base pay is the required, scheduled step amount. Sched OT is an optional add-on kept separate from base. Reported total is optional and independent — use it only if you have an actual reported figure (e.g. a W-2 total) for that step; it is never calculated automatically from base + OT. Use the <strong>Top</strong> column to mark whichever step is the top/max pay rate.</p>' +
+      '<p class="field-hint">Base pay is the required, scheduled step amount. Sched OT is an optional add-on kept separate from base. Use the <strong>Top</strong> column to mark whichever step is the top/max pay rate.</p>' +
       '<div id="plan-editor"></div>' +
       '<div class="plan-controls">' +
         '<button type="button" class="btn btn-outline btn-sm" data-plan="add">＋ Add step</button>' +
         '<button type="button" class="btn btn-outline btn-sm" data-plan="add5">＋ Add 5 steps</button>' +
         '<button type="button" class="btn btn-ghost btn-sm" data-plan="dup-last">⧉ Duplicate last</button>' +
-        '<button type="button" class="btn btn-ghost btn-sm" data-plan="paste">📋 Paste from spreadsheet</button>' +
       '</div>' +
-      '<p class="field-hint">Tip: you can also paste multiple rows copied from Excel or Sheets directly into any cell in the grid above — it will fill that row and add rows below it.</p>' +
-      '<div id="plan-paste" hidden><textarea id="paste-box" placeholder="Paste rows copied from Excel/Sheets — columns: label, months, base, [OT], [total]"></textarea>' +
-        '<button type="button" class="btn btn-outline btn-sm" id="paste-parse" style="margin-top:.4rem">Add pasted rows</button></div>' +
       '<div id="plan-derived"></div>';
   }
 
@@ -256,7 +252,7 @@
   }
 
   // ── Step editor (state-backed) ──────────────────────────────────────────────────
-  function blankStep(startMonths, label) { return { id: 'k' + (_sid++), label: label || '', startMonths: startMonths, basePay: null, sot: null, total: null, top: false }; }
+  function blankStep(startMonths, label) { return { id: 'k' + (_sid++), label: label || '', startMonths: startMonths, basePay: null, sot: null, top: false }; }
   function nextMonths() { var last = st.steps[st.steps.length - 1]; return last ? (Number(last.startMonths) || 0) + 12 : 0; }
   function autoLabel() { return st.steps.length === 0 ? 'Entry' : 'Step ' + (st.steps.length + 1); }
 
@@ -268,7 +264,6 @@
     var head = '<div class="plan-head"><span>Top</span><span>Step label</span><span>Start (months)</span>' +
       '<span>Base pay <span class="hd-unit">$' + unit + '</span></span>' +
       '<span>Sched OT <span class="hd-unit">$' + unit + '</span></span>' +
-      '<span>Reported total <span class="hd-unit">$' + unit + '</span></span>' +
       '<span aria-hidden="true"></span></div>';
     var rows = st.steps.map(function (s, i) { return rowHTML(s, i, unit); }).join('');
     host.innerHTML = '<div class="plan-grid" role="group" aria-label="Pay step editor">' + head + rows + '</div>';
@@ -283,7 +278,6 @@
       '<div class="pc"><span class="cl">Start (months)</span><input type="text" inputmode="numeric" data-f="startMonths" value="' + (s.startMonths == null ? '' : UI.esc(s.startMonths)) + '" placeholder="0" aria-label="Step ' + n + ' starting month"></div>' +
       '<div class="pc"><span class="cl">Base pay (' + unit + ')</span><input type="text" inputmode="decimal" class="money" data-f="basePay" value="' + mv(s.basePay) + '" placeholder="$" aria-label="Step ' + n + ' base pay, ' + unit + '"></div>' +
       '<div class="pc"><span class="cl">Sched OT (' + unit + ')</span><input type="text" inputmode="decimal" class="money" data-f="sot" value="' + mv(s.sot) + '" placeholder="$" aria-label="Step ' + n + ' scheduled overtime, ' + unit + '"></div>' +
-      '<div class="pc"><span class="cl">Reported total (' + unit + ')</span><input type="text" inputmode="decimal" class="money" data-f="total" value="' + mv(s.total) + '" placeholder="$" aria-label="Step ' + n + ' reported total, ' + unit + '"></div>' +
       '<div class="pc pc-act">' +
         '<button type="button" class="ib" data-act="insert" aria-label="Insert step after ' + n + '">↴</button>' +
         '<button type="button" class="ib" data-act="up" aria-label="Move step ' + n + ' up"' + (i === 0 ? ' disabled' : '') + '>↑</button>' +
@@ -386,7 +380,7 @@
     var stepsList = '';
     if (payload.mode === 'plan' && (pv.steps || []).length) {
       stepsList = '<div class="rv-steps"><div class="rv-steps-title">Steps</div>' + pv.steps.map(function (s) {
-        return '<div class="rv-step"><span>' + UI.esc(s.label || '—') + (s.isTopStep ? ' · top' : '') + '</span><span>' + Math.round((s.startMonths || 0) / 12 * 10) / 10 + ' yr</span><span>' + UI.money(s.basePay) + (s.reportedTotal != null ? ' base · ' + UI.money(s.reportedTotal) + ' total' : '') + '</span></div>';
+        return '<div class="rv-step"><span>' + UI.esc(s.label || '—') + (s.isTopStep ? ' · top' : '') + '</span><span>' + Math.round((s.startMonths || 0) / 12 * 10) / 10 + ' yr</span><span>' + UI.money(s.basePay) + '</span></div>';
       }).join('') + '</div>';
     }
 
@@ -435,15 +429,11 @@
       editor.addEventListener('input', onEditorInput);
       editor.addEventListener('change', onEditorInput);   // radios fire change
       editor.addEventListener('click', onEditorClick);
-      editor.addEventListener('paste', onEditorPaste);
       var hrs = document.getElementById('p-hours'); if (hrs) hrs.addEventListener('input', updateDerived);
       var per = document.getElementById('p-period'); if (per) per.addEventListener('change', renderEditor);
     }
     // plan controls
     document.querySelectorAll('[data-plan]').forEach(function (b) { b.onclick = function () { planControl(b.getAttribute('data-plan')); }; });
-    var pp = document.getElementById('paste-parse'); if (pp) pp.onclick = parsePaste;
-    var pasteBox = document.getElementById('paste-box');
-    if (pasteBox) pasteBox.addEventListener('paste', function () { setTimeout(parsePaste, 0); });
 
     // supplemental
     var addSupp = document.getElementById('add-supp');
@@ -487,59 +477,6 @@
     if (act === 'add') st.steps.push(blankStep(nextMonths(), autoLabel()));
     else if (act === 'add5') { for (var k = 0; k < 5; k++) st.steps.push(blankStep(nextMonths(), autoLabel())); }
     else if (act === 'dup-last') { var last = st.steps[st.steps.length - 1]; if (last) st.steps.push(Object.assign({}, last, { id: 'k' + (_sid++), startMonths: (Number(last.startMonths) || 0) + 12, top: false })); }
-    else if (act === 'paste') { var pb = document.getElementById('plan-paste'); if (pb) pb.hidden = !pb.hidden; return; }
-    renderEditor();
-  }
-
-  // Column order used when a pasted line is applied starting at a given field.
-  var STEP_COLS = ['label', 'startMonths', 'basePay', 'sot', 'total'];
-
-  // Fills (or creates) the step at st.steps[i] from a row of pasted cells, starting
-  // at STEP_COLS[startCol]. Blank cells leave the existing value untouched.
-  function applyPastedRow(cells, i, startCol) {
-    var s = st.steps[i];
-    if (!s) { s = blankStep(null, ''); st.steps[i] = s; }
-    cells.forEach(function (val, ci) {
-      var col = STEP_COLS[startCol + ci]; if (!col || val === '') return;
-      if (col === 'label') s.label = val;
-      else if (col === 'startMonths') s.startMonths = Lib.parseNumber(val);
-      else s[col] = Lib.parseMoney(val);
-    });
-    if (!s.label) s.label = autoLabel();
-    if (s.startMonths == null) { var prev = st.steps[i - 1]; s.startMonths = prev ? (Number(prev.startMonths) || 0) + 12 : 0; }
-  }
-
-  function parsePaste() {
-    var box = document.getElementById('paste-box'); if (!box || !box.value.trim()) return;
-    var lines = box.value.split(/\r?\n/).map(function (l) { return l.trim(); }).filter(Boolean);
-    lines.forEach(function (line) {
-      var cells = line.split(/\t|,(?=\s*\S)/).map(function (c) { return c.trim(); });
-      if (!cells.length) return;
-      // label, months, base, [ot], [total]  — or if first cell is a number, treat as months,base,...
-      var startCol = (/^\d/.test(cells[0]) && !/[a-z]/i.test(cells[0])) ? 1 : 0;
-      applyPastedRow(cells, st.steps.length, startCol);
-    });
-    box.value = '';
-    var pb = document.getElementById('plan-paste'); if (pb) pb.hidden = true;
-    renderEditor();
-  }
-
-  // Lets a multi-row/column copy from Excel/Sheets be pasted directly into any grid
-  // cell — fills that row from the pasted column onward and adds rows below it.
-  // A single-value paste (no tab/newline) is left to the browser's default behavior.
-  function onEditorPaste(e) {
-    var el = e.target; if (!el || el.tagName !== 'INPUT') return;
-    var cd = e.clipboardData || window.clipboardData;
-    var text = cd && cd.getData('text'); if (!text || !/\t|\r?\n/.test(text)) return;
-    e.preventDefault();
-    var row = el.closest('.plan-row'); if (!row) return;
-    var i0 = parseInt(row.getAttribute('data-i'), 10); if (!(i0 >= 0)) return;
-    var startCol = STEP_COLS.indexOf(el.getAttribute('data-f')); if (startCol < 0) startCol = 0;
-    var lines = text.split(/\r?\n/).map(function (l) { return l.trim(); }).filter(Boolean);
-    lines.forEach(function (line, idx) {
-      var cells = line.split(/\t|,(?=\s*\S)/).map(function (c) { return c.trim(); });
-      applyPastedRow(cells, i0 + idx, startCol);
-    });
     renderEditor();
   }
 
@@ -595,8 +532,7 @@
       if (!s.label || !s.label.trim()) return fail('Step ' + n + ' needs a label (e.g. Entry, Step 2, Top).');
       if (s.startMonths == null || isNaN(Number(s.startMonths))) return fail('Step ' + n + ' needs a starting month.');
       if (s.basePay == null) return fail('Step ' + n + ' needs a base pay amount.');
-      if (s.basePay < 0 || (s.sot != null && s.sot < 0) || (s.total != null && s.total < 0)) return fail('Step ' + n + ' has a negative amount.');
-      if (s.total != null && s.total < s.basePay) return fail('Step ' + n + ': reported total can’t be lower than base pay (they’re alternative figures, not additive).');
+      if (s.basePay < 0 || (s.sot != null && s.sot < 0)) return fail('Step ' + n + ' has a negative amount.');
       months.push(Number(s.startMonths));
     }
     for (var j = 1; j < months.length; j++) {
@@ -629,7 +565,7 @@
   function planSteps() {
     return st.steps.filter(function (s) { return s.basePay != null && s.label && s.label.trim(); }).map(function (s) {
       return { label: s.label.trim(), startMonths: Number(s.startMonths) || 0, basePay: s.basePay,
-        scheduledOvertime: s.sot != null ? s.sot : null, reportedTotal: s.total != null ? s.total : null, isTopStep: !!s.top };
+        scheduledOvertime: s.sot != null ? s.sot : null, isTopStep: !!s.top };
     });
   }
 
