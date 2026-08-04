@@ -64,7 +64,54 @@
     await fillFlaggedQueue(F);
     await fillDisputesQueue(F);
     await fillQueue('q-claims', F, 'department_claims', [F.where('status', '==', 'pending')], function (d) { return (d.departmentSlug || '') + ' — ' + (d.emailDomain || ''); });
-    await fillQueue('q-dupes', F, 'department_requests', [F.where('status', '==', 'possible_duplicate')], function (d) { return d.name || ''; });
+    await fillDupesQueue(F);
+  }
+
+  // Possible-duplicate department requests get real data now too — js/submit.js's
+  // isDuplicateDept() checks a new "Add a department" submission against
+  // existing departments AT CREATE TIME and sets its own initial status, since
+  // department_requests only lets isAdmin() update an existing doc (the earlier
+  // idea of flagging this from the credential-free export script was blocked by
+  // that same rule). Two outcomes here, since force-publishing a genuine
+  // duplicate would put a second pin on the map for the same place: publish it
+  // (false alarm) or reject it (confirmed duplicate, never promoted).
+  async function fillDupesQueue(F) {
+    var el = document.getElementById('q-dupes'); if (!el) return;
+    try {
+      var qy = F.query(F.collection(window.FireDB.db, 'department_requests'), F.where('status', '==', 'possible_duplicate'), F.limit(25));
+      var snap = await F.getDocs(qy);
+      if (snap.empty) { el.innerHTML = '<p class="field-hint">Nothing in this queue. ✓</p>'; return; }
+      var rows = [];
+      snap.forEach(function (doc) {
+        var d = doc.data();
+        var loc = [d.city, d.county].filter(Boolean).join(', ');
+        rows.push('<div class="feed-item"><span>' + UI.esc(d.name || '(unnamed)') + (loc ? ' — ' + UI.esc(loc) : '') + '</span>' +
+          '<span class="feed-when">' +
+          '<button class="btn btn-secondary btn-sm" data-dupe-id="' + UI.esc(doc.id) + '" data-dupe-action="publish">Not a duplicate — publish</button> ' +
+          '<button class="btn btn-outline btn-sm" data-dupe-id="' + UI.esc(doc.id) + '" data-dupe-action="reject">Confirm duplicate</button>' +
+          '</span></div>');
+      });
+      el.innerHTML = rows.join('');
+      el.querySelectorAll('[data-dupe-id]').forEach(function (btn) {
+        btn.addEventListener('click', function () { resolveDupe(F, btn.getAttribute('data-dupe-id'), btn.getAttribute('data-dupe-action'), btn); });
+      });
+    } catch (e) { el.innerHTML = '<p class="field-hint">Queue unavailable: ' + UI.esc(e.message) + '</p>'; }
+  }
+
+  async function resolveDupe(F, id, action, btn) {
+    var item = btn.closest('.feed-item');
+    var buttons = item ? item.querySelectorAll('button') : [btn];
+    buttons.forEach(function (b) { b.disabled = true; });
+    try {
+      await F.updateDoc(F.doc(window.FireDB.db, 'department_requests', id), { status: action === 'publish' ? 'published' : 'rejected' });
+      if (item) item.remove();
+    } catch (e) {
+      buttons.forEach(function (b) { b.disabled = false; });
+      var err = document.createElement('div');
+      err.className = 'field-error'; err.style.marginTop = '.3rem';
+      err.textContent = 'Could not update: ' + e.message;
+      if (item) item.appendChild(err);
+    }
   }
 
   // Flagged submissions get their own renderer too, same reasoning as disputes:

@@ -550,6 +550,7 @@
         if (!v('f-city')) return fail('Enter the city.');
         if (!v('f-county')) return fail('Enter the county.');
         if (!/^\d{5}$/.test(v('f-zip'))) return fail('Enter a valid 5-digit ZIP code — it’s how this department gets placed on the map.');
+        if (isDuplicateDept(v('f-name'), v('f-city'))) return warnOk(['This looks similar to a department already listed — if it’s the same one, use "Update a department" instead. You can still continue; an admin will double-check before it’s added to the map.']);
       }
       else if (!st.dept) return fail('Pick a department from the list.');
       return true;
@@ -640,7 +641,10 @@
     base.sourceType = prov; base.sourceUrl = v('src-url') || null;
     base.sourceStatus = ((prov && SOURCED_PROVENANCE[prov]) || base.sourceUrl) ? 'sourced' : 'provisional';
     base.hasFile = hasFile();
-    if (st.type === 'add') Object.assign(base, { name: v('f-name'), city: v('f-city'), county: v('f-county'), zip: v('f-zip'), departmentType: v('f-dtype'), website: v('f-web') });
+    if (st.type === 'add') {
+      Object.assign(base, { name: v('f-name'), city: v('f-city'), county: v('f-county'), zip: v('f-zip'), departmentType: v('f-dtype'), website: v('f-web') });
+      base.possibleDuplicate = isDuplicateDept(base.name, base.city);
+    }
     else base.departmentSlug = st.dept;
 
     var pv = { supplemental: readSupp() };
@@ -773,6 +777,29 @@
   // this doesn't need to be a real department slug, just filesystem-safe.
   function safePathSegment(s) { return String(s || 'unspecified').toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/^-+|-+$/g, '') || 'unspecified'; }
 
+  // Mirrors scripts/export-overlay.js's normName/isDuplicate exactly (keep the two
+  // in sync if either changes) — but runs at CREATE time here, client-side against
+  // D.all(), instead of trying to flag an existing department_request after the
+  // fact. That earlier approach was blocked: department_requests only allows
+  // isAdmin() to update a doc's status, and the export script deliberately runs
+  // with zero credentials. A brand-new request can set its OWN initial status
+  // freely, so the check belongs here, not there.
+  function normDeptName(s) {
+    return String(s || '').toLowerCase()
+      .replace(/[^a-z0-9]+/g, ' ')
+      .replace(/\b(fire department|fire rescue|department|dept|fd|esd|no|number)\b/g, '')
+      .replace(/\s+/g, ' ').trim();
+  }
+  function isDuplicateDept(name, city) {
+    var n = normDeptName(name), c = String(city || '').toLowerCase().trim();
+    if (!n || !c) return false;
+    return D.all().some(function (d) {
+      if (String(d.city || '').toLowerCase().trim() !== c) return false;
+      var dn = normDeptName(d.name);
+      return dn === n || dn.indexOf(n) !== -1 || n.indexOf(dn) !== -1;
+    });
+  }
+
   // Uploads the attached file (if any) to Storage BEFORE writing the Firestore
   // doc, and sets sourceFile to its public download URL — storage.rules already
   // allows public read on sources/**, verified-write with a 10MB/image-or-PDF
@@ -802,8 +829,17 @@
     payload.contributorId = A.user.uid; payload.submittedAt = F.serverTimestamp();
     // computeAutomatedFlags() (called from onSubmit(), before save()) already set
     // payload.automatedFlags — status follows from whether it found anything.
+    // A likely-duplicate new department takes priority over that: it publishes
+    // as 'possible_duplicate' regardless (admin.js's q-dupes queue reads exactly
+    // that status), since flagging a duplicate is more specific/actionable than
+    // a generic "review this" — submissions never sets this status; only
+    // department_requests (submissionType 'add') can be a duplicate at all.
     payload.automatedFlags = payload.automatedFlags || [];
-    payload.status = payload.automatedFlags.length ? 'flagged' : 'published';
+    if (payload.submissionType === 'add' && payload.possibleDuplicate) {
+      payload.status = 'possible_duplicate';
+    } else {
+      payload.status = payload.automatedFlags.length ? 'flagged' : 'published';
+    }
     var col = payload.submissionType === 'add' ? 'department_requests' : 'submissions';
     await F.addDoc(F.collection(db.db, col), payload);
   }
