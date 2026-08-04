@@ -190,15 +190,37 @@
     var modeSeg =
       '<div class="seg" id="mode-seg" role="group" aria-label="Compensation mode">' +
         '<button type="button" data-mode="single" class="' + (st.mode === 'single' ? 'active' : '') + '">Single pay figure</button>' +
+        '<button type="button" data-mode="range" class="' + (st.mode === 'range' ? 'active' : '') + '">Entry / Midpoint / Top</button>' +
         '<button type="button" data-mode="plan" class="' + (st.mode === 'plan' ? 'active' : '') + '">Full step pay plan</button>' +
       '</div>';
     return intro + modeSeg +
-      '<div id="mode-single"' + (st.mode === 'plan' ? ' hidden' : '') + '>' + singleFields() + '</div>' +
-      '<div id="mode-plan"' + (st.mode === 'single' ? ' hidden' : '') + '>' + planFields() + '</div>' +
+      '<div id="mode-single"' + (st.mode !== 'single' ? ' hidden' : '') + '>' + singleFields() + '</div>' +
+      '<div id="mode-range"' + (st.mode !== 'range' ? ' hidden' : '') + '>' + rangeFields() + '</div>' +
+      '<div id="mode-plan"' + (st.mode !== 'plan' ? ' hidden' : '') + '>' + planFields() + '</div>' +
       supplementalSection();
   }
 
+  // A single flat rate — no raise by tenure. Sets BOTH entry and top pay to the
+  // same figure, distinct from only knowing (not lacking) one point of a scale.
   function singleFields() {
+    return '' +
+      field('Position', selP('c-flat-position', POSITIONS, 'Select position…'), null, 'c-flat-position') +
+      '<div class="grid cols-2">' +
+        field('Pay amount', money('c-flat-amount', '$'), 'One flat rate — no raise by tenure. Sets both entry and top pay to this figure.', 'c-flat-amount') +
+        field('Pay period', sel('c-flat-period', PERIODS, 'annual'), null, 'c-flat-period') +
+      '</div>' +
+      '<div class="grid cols-3">' +
+        field('Amount represents', sel('c-flat-basis', BASIS, 'base'), null, 'c-flat-basis') +
+        field('Effective date', dateI('c-flat-eff'), null, 'c-flat-eff') +
+        field('Shift schedule', sel('c-flat-sched', SCHEDULES, ''), null, 'c-flat-sched') +
+      '</div>' +
+      field('Scheduled annual hours', numI('c-flat-hours', '2912'), null, 'c-flat-hours');
+  }
+
+  // Entry, midpoint, and/or top pay — a common 3-point pay scale, entered together
+  // as one submission. Unlike the flat-rate tab, leaving one blank means "unknown",
+  // not "same as the others".
+  function rangeFields() {
     return '' +
       field('Position', selP('c-position', POSITIONS, 'Select position…'), null, 'c-position') +
       '<div class="grid cols-3">' +
@@ -206,7 +228,7 @@
         field('Midpoint pay', money('c-midpoint', '$'), 'Optional — leave blank if there isn’t one.', 'c-midpoint') +
         field('Top pay', money('c-top', '$'), null, 'c-top') +
       '</div>' +
-      '<p class="field-hint">Fill in whichever of these you know — just one for a flat starting rate, or all three for a typical entry/midpoint/max pay scale. Each publishes as its own figure.</p>' +
+      '<p class="field-hint">Fill in whichever of these you know — one, two, or all three. Each publishes as its own figure.</p>' +
       '<div class="grid cols-3">' +
         field('Pay period', sel('c-period', PERIODS, 'annual'), null, 'c-period') +
         field('Amount represents', sel('c-basis', BASIS, 'base'), null, 'c-basis') +
@@ -426,16 +448,17 @@
       b.onclick = function () {
         st.mode = b.getAttribute('data-mode');
         document.querySelectorAll('#mode-seg [data-mode]').forEach(function (x) { x.classList.toggle('active', x === b); });
-        var single = document.getElementById('mode-single'), plan = document.getElementById('mode-plan');
-        if (single) single.hidden = st.mode === 'plan';
-        if (plan) plan.hidden = st.mode === 'single';
+        var single = document.getElementById('mode-single'), range = document.getElementById('mode-range'), plan = document.getElementById('mode-plan');
+        if (single) single.hidden = st.mode !== 'single';
+        if (range) range.hidden = st.mode !== 'range';
+        if (plan) plan.hidden = st.mode !== 'plan';
         if (st.mode === 'plan' && !st.steps.length) { st.steps.push(blankStep(0, 'Entry')); }
         renderEditor();
       };
     });
 
-    // top-level money fields (single mode + plan-level none)
-    document.querySelectorAll('#mode-single input.money').forEach(function (el) { el.addEventListener('input', function () { commaFmt(el); }); });
+    // top-level money fields (single + range modes; plan-level none)
+    document.querySelectorAll('#mode-single input.money, #mode-range input.money').forEach(function (el) { el.addEventListener('input', function () { commaFmt(el); }); });
 
     // dept search
     var ds = document.getElementById('f-dept-search');
@@ -535,15 +558,26 @@
       var supp = readSupp();
       if (supp.find(function (s) { return s.amount < 0; })) return fail('Supplemental pay can’t be negative.');
       if (st.mode === 'plan') return validatePlan(fail, warnOk, supp);
-      // single mode
-      var entryAmt = Lib.parseMoney(v('c-entry')), midAmt = Lib.parseMoney(v('c-midpoint')), topAmt = Lib.parseMoney(v('c-top'));
-      var anyAmt = entryAmt != null || midAmt != null || topAmt != null;
-      if (st.type === 'update' && !anyAmt && !supp.length && !v('c-sched') && !v('c-eff')) return fail('Add at least one change — a pay amount, schedule, effective date, or supplemental pay item.');
-      if (anyAmt) {
-        if ((entryAmt != null && entryAmt < 0) || (midAmt != null && midAmt < 0) || (topAmt != null && topAmt < 0)) return fail('Pay amounts can’t be negative.');
-        if (!v('c-position')) return fail('Choose the position this pay is for.');
-        if (!v('c-basis')) return fail('Choose what these amounts represent (base, base+OT, or total).');
-        if (!v('c-eff')) return fail('Add an effective date for these pay amounts.');
+      if (st.mode === 'range') {
+        var entryAmt = Lib.parseMoney(v('c-entry')), midAmt = Lib.parseMoney(v('c-midpoint')), topAmt = Lib.parseMoney(v('c-top'));
+        var anyAmt = entryAmt != null || midAmt != null || topAmt != null;
+        if (st.type === 'update' && !anyAmt && !supp.length && !v('c-sched') && !v('c-eff')) return fail('Add at least one change — a pay amount, schedule, effective date, or supplemental pay item.');
+        if (anyAmt) {
+          if ((entryAmt != null && entryAmt < 0) || (midAmt != null && midAmt < 0) || (topAmt != null && topAmt < 0)) return fail('Pay amounts can’t be negative.');
+          if (!v('c-position')) return fail('Choose the position this pay is for.');
+          if (!v('c-basis')) return fail('Choose what these amounts represent (base, base+OT, or total).');
+          if (!v('c-eff')) return fail('Add an effective date for these pay amounts.');
+        }
+        return true;
+      }
+      // single (flat rate) mode
+      var flatAmt = Lib.parseMoney(v('c-flat-amount'));
+      if (st.type === 'update' && flatAmt == null && !supp.length && !v('c-flat-sched') && !v('c-flat-eff')) return fail('Add at least one change — a pay amount, schedule, effective date, or supplemental pay item.');
+      if (flatAmt != null) {
+        if (flatAmt < 0) return fail('Pay amounts can’t be negative.');
+        if (!v('c-flat-position')) return fail('Choose the position this pay is for.');
+        if (!v('c-flat-basis')) return fail('Choose what the amount represents (base, base+OT, or total).');
+        if (!v('c-flat-eff')) return fail('Add an effective date for the pay amount.');
       }
       return true;
     }
@@ -623,26 +657,43 @@
       pv.entry = toAnn(sum.entry); pv.top = toAnn(sum.top);
       base.plan.yearsToTop = sum.yearsToTop != null ? sum.yearsToTop : undefined;
       base.effectiveDate = base.plan.effectiveDate;
-    } else {
-      var basis = v('c-basis'), period = v('c-period'), hoursAnnual = Lib.parseNumber(v('c-hours'));
-      var toAnn = function (x) { return toAnnual(x, period, hoursAnnual); };
-      var entryAmt = toAnn(Lib.parseMoney(v('c-entry')));
-      var midAmt = toAnn(Lib.parseMoney(v('c-midpoint')));
-      var topAmt = toAnn(Lib.parseMoney(v('c-top')));
+    } else if (st.mode === 'range') {
+      var rBasis = v('c-basis'), rPeriod = v('c-period'), rHours = Lib.parseNumber(v('c-hours'));
+      var rToAnn = function (x) { return toAnnual(x, rPeriod, rHours); };
+      var entryAmt = rToAnn(Lib.parseMoney(v('c-entry')));
+      var midAmt = rToAnn(Lib.parseMoney(v('c-midpoint')));
+      var topAmt = rToAnn(Lib.parseMoney(v('c-top')));
       Object.assign(pv, {
-        position: v('c-position') || undefined, payPeriod: period || undefined,
-        basis: basis || undefined, effectiveDate: v('c-eff') || undefined,
-        schedule: v('c-sched') || undefined, hoursAnnual: hoursAnnual || undefined
+        position: v('c-position') || undefined, payPeriod: rPeriod || undefined,
+        basis: rBasis || undefined, effectiveDate: v('c-eff') || undefined,
+        schedule: v('c-sched') || undefined, hoursAnnual: rHours || undefined
       });
       // Entry/midpoint/top are independent fields, all submitted together — none
       // get mixed with each other. "Reported total compensation" is kept out of
       // base pay entirely (reportedEntry/reportedMidpoint/reportedTop instead) so
       // it can never get displayed or compared as if it were base salary. See
       // derive.js's consensus for each of these.
-      var isTotal = basis === 'total';
-      if (entryAmt != null) { if (isTotal) pv.reportedEntry = entryAmt; else pv.entry = entryAmt; }
-      if (midAmt != null) { if (isTotal) pv.reportedMidpoint = midAmt; else pv.midpoint = midAmt; }
-      if (topAmt != null) { if (isTotal) pv.reportedTop = topAmt; else pv.top = topAmt; }
+      var rIsTotal = rBasis === 'total';
+      if (entryAmt != null) { if (rIsTotal) pv.reportedEntry = entryAmt; else pv.entry = entryAmt; }
+      if (midAmt != null) { if (rIsTotal) pv.reportedMidpoint = midAmt; else pv.midpoint = midAmt; }
+      if (topAmt != null) { if (rIsTotal) pv.reportedTop = topAmt; else pv.top = topAmt; }
+      base.effectiveDate = pv.effectiveDate;
+    } else {
+      // Single flat rate — one number, no raise by tenure. Sets BOTH entry and top
+      // to the same figure (this is a distinct claim from "I only know entry of a
+      // graduated scale", which is what the range tab is for).
+      var fBasis = v('c-flat-basis'), fPeriod = v('c-flat-period'), fHours = Lib.parseNumber(v('c-flat-hours'));
+      var flatAmt = toAnnual(Lib.parseMoney(v('c-flat-amount')), fPeriod, fHours);
+      Object.assign(pv, {
+        position: v('c-flat-position') || undefined, payPeriod: fPeriod || undefined,
+        basis: fBasis || undefined, effectiveDate: v('c-flat-eff') || undefined,
+        schedule: v('c-flat-sched') || undefined, hoursAnnual: fHours || undefined,
+        flatRate: true
+      });
+      if (flatAmt != null) {
+        if (fBasis === 'total') { pv.reportedEntry = flatAmt; pv.reportedTop = flatAmt; }
+        else { pv.entry = flatAmt; pv.top = flatAmt; }
+      }
       base.effectiveDate = pv.effectiveDate;
     }
     if (!pv.supplemental.length) delete pv.supplemental;
