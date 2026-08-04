@@ -292,9 +292,10 @@ function main() {
   const json = JSON.parse(fs.readFileSync(DATA, 'utf8'));
   const overlay = loadOverlay();                       // static community consensus
   const oReports = overlay.reports || {};
+  const oDepartments = overlay.departments || [];       // auto-promoted, ZIP-geocoded new departments
   // Merge community reports into each department ONCE, up front, so every page,
   // ranking, and embedded blob reflects consensus. Visitors read only static files.
-  const depts = (json.departments || []).map(d => Agg.applyOverlay(d, oReports[d.slug]));
+  const depts = (json.departments || []).concat(oDepartments).map(d => Agg.applyOverlay(d, oReports[d.slug]));
   const communityCount = Object.keys(oReports).filter(k => (oReports[k] || []).length).length;
   REGIONS = {}; (json.regions || []).forEach(r => { REGIONS[r.id] = r.name; });
   const urls = ['/', '/map.html', '/departments.html', '/compare.html', '/submit.html', '/how-it-works.html'];

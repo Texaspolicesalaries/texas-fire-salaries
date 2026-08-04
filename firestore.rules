@@ -80,8 +80,12 @@ service cloud.firestore {
     }
 
     // ── Department requests (new department that isn't listed yet) ──
+    // Published requests are public-read (same pattern as `submissions`) so the
+    // static overlay build can pull and auto-geocode them with zero credentials —
+    // see scripts/export-overlay.js. Non-public statuses (e.g. possible_duplicate,
+    // pending admin review) stay admin-only.
     match /department_requests/{id} {
-      allow read:   if isAdmin();
+      allow read:   if resource.data.status == 'published' || isAdmin();
       allow create: if verified() && isOwnerField('contributorId')
                     && request.resource.data.name is string
                     && request.resource.data.name.size() <= 140;

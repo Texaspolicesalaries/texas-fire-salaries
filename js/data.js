@@ -71,9 +71,12 @@
     ]).then(function (arr) {
       var json = arr[0];
       var reports = (arr[1] && arr[1].reports) || {};
+      // Community-added departments (auto-geocoded from a ZIP by export-overlay.js)
+      // — merged in alongside the owner-curated seed, same 0-Firestore-reads path.
+      var overlayDepts = (arr[1] && arr[1].departments) || [];
       state.meta = json.meta || {};
       state.regions = json.regions || [];
-      state.departments = (json.departments || []).map(function (d) {
+      state.departments = (json.departments || []).concat(overlayDepts).map(function (d) {
         // Merge community reports (static, 0 Firestore reads) before deriving.
         var merged = Agg ? Agg.applyOverlay(d, reports[d.slug]) : d;
         merged.summary = deriveSummary(merged);

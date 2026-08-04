@@ -5,7 +5,7 @@
   "private": true,
   "type": "commonjs",
   "scripts": {
-    "test": "node --test js/*.test.js",
+    "test": "node --test js/*.test.js scripts/*.test.js",
     "build": "node scripts/build-site.js",
     "refresh": "node scripts/export-overlay.js && node scripts/build-site.js",
     "serve": "node scripts/serve.js",
