@@ -114,9 +114,13 @@ service cloud.firestore {
     }
 
     // ── Department claims ── a signed-in verified user requests to manage a page
-    // with an official email; admin approves. Requester reads only their own.
+    // with an official email; admin approves. Requester reads only their own;
+    // an approved claim is public-read (same pattern as `department_requests` and
+    // `submissions`) so the credential-free static-overlay build
+    // (scripts/export-overlay.js) can see which departments to mark
+    // "Department maintained" — a pending/rejected claim stays private.
     match /department_claims/{id} {
-      allow read:   if isAdmin() || (signedIn() && resource.data.userId == request.auth.uid);
+      allow read:   if resource.data.status == 'approved' || isAdmin() || (signedIn() && resource.data.userId == request.auth.uid);
       allow create: if verified() && request.resource.data.userId == request.auth.uid
                     && request.resource.data.status == 'pending';
       allow update, delete: if isAdmin();

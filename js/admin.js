@@ -63,8 +63,63 @@
     var F = db.sdk.firestore;
     await fillFlaggedQueue(F);
     await fillDisputesQueue(F);
-    await fillQueue('q-claims', F, 'department_claims', [F.where('status', '==', 'pending')], function (d) { return (d.departmentSlug || '') + ' — ' + (d.emailDomain || ''); });
+    await fillClaimsQueue(F);
     await fillDupesQueue(F);
+  }
+
+  // Department claims — js/department.js's "Claim this department" now writes
+  // real pending requests. Approving does two things: sets the claim's own
+  // status (which scripts/export-overlay.js's queryApprovedClaimSlugs reads on
+  // its next run to show the "Department maintained" badge), AND flips the
+  // requester's own users/{uid} doc to role:'department' so their FUTURE
+  // submissions are correctly labeled "Department representative" in revision
+  // history — two separate writes, not atomic, but low-risk (worst case an
+  // admin retries one manually).
+  async function fillClaimsQueue(F) {
+    var el = document.getElementById('q-claims'); if (!el) return;
+    try {
+      var qy = F.query(F.collection(window.FireDB.db, 'department_claims'), F.where('status', '==', 'pending'), F.limit(25));
+      var snap = await F.getDocs(qy);
+      if (snap.empty) { el.innerHTML = '<p class="field-hint">Nothing in this queue. ✓</p>'; return; }
+      var rows = [];
+      snap.forEach(function (doc) {
+        var d = doc.data();
+        var deptLink = d.departmentSlug
+          ? '<a href="/departments/' + UI.esc(d.departmentSlug) + '/" target="_blank" rel="noopener">' + UI.esc(d.departmentSlug) + '</a>'
+          : 'unknown department';
+        rows.push('<div class="feed-item"><span>' + deptLink + ' — claimed from ' + UI.esc(d.emailDomain || 'unknown domain') + '</span>' +
+          '<span class="feed-when">' +
+          '<button class="btn btn-secondary btn-sm" data-claim-id="' + UI.esc(doc.id) + '" data-claim-action="approve" data-claim-user="' + UI.esc(d.userId || '') + '">Approve</button> ' +
+          '<button class="btn btn-outline btn-sm" data-claim-id="' + UI.esc(doc.id) + '" data-claim-action="reject">Reject</button>' +
+          '</span></div>');
+      });
+      el.innerHTML = rows.join('');
+      el.querySelectorAll('[data-claim-id]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          resolveClaim(F, btn.getAttribute('data-claim-id'), btn.getAttribute('data-claim-action'), btn.getAttribute('data-claim-user'), btn);
+        });
+      });
+    } catch (e) { el.innerHTML = '<p class="field-hint">Queue unavailable: ' + UI.esc(e.message) + '</p>'; }
+  }
+
+  async function resolveClaim(F, id, action, userId, btn) {
+    var item = btn.closest('.feed-item');
+    var buttons = item ? item.querySelectorAll('button') : [btn];
+    buttons.forEach(function (b) { b.disabled = true; });
+    try {
+      await F.updateDoc(F.doc(window.FireDB.db, 'department_claims', id), { status: action === 'approve' ? 'approved' : 'rejected' });
+      if (action === 'approve' && userId) {
+        try { await F.updateDoc(F.doc(window.FireDB.db, 'users', userId), { role: 'department' }); }
+        catch (e) { console.warn('[admin] claim approved but updating the user\'s role failed:', e.message); }
+      }
+      if (item) item.remove();
+    } catch (e) {
+      buttons.forEach(function (b) { b.disabled = false; });
+      var err = document.createElement('div');
+      err.className = 'field-error'; err.style.marginTop = '.3rem';
+      err.textContent = 'Could not update: ' + e.message;
+      if (item) item.appendChild(err);
+    }
   }
 
   // Possible-duplicate department requests get real data now too — js/submit.js's

@@ -159,6 +159,7 @@ function departmentPage(dept) {
 
     <section id="confidence-panel" style="margin:2rem 0"></section>
     <section id="revision-history" style="margin:2rem 0"></section>
+    <section id="claim-panel" style="margin:2rem 0"></section>
   </main>
   <div id="site-footer"></div>
   <script type="application/json" id="dept-data">${embedded}</script>
@@ -308,11 +309,13 @@ function main() {
   const oReports = overlay.reports || {};
   const oDepartments = overlay.departments || [];       // auto-promoted, ZIP-geocoded new departments
   const oStepPlans = overlay.stepPlans || {};           // live, community-submitted full pay-step plans
+  const oClaimedSlugs = new Set(overlay.claimedSlugs || []); // admin-approved "Department maintained" claims
   // Merge community reports into each department ONCE, up front, so every page,
   // ranking, and embedded blob reflects consensus. Visitors read only static files.
   const depts = (json.departments || []).concat(oDepartments).map(d => {
     let merged = Agg.applyOverlay(d, oReports[d.slug]);
     if (oStepPlans[d.slug]) merged = Agg.applyStepPlan(merged, oStepPlans[d.slug]);
+    if (oClaimedSlugs.has(d.slug)) merged = Agg.applyClaim(merged, true);
     return merged;
   });
   const communityCount = Object.keys(oReports).filter(k => (oReports[k] || []).length).length;

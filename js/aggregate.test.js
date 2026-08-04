@@ -137,6 +137,20 @@ test('applyStepPlan is a no-op when there is no plan or it has no steps', () => 
   assert.strictEqual(Agg.applyStepPlan(dept, { steps: [] }), dept);
 });
 
+test('applyClaim marks a department maintained without touching anything else', () => {
+  const dept = deptFixture();
+  const merged = Agg.applyClaim(dept, true);
+  assert.strictEqual(merged.departmentMaintained, true);
+  assert.strictEqual(merged.salary, dept.salary); // untouched
+  assert.strictEqual(dept.departmentMaintained, undefined); // original untouched
+});
+
+test('applyClaim is a no-op when the department was not claimed', () => {
+  const dept = deptFixture();
+  assert.strictEqual(Agg.applyClaim(dept, false), dept);
+  assert.strictEqual(Agg.applyClaim(dept, undefined), dept);
+});
+
 test('community submissions strengthen consensus (reported -> strong)', () => {
   const dept = deptFixture();
   // Baseline = 1 import report -> "reported". Add 2 recent matching contributors.

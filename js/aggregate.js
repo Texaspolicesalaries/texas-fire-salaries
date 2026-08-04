@@ -114,6 +114,18 @@
     return d;
   }
 
+  // Marks a department "Department maintained" once its claim has been
+  // approved (see js/department.js's writeClaim() + js/admin.js's approval
+  // action). departmentMaintained lives at the TOP level of the department
+  // object, not under salary — js/derive.js's deriveSummary() already reads
+  // dept.departmentMaintained directly, so no derive.js changes are needed.
+  function applyClaim(dept, claimed) {
+    if (!claimed) return dept;
+    var d = Object.assign({}, dept);
+    d.departmentMaintained = true;
+    return d;
+  }
+
   // Build the compact document stored at department_summaries/{slug}. Small and
   // serializable — safe to read 1-per-view if you ever enable a live overlay.
   function summarize(dept, overlayReports, now) {
@@ -138,7 +150,7 @@
     };
   }
 
-  var FireAggregate = { submissionToReport: submissionToReport, applyOverlay: applyOverlay, applyStepPlan: applyStepPlan, summarize: summarize, toMs: toMs, money: money };
+  var FireAggregate = { submissionToReport: submissionToReport, applyOverlay: applyOverlay, applyStepPlan: applyStepPlan, applyClaim: applyClaim, summarize: summarize, toMs: toMs, money: money };
   if (typeof window !== 'undefined') window.FireAggregate = FireAggregate;
   if (typeof module !== 'undefined' && module.exports) module.exports = FireAggregate;
 })();

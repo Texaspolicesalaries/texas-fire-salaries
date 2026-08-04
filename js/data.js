@@ -77,12 +77,17 @@
       // Live, community-submitted full step plans — supersede the seed's step
       // table (see js/aggregate.js's applyStepPlan for why).
       var stepPlans = (arr[1] && arr[1].stepPlans) || {};
+      // Departments with an admin-approved claim — shows the "Department
+      // maintained" badge (see js/aggregate.js's applyClaim).
+      var claimedSlugs = {};
+      ((arr[1] && arr[1].claimedSlugs) || []).forEach(function (slug) { claimedSlugs[slug] = true; });
       state.meta = json.meta || {};
       state.regions = json.regions || [];
       state.departments = (json.departments || []).concat(overlayDepts).map(function (d) {
         // Merge community reports (static, 0 Firestore reads) before deriving.
         var merged = Agg ? Agg.applyOverlay(d, reports[d.slug]) : d;
         if (Agg && stepPlans[d.slug]) merged = Agg.applyStepPlan(merged, stepPlans[d.slug]);
+        if (Agg && claimedSlugs[d.slug]) merged = Agg.applyClaim(merged, true);
         merged.summary = deriveSummary(merged);
         return merged;
       });

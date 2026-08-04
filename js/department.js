@@ -49,8 +49,58 @@
     renderHistory();
     renderConfidence();
     renderRevisions();
+    renderClaim();
     wireActions();
     wireStepPlanFlag();
+  }
+
+  // ---- Claim this department ----
+  // A signed-in, verified user can request "Department maintained" status.
+  // Their own account's email domain is used automatically (an official rep
+  // signs in with their own work email) rather than asking them to type it.
+  // Nothing here sets departmentMaintained directly — that's a deliberate
+  // review step: writes a pending department_claims doc; js/admin.js's
+  // q-claims queue approves/rejects it, and an approval only takes effect on
+  // the department page once scripts/export-overlay.js's next scheduled run
+  // picks it up (js/aggregate.js's applyClaim).
+  function renderClaim() {
+    var host = document.getElementById('claim-panel');
+    if (!host) return;
+    if (summary.departmentMaintained) { host.innerHTML = ''; return; } // already claimed — nothing to offer
+    host.innerHTML = '<div class="card card-tight">' +
+      '<h3 style="margin-bottom:.4rem">Represent this department?</h3>' +
+      '<p class="muted" style="margin-bottom:.6rem">If you manage this page officially, request "Department maintained" status. An admin reviews every request.</p>' +
+      '<button class="btn btn-outline btn-sm" id="act-claim">Claim this department</button>' +
+      '<div id="claim-status" class="field-hint" style="margin-top:.5rem"></div>' +
+      '</div>';
+    var btn = document.getElementById('act-claim');
+    if (!btn) return;
+    btn.addEventListener('click', function () {
+      var claimStatus = document.getElementById('claim-status');
+      if (!(A && A.canContribute())) {
+        claimStatus.innerHTML = 'Sign in with a verified email to submit a claim. <a href="/sign-in.html">Sign in →</a>';
+        return;
+      }
+      var oldLabel = btn.textContent;
+      btn.disabled = true; btn.textContent = 'Submitting…';
+      writeClaim().then(function () {
+        claimStatus.textContent = 'Thanks — your claim was submitted and is pending admin review.';
+      }).catch(function (e) {
+        btn.disabled = false; btn.textContent = oldLabel;
+        claimStatus.innerHTML = '<span class="field-error">Could not submit: ' + UI.esc(e.message) + '</span>';
+      });
+    });
+  }
+
+  async function writeClaim() {
+    var db = window.FireDB;
+    if (!db || !db.ready) throw new Error('Firebase not configured');
+    var F = db.sdk.firestore;
+    var email = (A.user && A.user.email) || '';
+    var domain = email.indexOf('@') !== -1 ? email.split('@')[1] : '';
+    await F.addDoc(F.collection(db.db, 'department_claims'), {
+      userId: A.user.uid, departmentSlug: dept.slug, emailDomain: domain, status: 'pending', createdAt: F.serverTimestamp()
+    });
   }
 
   // ---- Career earnings ----
