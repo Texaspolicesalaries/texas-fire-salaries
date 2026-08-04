@@ -774,12 +774,13 @@
       return;
     }
     if (hasFile()) status.innerHTML = notice('info', 'Uploading source file and publishing…');
-    save(payload).then(function () {
+    save(payload).then(function (fileUploadFailed) {
       var host = document.getElementById('submit-body');
       var flagged = payload.automatedFlags && payload.automatedFlags.length;
       var msg = flagged
         ? '<strong>Thank you — your submission was received</strong> and is preserved as a revision, but one or more figures look unusual (' + UI.esc(payload.automatedFlags.join('; ')) + '), so it needs a quick admin review before it appears live.'
         : '<strong>Thank you — your submission is published</strong> and preserved as a revision. The community consensus will update automatically.';
+      if (fileUploadFailed) msg += ' <strong>Note:</strong> the attached file could not be uploaded, so it was saved without it — you can add the file later with a follow-up submission.';
       host.innerHTML = '<div class="notice info" style="font-size:1rem"><span class="notice-icon">✓</span><div>' + msg + '<div style="margin-top:.75rem">' +
         (st.dept ? '<a class="btn btn-outline btn-sm" href="/departments/' + UI.esc(st.dept) + '/">View department</a> ' : '') +
         '<button class="btn btn-ghost btn-sm" onclick="location.reload()">Submit another</button></div></div></div>';
@@ -843,7 +844,17 @@
     var db = window.FireDB;
     if (!db || !db.ready) throw new Error('Firebase not configured');
     var F = db.sdk.firestore;
-    await uploadSourceFile(db, payload);
+    // The attached file is supplementary evidence, not the submission itself —
+    // if the upload fails (e.g. Storage isn't enabled on the project yet), the
+    // salary data the contributor typed should still save rather than the whole
+    // submission being lost.
+    var fileUploadFailed = false;
+    try {
+      await uploadSourceFile(db, payload);
+    } catch (e) {
+      console.warn('[submit] source file upload failed; publishing without the attachment', e);
+      fileUploadFailed = true;
+    }
     pruneUndefined(payload);
     payload.contributorId = A.user.uid; payload.submittedAt = F.serverTimestamp();
     // computeAutomatedFlags() (called from onSubmit(), before save()) already set
@@ -861,6 +872,7 @@
     }
     var col = payload.submissionType === 'add' ? 'department_requests' : 'submissions';
     await F.addDoc(F.collection(db.db, col), payload);
+    return fileUploadFailed;
   }
 
   // ── Labels ────────────────────────────────────────────────────────────────────
