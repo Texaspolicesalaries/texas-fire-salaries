@@ -212,6 +212,12 @@ function payStepTable(s) {
     }).join('');
     return `<tr${isTop ? ' class="top-step"' : ''}>${tds}</tr>`;
   }).join('');
+  // A flag doesn't hide the plan — it stays visible, marked disputed, until
+  // enough distinct community members flag it (see extractStepPlans() in
+  // scripts/export-overlay.js for the revert threshold).
+  const disputeNotice = s.stepPlanDisputed
+    ? `<div class="notice warn" style="margin-top:.75rem"><span class="notice-icon" aria-hidden="true">⚠</span><div>Disputed — flagged as possibly incorrect by ${s.stepPlanDisputeCount} community member${s.stepPlanDisputeCount === 1 ? '' : 's'}. It will be reverted to the prior data if enough others agree.</div></div>`
+    : '';
   // Only a live community submission has an ID to flag against — seed/starter
   // data has nothing to target, so no button renders for it.
   const flag = s.stepPlanId ? `<div style="margin-top:.6rem">
@@ -220,6 +226,7 @@ function payStepTable(s) {
   </div>` : '';
   return `<section style="margin:1.5rem 0"><h2>Pay-step plan</h2>
     <p class="muted">Reported step schedule${s.classification ? ` for the ${esc(s.classification)} classification` : ''}. Only submitted columns are shown.</p>
+    ${disputeNotice}
     <div class="table-scroll"><table class="data"><caption class="visually-hidden">Pay steps</caption><thead><tr>${head}</tr></thead><tbody>${rows}</tbody></table></div>${flag}</section>`;
 }
 function monthsLabel(m) { if (m === 0) return 'Start'; const y = Math.floor(m / 12); const mo = m % 12; return (y ? `${y} yr` : '') + (mo ? ` ${mo} mo` : '') || `${m} mo`; }

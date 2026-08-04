@@ -129,14 +129,18 @@ function docId(doc) {
   return parts[parts.length - 1] || null;
 }
 
-// disputedIds: submission doc IDs a community member has flagged as wrong
-// (disputes: field == 'stepPlan', status == 'open' — see queryOpenStepPlanDisputes).
-// A disputed plan is skipped in favor of the next most recent undisputed one for
-// that department, rather than requiring pre-approval before ANY plan can show —
-// the safety net only kicks in once something is actually reported wrong, matching
-// how every other automatic-promotion path on this site already works.
-function extractStepPlans(rows, disputedIds) {
-  disputedIds = disputedIds || new Set();
+// A flagged plan doesn't disappear on the first flag — it keeps showing, marked
+// disputed, until enough DISTINCT contributors have flagged it (default 3; see
+// DISPUTE_REVERT_THRESHOLD). Only then does it revert to the next most recent
+// plan below the threshold. This is the safety net for a single bad/mistaken
+// flag erasing good data, while still giving disputes real teeth once several
+// people independently agree something is wrong — no admin approval needed
+// either way, matching how every other automatic-promotion path here works.
+const DISPUTE_REVERT_THRESHOLD = 3;
+
+function extractStepPlans(rows, disputeCounts, threshold) {
+  disputeCounts = disputeCounts || new Map();
+  threshold = threshold == null ? DISPUTE_REVERT_THRESHOLD : threshold;
   const bySlug = {};
   rows.forEach(r => {
     if (!r.document || !r.document.fields) return;
@@ -168,14 +172,20 @@ function extractStepPlans(rows, disputedIds) {
   const plans = {};
   Object.keys(bySlug).forEach(slug => {
     const sorted = bySlug[slug].slice().sort((a, b) => (a.submittedAt < b.submittedAt ? 1 : a.submittedAt > b.submittedAt ? -1 : 0));
-    const chosen = sorted.find(p => !p.id || !disputedIds.has(p.id));
-    if (chosen) plans[slug] = chosen;
+    const countOf = p => (p.id && disputeCounts.get(p.id)) || 0;
+    const chosen = sorted.find(p => countOf(p) < threshold); // first one that hasn't hit the revert threshold
+    if (chosen) {
+      const count = countOf(chosen);
+      plans[slug] = Object.assign({}, chosen, { disputeCount: count, disputed: count > 0 });
+    }
   });
   return plans;
 }
 
+// Counts DISTINCT contributors who've flagged each step-plan submission (so one
+// person spamming the flag button repeatedly can't reach the threshold alone).
 // Public-read per firestore.rules (disputes: allow read: if true), no auth needed.
-async function queryOpenStepPlanDisputes(baseUrl) {
+async function countStepPlanDisputes(baseUrl) {
   const body = {
     structuredQuery: {
       from: [{ collectionId: 'disputes' }],
@@ -194,13 +204,17 @@ async function queryOpenStepPlanDisputes(baseUrl) {
   if (!res.ok) throw new Error('Firestore REST ' + res.status + ': ' + (await res.text()).slice(0, 300));
   const rows = await res.json();
   if (rows && rows.error) throw new Error(rows.error.status + ' ' + rows.error.message);
-  const ids = new Set();
+  const flaggers = {}; // submissionId -> Set(contributorId)
   (Array.isArray(rows) ? rows : []).forEach(r => {
     if (!r.document || !r.document.fields) return;
     const id = fv(r.document.fields.disputedSubmissionId);
-    if (id) ids.add(id);
+    if (!id) return;
+    const flagger = fv(r.document.fields.contributorId) || Math.random(); // anonymous flags each still count once
+    (flaggers[id] = flaggers[id] || new Set()).add(flagger);
   });
-  return ids;
+  const counts = new Map();
+  Object.keys(flaggers).forEach(id => counts.set(id, flaggers[id].size));
+  return counts;
 }
 
 async function queryPublished(baseUrl, collectionId) {
@@ -317,16 +331,16 @@ async function main() {
     n++;
   });
 
-  // A flagged plan must not block every other plan from showing — an isolated
-  // lookup failure just means nothing gets excluded this run, not that step
-  // plans stop working entirely.
-  let disputedStepPlanIds = new Set();
+  // A flag lookup failure must not block every plan from showing — it just
+  // means dispute counts are treated as zero this run, not that step plans
+  // stop working entirely.
+  let stepPlanDisputeCounts = new Map();
   try {
-    disputedStepPlanIds = await queryOpenStepPlanDisputes(url);
+    stepPlanDisputeCounts = await countStepPlanDisputes(url);
   } catch (e) {
-    console.warn('[export-overlay] step-plan dispute lookup failed (treating none as disputed):', e.message);
+    console.warn('[export-overlay] step-plan dispute lookup failed (treating none as flagged):', e.message);
   }
-  const stepPlans = extractStepPlans(subRows, disputedStepPlanIds);
+  const stepPlans = extractStepPlans(subRows, stepPlanDisputeCounts);
 
   // New departments: geocode from ZIP + auto-promote. Failures here (bad seed
   // read, missing ZIP table, Firestore hiccup) must not block the salary-report
@@ -354,12 +368,15 @@ async function main() {
   console.log(`Promoted ${departments.length} new department(s) to the map` +
     (skippedDup ? `, skipped ${skippedDup} possible duplicate(s)` : '') +
     (skippedNoZip ? `, skipped ${skippedNoZip} with a missing/unrecognized ZIP` : '') + '.');
+  const disputedCount = Object.values(stepPlans).filter(p => p.disputed).length;
+  const revertedCount = Array.from(stepPlanDisputeCounts.values()).filter(c => c >= DISPUTE_REVERT_THRESHOLD).length;
   console.log(`Full step plans: ${Object.keys(stepPlans).length} department(s) now showing a live community-submitted pay-step table` +
-    (disputedStepPlanIds.size ? ` (${disputedStepPlanIds.size} flagged plan(s) excluded)` : '') + '.');
+    (disputedCount ? `, ${disputedCount} currently disputed` : '') +
+    (revertedCount ? `, ${revertedCount} reverted past the ${DISPUTE_REVERT_THRESHOLD}-flag threshold` : '') + '.');
 }
 
 if (require.main === module) {
   main().catch(e => { console.error('[export-overlay] failed (keeping existing overlay.json):', e.message); process.exit(0); });
 } else {
-  module.exports = { slugify, normName, isDuplicate, makeRegionResolver, promoteDepartments, readZipCentroids, toReport, decodeValue, extractStepPlans, docId };
+  module.exports = { slugify, normName, isDuplicate, makeRegionResolver, promoteDepartments, readZipCentroids, toReport, decodeValue, extractStepPlans, docId, DISPUTE_REVERT_THRESHOLD };
 }

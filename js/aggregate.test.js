@@ -107,7 +107,21 @@ test('applyStepPlan replaces the step table with a live community-submitted plan
   assert.strictEqual(merged.salary.classification, 'Firefighter/EMT');
   assert.strictEqual(merged.salary.effectiveDate, '2026-01-01');
   assert.strictEqual(merged.salary.stepPlanId, 'sub-123'); // lets the page target this exact submission for flagging
+  assert.strictEqual(merged.salary.stepPlanDisputed, false);
+  assert.strictEqual(merged.salary.stepPlanDisputeCount, 0);
   assert.strictEqual(dept.salary.steps.length, 3); // original untouched
+});
+
+test('applyStepPlan carries a disputed plan\'s flag count through, still visible', () => {
+  const dept = deptFixture();
+  const stepPlan = {
+    id: 'sub-456', disputed: true, disputeCount: 2,
+    steps: [{ stepName: 'Entry', minimumMonths: 0, baseAnnualSalary: 60000 }]
+  };
+  const merged = Agg.applyStepPlan(dept, stepPlan);
+  assert.strictEqual(merged.salary.stepPlanDisputed, true);
+  assert.strictEqual(merged.salary.stepPlanDisputeCount, 2);
+  assert.strictEqual(merged.salary.steps[0].baseAnnualSalary, 60000); // still shown despite the flag
 });
 
 test('applyStepPlan preserves existing community reports untouched', () => {

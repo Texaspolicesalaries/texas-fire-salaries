@@ -244,8 +244,9 @@
 
   // ---- Flag a specific pay-step plan (distinct from the generic "entry" dispute
   // above) — targets the exact live submission the "Pay-step plan" table is
-  // currently showing, so scripts/export-overlay.js can exclude it and fall back
-  // to the next most recent undisputed plan on the next refresh. ----
+  // currently showing. A single flag doesn't hide it; scripts/export-overlay.js
+  // only reverts to the next most recent plan once enough distinct community
+  // members have flagged this same submission (default: 3). ----
   function wireStepPlanFlag() {
     var btn = document.getElementById('flag-step-plan');
     if (!btn || btn._wired) return;
@@ -265,7 +266,7 @@
       document.getElementById('fpsub').addEventListener('click', function () {
         var reason = document.getElementById('fpr').value;
         writeStepPlanDispute(stepPlanId, reason).then(function () {
-          host.innerHTML = '<p class="field-hint">Thanks — this pay-step plan has been flagged for review and will be excluded from the next data refresh.</p>';
+          host.innerHTML = '<p class="field-hint">Thanks — this flag was recorded. The plan stays visible, marked disputed, unless enough other community members flag it too.</p>';
           btn.disabled = true;
         }).catch(function (e) { host.innerHTML = '<p class="field-error">Could not submit: ' + UI.esc(e.message) + '</p>'; });
       });

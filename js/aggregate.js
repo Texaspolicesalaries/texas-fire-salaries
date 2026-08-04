@@ -99,8 +99,12 @@
     var salary = dept.salary ? Object.assign({}, dept.salary) : {};
     salary.steps = stepPlan.steps;
     // Carried through so the page can offer "flag this pay-step plan" against
-    // the exact submission currently showing (see js/department.js).
+    // the exact submission currently showing (see js/department.js), and show a
+    // disputed notice once at least one flag exists but hasn't reached the
+    // revert threshold yet (scripts/export-overlay.js's extractStepPlans).
     salary.stepPlanId = stepPlan.id || null;
+    salary.stepPlanDisputed = !!stepPlan.disputed;
+    salary.stepPlanDisputeCount = stepPlan.disputeCount || 0;
     if (stepPlan.classification) salary.classification = stepPlan.classification;
     if (stepPlan.effectiveDate) salary.effectiveDate = stepPlan.effectiveDate;
     if (stepPlan.sourceType) salary.sourceType = stepPlan.sourceType;

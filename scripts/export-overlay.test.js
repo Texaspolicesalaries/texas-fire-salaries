@@ -195,25 +195,44 @@ test('docId reads the doc ID from the Firestore REST resource name', () => {
   assert.strictEqual(M.docId(null), null);
 });
 
-test('extractStepPlans falls back to the next undisputed plan when the newest one is flagged', () => {
+test('extractStepPlans keeps a lightly-flagged plan visible, marked disputed, below the threshold', () => {
+  const rows = [planRow('addison-fd', [{ label: 'Entry', startMonths: 0, basePay: 60000 }], '2026-01-01T00:00:00Z', null, 'flagged-once')];
+  const counts = new Map([['flagged-once', 1]]); // 1 flag, default threshold is 3
+  const plans = M.extractStepPlans(rows, counts);
+  assert.ok(plans['addison-fd']); // still shown
+  assert.strictEqual(plans['addison-fd'].disputed, true);
+  assert.strictEqual(plans['addison-fd'].disputeCount, 1);
+  assert.strictEqual(plans['addison-fd'].steps[0].baseAnnualSalary, 60000); // unchanged
+});
+
+test('extractStepPlans reverts to the next plan once flags reach the threshold', () => {
   const rows = [
     planRow('addison-fd', [{ label: 'Entry', startMonths: 0, basePay: 60000 }], '2026-01-01T00:00:00Z', null, 'older'),
     planRow('addison-fd', [{ label: 'Entry', startMonths: 0, basePay: 999999 }], '2026-03-01T00:00:00Z', null, 'newer-bad')
   ];
-  const disputed = new Set(['newer-bad']);
-  const plans = M.extractStepPlans(rows, disputed);
-  assert.strictEqual(plans['addison-fd'].steps[0].baseAnnualSalary, 60000);
+  const counts = new Map([['newer-bad', 3]]); // hits the default threshold
+  const plans = M.extractStepPlans(rows, counts);
   assert.strictEqual(plans['addison-fd'].id, 'older');
+  assert.strictEqual(plans['addison-fd'].steps[0].baseAnnualSalary, 60000);
+  assert.strictEqual(plans['addison-fd'].disputed, false);
 });
 
-test('extractStepPlans shows no plan for a department when every submission is flagged', () => {
+test('extractStepPlans shows no plan for a department when every submission has reverted', () => {
   const rows = [planRow('addison-fd', [{ label: 'Entry', startMonths: 0, basePay: 60000 }], '2026-01-01T00:00:00Z', null, 'only-one')];
-  const plans = M.extractStepPlans(rows, new Set(['only-one']));
+  const plans = M.extractStepPlans(rows, new Map([['only-one', 3]]));
   assert.strictEqual(plans['addison-fd'], undefined);
 });
 
 test('extractStepPlans is unaffected by disputes for a different department', () => {
   const rows = [planRow('addison-fd', [{ label: 'Entry', startMonths: 0, basePay: 60000 }], '2026-01-01T00:00:00Z', null, 'x')];
-  const plans = M.extractStepPlans(rows, new Set(['some-other-dept-plan-id']));
+  const plans = M.extractStepPlans(rows, new Map([['some-other-dept-plan-id', 5]]));
   assert.ok(plans['addison-fd']);
+  assert.strictEqual(plans['addison-fd'].disputed, false);
+});
+
+test('extractStepPlans respects a custom threshold', () => {
+  const rows = [planRow('addison-fd', [{ label: 'Entry', startMonths: 0, basePay: 60000 }], '2026-01-01T00:00:00Z', null, 'flagged-twice')];
+  const counts = new Map([['flagged-twice', 2]]);
+  assert.strictEqual(M.extractStepPlans(rows, counts, 2)['addison-fd'], undefined); // reverts at threshold 2
+  assert.ok(M.extractStepPlans(rows, counts, 3)['addison-fd']); // still visible at threshold 3
 });

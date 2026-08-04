@@ -118,6 +118,8 @@
     // submission currently showing — null for seed-only data, which has no
     // submission to flag against.
     out.stepPlanId = s.stepPlanId || null;
+    out.stepPlanDisputed = !!s.stepPlanDisputed;
+    out.stepPlanDisputeCount = s.stepPlanDisputeCount || 0;
 
     var flags = dept.flags || {};
     if (hasSteps && flags.paramedicIncentive) {
