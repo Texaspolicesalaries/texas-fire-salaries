@@ -148,7 +148,6 @@
 .explorer .list-pane { border-left: 1px solid var(--border); background: var(--bg); overflow-y: auto; display: flex; flex-direction: column; }
 .list-pane-head { position: sticky; top: 0; background: var(--bg); border-bottom: 1px solid var(--border); padding: var(--sp-3) var(--sp-4); z-index: 5; display: flex; align-items: center; gap: var(--sp-3); }
 .list-pane-body { padding: var(--sp-3) var(--sp-4); display: flex; flex-direction: column; gap: var(--sp-3); }
-.map-search-area { position: absolute; top: var(--sp-3); left: 50%; transform: translateX(-50%); z-index: 500; }
 .map-controls { position: absolute; top: var(--sp-3); right: var(--sp-3); z-index: 500; display: flex; flex-direction: column; gap: var(--sp-2); }
 .map-legend { position: absolute; bottom: var(--sp-3); left: var(--sp-3); z-index: 500; background: color-mix(in srgb, var(--bg-raised) 92%, transparent); border: 1px solid var(--border); border-radius: var(--r-md); padding: var(--sp-3); font-size: var(--fs-xs); box-shadow: var(--shadow-sm); }
 .map-legend .leg { display: flex; align-items: center; gap: 8px; padding: 2px 0; }
