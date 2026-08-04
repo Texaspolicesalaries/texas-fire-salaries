@@ -23,7 +23,11 @@
   // Build cluster-input reports for a given field ('entry' or 'top') from the
   // department's stored reports plus any extra live reports. Extra reports from
   // the live Firestore path carry entry as `.value`; overlay reports carry both
-  // `.entry` and `.top`.
+  // `.entry` and `.top`. `disputeCount` (0 if none) rides along on each report so
+  // the winning cluster's dispute count can be surfaced after selection below —
+  // scripts/export-overlay.js already dropped anything that hit the revert
+  // threshold before this ever runs, so whatever's left is by definition either
+  // undisputed or disputed-but-below-threshold.
   function reportsForField(salary, extra, field) {
     var out = (salary.reports || []).map(function (r) {
       return {
@@ -31,7 +35,8 @@
         contributorId: r.contributorId,
         submittedAt: toMs(r.submittedAt),
         hasSource: !!r.hasSource,
-        departmentMaintained: !!r.departmentMaintained
+        departmentMaintained: !!r.departmentMaintained,
+        disputeCount: r[field + 'DisputeCount'] || 0
       };
     }).filter(function (r) { return typeof r.value === 'number' && r.value != null; });
     (extra || []).forEach(function (r) {
@@ -43,11 +48,22 @@
           contributorId: r.contributorId,
           submittedAt: (typeof r.submittedAt === 'number') ? r.submittedAt : toMs(r.submittedAt),
           hasSource: !!r.hasSource,
-          departmentMaintained: !!r.departmentMaintained
+          departmentMaintained: !!r.departmentMaintained,
+          disputeCount: r[field + 'DisputeCount'] || 0
         });
       }
     });
     return out;
+  }
+
+  // The winning cluster's dispute count. Takes the max across its submissions
+  // rather than assuming they all agree — a seed-baked-in report sharing the
+  // disputed value never gets annotated with a count (only live overlay reports
+  // do, see scripts/export-overlay.js's applyValueDisputes), so relying on
+  // "the first submission" could silently read 0 off an unrelated report.
+  function clusterDisputeCount(cluster) {
+    if (!cluster || !cluster.submissions || !cluster.submissions.length) return 0;
+    return cluster.submissions.reduce(function (max, s) { return Math.max(max, s.disputeCount || 0); }, 0);
   }
 
   function uniqueContributorCount(reports) {
@@ -148,12 +164,14 @@
     out.hasConflict = C.hasRecentConflict(clusters, { now: now });
     out.entry = current ? current.value : out.entryBase;
     out.effectiveHourlyEntry = Lib.effectiveHourly(out.entry, annualHours);
+    out.entryDisputeCount = clusterDisputeCount(current);
 
     // ── Top consensus — community-reported top pay overrides the step-derived top ──
     var topReports = reportsForField(s, extraReports, 'top');
+    out.topDisputeCount = 0;
     if (topReports.length) {
       var topCurrent = C.selectCurrentCluster(C.clusterValues(topReports, { now: now }), { now: now });
-      if (topCurrent) out.topBase = topCurrent.value;
+      if (topCurrent) { out.topBase = topCurrent.value; out.topDisputeCount = clusterDisputeCount(topCurrent); }
     }
     out.effectiveHourlyTop = Lib.effectiveHourly(out.topBase, annualHours);
 
@@ -161,9 +179,10 @@
     // submission overrides the seed's middle-step value (or supplies one where
     // there was none at all, e.g. a simple entry/top-only or brand-new plan). ──
     var midpointReports = reportsForField(s, extraReports, 'midpoint');
+    out.midpointDisputeCount = 0;
     if (midpointReports.length) {
       var midCurrent = C.selectCurrentCluster(C.clusterValues(midpointReports, { now: now }), { now: now });
-      if (midCurrent) out.midpoint = midCurrent.value;
+      if (midCurrent) { out.midpoint = midCurrent.value; out.midpointDisputeCount = clusterDisputeCount(midCurrent); }
     }
     out.effectiveHourlyMidpoint = Lib.effectiveHourly(out.midpoint, annualHours);
 

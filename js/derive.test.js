@@ -94,6 +94,29 @@ test('a "reported total compensation" midpoint submission stays separate from ba
   assert.strictEqual(s.midpoint, 68000); // base midpoint untouched
 });
 
+test('an undisputed figure reports a dispute count of zero', () => {
+  const s = Derive.deriveSummary(deptFixture(), [], NOW);
+  assert.strictEqual(s.entryDisputeCount, 0);
+  assert.strictEqual(s.topDisputeCount, 0);
+  assert.strictEqual(s.midpointDisputeCount, 0);
+});
+
+test('a below-threshold disputed entry value still surfaces its dispute count without being removed', () => {
+  // Mirrors what scripts/export-overlay.js's applyValueDisputes annotates onto a
+  // report once it has some (but not enough) flags against its entry value.
+  const extra = [{ contributorId: 'u8', submittedAt: iso(1), entry: 60000, entryDisputeCount: 2 }];
+  const s = Derive.deriveSummary(deptFixture(), extra, NOW);
+  assert.strictEqual(s.entry, 60000); // still current — below the revert threshold
+  assert.strictEqual(s.entryDisputeCount, 2);
+});
+
+test('a confirmation folded in as an ordinary report strengthens the entry cluster', () => {
+  const base = Derive.deriveSummary(deptFixture(), [], NOW);
+  const extra = [{ contributorId: 'u9', submittedAt: iso(1), entry: 60000 }]; // confirms the seed's own entry value
+  const confirmed = Derive.deriveSummary(deptFixture(), extra, NOW);
+  assert.ok(confirmed.contributors > base.contributors);
+});
+
 test('a brand-new department with no seed salary at all still shows its first community submission', () => {
   const dept = { slug: 'brand-new-fd', name: 'Brand New FD', scheduleType: '24/48', flags: {} }; // no .salary
   const before = Derive.deriveSummary(dept, [], NOW);

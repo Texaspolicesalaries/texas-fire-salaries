@@ -236,3 +236,47 @@ test('extractStepPlans respects a custom threshold', () => {
   assert.strictEqual(M.extractStepPlans(rows, counts, 2)['addison-fd'], undefined); // reverts at threshold 2
   assert.ok(M.extractStepPlans(rows, counts, 3)['addison-fd']); // still visible at threshold 3
 });
+
+test('confirmationToReport carries confirmed entry/midpoint/top through as an ordinary report', () => {
+  const r = M.confirmationToReport({ contributorId: s('u1'), confirmedEntry: num(60000), confirmedTop: num(78000) });
+  assert.strictEqual(r.entry, 60000);
+  assert.strictEqual(r.top, 78000);
+  assert.strictEqual(r.midpoint, null);
+  assert.strictEqual(r.hasSource, false);
+});
+
+test('confirmationToReport returns null when nothing was confirmed', () => {
+  assert.strictEqual(M.confirmationToReport({ contributorId: s('u2') }), null);
+});
+
+test('applyValueDisputes leaves a report untouched when nothing about it is disputed', () => {
+  const reports = [{ contributorId: 'u1', entry: 60000, top: 78000 }];
+  const out = M.applyValueDisputes(reports, 'addison-fd', new Map());
+  assert.strictEqual(out[0].entry, 60000);
+  assert.strictEqual(out[0].top, 78000);
+  assert.strictEqual(out[0].entryDisputeCount, undefined);
+});
+
+test('applyValueDisputes annotates a below-threshold disputed value but keeps it', () => {
+  const reports = [{ contributorId: 'u1', entry: 60000, top: 78000 }];
+  const counts = new Map([['addison-fd|entry|60000', 2]]); // below default threshold of 3
+  const out = M.applyValueDisputes(reports, 'addison-fd', counts);
+  assert.strictEqual(out[0].entry, 60000); // still present
+  assert.strictEqual(out[0].entryDisputeCount, 2);
+  assert.strictEqual(out[0].top, 78000); // untouched — dispute only targeted entry
+});
+
+test('applyValueDisputes suppresses only the disputed field once it hits the threshold', () => {
+  const reports = [{ contributorId: 'u1', entry: 60000, top: 78000 }];
+  const counts = new Map([['addison-fd|entry|60000', 3]]);
+  const out = M.applyValueDisputes(reports, 'addison-fd', counts);
+  assert.strictEqual(out[0].entry, null);   // suppressed
+  assert.strictEqual(out[0].top, 78000);    // top was never disputed — untouched
+});
+
+test('applyValueDisputes respects a custom threshold', () => {
+  const reports = [{ contributorId: 'u1', entry: 60000 }];
+  const counts = new Map([['addison-fd|entry|60000', 2]]);
+  assert.strictEqual(M.applyValueDisputes(reports, 'addison-fd', counts, 2)[0].entry, null);
+  assert.strictEqual(M.applyValueDisputes(reports, 'addison-fd', counts, 3)[0].entry, 60000);
+});

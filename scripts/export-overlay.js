@@ -91,6 +91,47 @@ function toReport(fields) {
   };
 }
 
+// A "This looks correct" confirmation is treated as an ordinary report agreeing
+// with whatever figure(s) were showing at confirmation time — it joins the same
+// cluster-input pool a real submission would, so it actually strengthens
+// confidence and counts toward "Contributors confirming" instead of being
+// written to Firestore and never read by anything (as it was before this).
+function confirmationToReport(fields) {
+  const entry = money(fv(fields.confirmedEntry));
+  const top = money(fv(fields.confirmedTop));
+  const midpoint = money(fv(fields.confirmedMidpoint));
+  if (entry == null && top == null && midpoint == null) return null;
+  return {
+    contributorId: fv(fields.contributorId) || null,
+    submittedAt: isoDay(fields.createdAt && fields.createdAt.timestampValue) || isoDay(Date.now()),
+    entry, top, midpoint,
+    hasSource: false,
+    departmentMaintained: false
+  };
+}
+
+// A flag doesn't erase a figure the instant someone disputes it — it stays
+// showing, marked disputed, until enough DISTINCT contributors dispute that
+// SAME exact value (mirrors extractStepPlans()'s threshold, same constant).
+// Keyed by department+field+value (not a submission ID, since the entry/top/
+// midpoint "current" figure is a consensus cluster of possibly many
+// submissions, not one). Suppresses only the specific field that hit the
+// threshold on each report — a report's other fields (e.g. its own top pay,
+// if the dispute was against entry) are left untouched.
+function applyValueDisputes(reports, slug, disputeCounts, threshold) {
+  threshold = threshold == null ? DISPUTE_REVERT_THRESHOLD : threshold;
+  return reports.map(r => {
+    const out = Object.assign({}, r);
+    ['entry', 'midpoint', 'top'].forEach(field => {
+      if (out[field] == null) return;
+      const count = disputeCounts.get(`${slug}|${field}|${out[field]}`) || 0;
+      if (count >= threshold) out[field] = null;
+      else if (count > 0) out[field + 'DisputeCount'] = count;
+    });
+    return out;
+  });
+}
+
 // Generic Firestore REST value decoder — unlike fv() (scalars only), this also
 // unwraps arrayValue/mapValue so a full step-plan submission's whole nested
 // `proposedValues.steps` array and `plan` object can be recovered, not just the
@@ -217,6 +258,53 @@ async function countStepPlanDisputes(baseUrl) {
   return counts;
 }
 
+// Counts distinct contributors disputing each (department, field, value) triple
+// for the numeric entry/midpoint/top figures — same dedup-by-contributor idea as
+// countStepPlanDisputes, just keyed by value instead of a submission ID.
+async function countValueDisputes(baseUrl) {
+  const body = {
+    structuredQuery: {
+      from: [{ collectionId: 'disputes' }],
+      where: {
+        compositeFilter: {
+          op: 'AND',
+          filters: [
+            { fieldFilter: { field: { fieldPath: 'field' }, op: 'IN', value: { arrayValue: { values: [{ stringValue: 'entry' }, { stringValue: 'midpoint' }, { stringValue: 'top' }] } } } },
+            { fieldFilter: { field: { fieldPath: 'status' }, op: 'EQUAL', value: { stringValue: 'open' } } }
+          ]
+        }
+      }
+    }
+  };
+  const res = await fetch(baseUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  if (!res.ok) throw new Error('Firestore REST ' + res.status + ': ' + (await res.text()).slice(0, 300));
+  const rows = await res.json();
+  if (rows && rows.error) throw new Error(rows.error.status + ' ' + rows.error.message);
+  const flaggers = {}; // "slug|field|value" -> Set(contributorId)
+  (Array.isArray(rows) ? rows : []).forEach(r => {
+    if (!r.document || !r.document.fields) return;
+    const f = r.document.fields;
+    const slug = fv(f.departmentSlug), field = fv(f.field), value = fv(f.disputedValue);
+    if (!slug || !field || value == null) return;
+    const key = `${slug}|${field}|${value}`;
+    const flagger = fv(f.contributorId) || Math.random();
+    (flaggers[key] = flaggers[key] || new Set()).add(flagger);
+  });
+  const counts = new Map();
+  Object.keys(flaggers).forEach(key => counts.set(key, flaggers[key].size));
+  return counts;
+}
+
+// Public-read per firestore.rules (confirmations: allow read: if true).
+async function queryAllConfirmations(baseUrl) {
+  const body = { structuredQuery: { from: [{ collectionId: 'confirmations' }] } };
+  const res = await fetch(baseUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  if (!res.ok) throw new Error('Firestore REST ' + res.status + ': ' + (await res.text()).slice(0, 300));
+  const rows = await res.json();
+  if (rows && rows.error) throw new Error(rows.error.status + ' ' + rows.error.message);
+  return Array.isArray(rows) ? rows : [];
+}
+
 async function queryPublished(baseUrl, collectionId) {
   const body = { structuredQuery: { from: [{ collectionId }], where: { fieldFilter: { field: { fieldPath: 'status' }, op: 'EQUAL', value: { stringValue: 'published' } } } } };
   const res = await fetch(baseUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
@@ -331,6 +419,39 @@ async function main() {
     n++;
   });
 
+  // Confirmations join the same report pool as real submissions (see
+  // confirmationToReport) — an isolated failure here just means confirmations
+  // don't count this run, not that the whole export fails.
+  let confirmedCount = 0;
+  try {
+    const confRows = await queryAllConfirmations(url);
+    confRows.forEach(r => {
+      if (!r.document || !r.document.fields) return;
+      const f = r.document.fields;
+      const slug = fv(f.departmentSlug);
+      if (!slug) return;
+      const rep = confirmationToReport(f);
+      if (!rep) return;
+      (reports[slug] = reports[slug] || []).push(rep);
+      confirmedCount++;
+    });
+  } catch (e) {
+    console.warn('[export-overlay] confirmation lookup failed (treating none as confirmed):', e.message);
+  }
+
+  // A flag doesn't erase a figure on its own — it stays showing, marked
+  // disputed, until enough distinct contributors dispute that same value (see
+  // applyValueDisputes). An isolated lookup failure just means nothing is
+  // suppressed this run.
+  try {
+    const valueDisputeCounts = await countValueDisputes(url);
+    Object.keys(reports).forEach(slug => {
+      reports[slug] = applyValueDisputes(reports[slug], slug, valueDisputeCounts);
+    });
+  } catch (e) {
+    console.warn('[export-overlay] entry/top/midpoint dispute lookup failed (treating none as disputed):', e.message);
+  }
+
   // A flag lookup failure must not block every plan from showing — it just
   // means dispute counts are treated as zero this run, not that step plans
   // stop working entirely.
@@ -364,7 +485,7 @@ async function main() {
     stepPlans
   };
   fs.writeFileSync(OUT, JSON.stringify(out, null, 2) + '\n');
-  console.log(`Exported ${n} community report(s) across ${Object.keys(reports).length} department(s) -> data/overlay.json`);
+  console.log(`Exported ${n} community report(s) + ${confirmedCount} confirmation(s) across ${Object.keys(reports).length} department(s) -> data/overlay.json`);
   console.log(`Promoted ${departments.length} new department(s) to the map` +
     (skippedDup ? `, skipped ${skippedDup} possible duplicate(s)` : '') +
     (skippedNoZip ? `, skipped ${skippedNoZip} with a missing/unrecognized ZIP` : '') + '.');
@@ -378,5 +499,5 @@ async function main() {
 if (require.main === module) {
   main().catch(e => { console.error('[export-overlay] failed (keeping existing overlay.json):', e.message); process.exit(0); });
 } else {
-  module.exports = { slugify, normName, isDuplicate, makeRegionResolver, promoteDepartments, readZipCentroids, toReport, decodeValue, extractStepPlans, docId, DISPUTE_REVERT_THRESHOLD };
+  module.exports = { slugify, normName, isDuplicate, makeRegionResolver, promoteDepartments, readZipCentroids, toReport, decodeValue, extractStepPlans, docId, DISPUTE_REVERT_THRESHOLD, confirmationToReport, applyValueDisputes };
 }

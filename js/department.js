@@ -126,6 +126,8 @@
   }
 
   // ---- Community confidence panel + actions ----
+  var DISPUTE_FIELDS = [['entry', 'Entry pay'], ['midpoint', 'Midpoint pay'], ['top', 'Top pay']];
+
   function renderConfidence() {
     var host = document.getElementById('confidence-panel');
     if (!host) return;
@@ -133,8 +135,19 @@
     var clusters = s.clusters || [];
     var newest = s.newestSubmission ? new Date(s.newestSubmission).toISOString().slice(0, 10) : '—';
     var oldest = s.oldestCurrent ? new Date(s.oldestCurrent).toISOString().slice(0, 10) : '—';
+    // A disputed figure stays showing (never silently reverted by a single flag)
+    // until enough distinct community members dispute the SAME value — see
+    // scripts/export-overlay.js's applyValueDisputes. Below the threshold, it's
+    // just called out here so visitors know it's contested.
+    var disputed = DISPUTE_FIELDS.filter(function (f) { return (s[f[0] + 'DisputeCount'] || 0) > 0; });
+    var disputeNotice = disputed.length
+      ? '<div class="notice warn" style="margin-bottom:1rem"><span class="notice-icon" aria-hidden="true">⚠</span><div>' +
+        disputed.map(function (f) { return f[1] + ' disputed by ' + s[f[0] + 'DisputeCount'] + ' community member' + (s[f[0] + 'DisputeCount'] === 1 ? '' : 's'); }).join('; ') +
+        '. It will revert to the prior value if enough others agree.</div></div>'
+      : '';
     host.innerHTML =
       '<h2>Community confidence</h2>' +
+      disputeNotice +
       '<div class="tag-row" style="margin-bottom:1rem">' + UI.confidenceChip(s.confidence) + UI.freshnessChip(s.freshness) + (s.departmentMaintained ? UI.deptMaintainedBadge() : '') + '</div>' +
       '<div class="confidence-panel">' +
         '<div class="card card-tight">' +
@@ -161,6 +174,7 @@
       '</div>';
   }
   function stat(k, v) { return '<div class="conf-stat"><span class="k">' + k + '</span><span class="v">' + v + '</span></div>'; }
+  function fieldValue(field) { return field === 'top' ? summary.topBase : field === 'midpoint' ? summary.midpoint : summary.entry; }
 
   // ---- Revision history (public; no emails) ----
   function renderRevisions() {
@@ -211,32 +225,42 @@
     if (disputeBtn) disputeBtn.addEventListener('click', function () {
       if (!requireAuth()) return;
       var form = document.getElementById('dispute-form');
+      var fieldOpts = DISPUTE_FIELDS.filter(function (f) { return fieldValue(f[0]) != null; })
+        .map(function (f) { return '<option value="' + f[0] + '">' + f[1] + ' (' + UI.money(fieldValue(f[0])) + ')</option>'; }).join('');
       form.innerHTML = '<div class="card card-tight" style="margin-top:.6rem">' +
-        '<div class="field"><label for="dv">Corrected entry firefighter pay</label><input id="dv" type="number" inputmode="numeric" placeholder="$"></div>' +
+        '<div class="field"><label for="dfield">Which figure is wrong?</label><select id="dfield">' + fieldOpts + '</select></div>' +
+        '<div class="field"><label for="dv">Corrected amount</label><input id="dv" type="number" inputmode="numeric" placeholder="$"></div>' +
         '<div class="field"><label for="dr">What is wrong?</label><textarea id="dr" placeholder="Explain what should change and how you know."></textarea></div>' +
         '<button class="btn btn-primary btn-sm" id="dsub">Submit dispute</button></div>';
       document.getElementById('dsub').addEventListener('click', function () {
-        var val = document.getElementById('dv').value, reason = document.getElementById('dr').value;
-        writeDispute(val, reason).then(function () { form.innerHTML = '<p class="field-hint">Thanks — your dispute was submitted and is now visible with the record.</p>'; })
+        var field = document.getElementById('dfield').value, val = document.getElementById('dv').value, reason = document.getElementById('dr').value;
+        writeDispute(field, val, reason).then(function () { form.innerHTML = '<p class="field-hint">Thanks — your dispute was submitted and is now visible with the record.</p>'; })
           .catch(function (e) { statusEl.textContent = 'Could not submit dispute: ' + e.message; });
       });
     });
   }
 
+  // Captures the currently-displayed entry/midpoint/top figures at confirmation
+  // time — export-overlay.js folds this into the same report pool as an
+  // ordinary submission agreeing with the current value, so a confirmation
+  // actually strengthens the consensus cluster (and finally makes "Contributors
+  // confirming" mean what it says) instead of being written and never read.
   async function writeConfirmation() {
     var db = window.FireDB;
     if (!db || !db.ready) throw new Error('Firebase not configured');
     var F = db.sdk.firestore;
-    await F.addDoc(F.collection(db.db, 'confirmations'), {
-      departmentSlug: dept.slug, contributorId: A.user.uid, confirmationType: 'looks_correct', createdAt: F.serverTimestamp()
-    });
+    var doc = { departmentSlug: dept.slug, contributorId: A.user.uid, confirmationType: 'looks_correct', createdAt: F.serverTimestamp() };
+    if (summary.entry != null) doc.confirmedEntry = summary.entry;
+    if (summary.midpoint != null) doc.confirmedMidpoint = summary.midpoint;
+    if (summary.topBase != null) doc.confirmedTop = summary.topBase;
+    await F.addDoc(F.collection(db.db, 'confirmations'), doc);
   }
-  async function writeDispute(value, reason) {
+  async function writeDispute(field, value, reason) {
     var db = window.FireDB;
     if (!db || !db.ready) throw new Error('Firebase not configured');
     var F = db.sdk.firestore;
     await F.addDoc(F.collection(db.db, 'disputes'), {
-      departmentSlug: dept.slug, field: 'entry', disputedValue: summary.entry,
+      departmentSlug: dept.slug, field: field, disputedValue: fieldValue(field),
       proposedValue: Lib.parseMoney(value), contributorId: A.user.uid, reason: String(reason || '').slice(0, 1000),
       status: 'open', createdAt: F.serverTimestamp()
     });
