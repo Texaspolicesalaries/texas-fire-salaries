@@ -91,6 +91,36 @@ test('applyOverlay appends community reports without mutating the baseline', () 
   assert.strictEqual(dept.salary.reports.length, before); // original untouched
 });
 
+test('applyStepPlan replaces the step table with a live community-submitted plan', () => {
+  const dept = deptFixture();
+  const stepPlan = {
+    steps: [
+      { stepName: 'Entry', minimumMonths: 0, maximumMonths: 12, baseAnnualSalary: 62000 },
+      { stepName: 'Top', minimumMonths: 12, maximumMonths: null, baseAnnualSalary: 79000 }
+    ],
+    classification: 'Firefighter/EMT', effectiveDate: '2026-01-01'
+  };
+  const merged = Agg.applyStepPlan(dept, stepPlan);
+  assert.strictEqual(merged.salary.steps.length, 2);
+  assert.strictEqual(merged.salary.steps[0].baseAnnualSalary, 62000);
+  assert.strictEqual(merged.salary.classification, 'Firefighter/EMT');
+  assert.strictEqual(merged.salary.effectiveDate, '2026-01-01');
+  assert.strictEqual(dept.salary.steps.length, 3); // original untouched
+});
+
+test('applyStepPlan preserves existing community reports untouched', () => {
+  const dept = deptFixture();
+  const before = dept.salary.reports;
+  const merged = Agg.applyStepPlan(dept, { steps: [{ stepName: 'Entry', minimumMonths: 0, baseAnnualSalary: 62000 }] });
+  assert.deepStrictEqual(merged.salary.reports, before);
+});
+
+test('applyStepPlan is a no-op when there is no plan or it has no steps', () => {
+  const dept = deptFixture();
+  assert.strictEqual(Agg.applyStepPlan(dept, null), dept);
+  assert.strictEqual(Agg.applyStepPlan(dept, { steps: [] }), dept);
+});
+
 test('community submissions strengthen consensus (reported -> strong)', () => {
   const dept = deptFixture();
   // Baseline = 1 import report -> "reported". Add 2 recent matching contributors.

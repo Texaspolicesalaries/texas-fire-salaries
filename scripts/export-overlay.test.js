@@ -128,3 +128,61 @@ test('toReport keeps a Midpoint-career-point submission separate from entry/top'
   assert.strictEqual(r.entry, null);
   assert.strictEqual(r.top, null);
 });
+
+function intVal(v) { return { integerValue: String(v) }; }
+function boolVal(v) { return { booleanValue: v }; }
+function arrVal(items) { return { arrayValue: { values: items } }; }
+function stepVal(step) {
+  const f = { label: s(step.label), startMonths: intVal(step.startMonths), basePay: num(step.basePay) };
+  if (step.isTopStep) f.isTopStep = boolVal(true);
+  return mapVal(f);
+}
+function planRow(slug, steps, submittedAt, extra) {
+  return row(Object.assign({
+    mode: s('plan'), departmentSlug: s(slug),
+    proposedValues: mapVal({ steps: arrVal(steps.map(stepVal)) }),
+    plan: mapVal({ classification: s('Firefighter'), effectiveDate: s('2026-01-01') })
+  }, extra), submittedAt);
+}
+
+test('decodeValue unwraps scalars, arrays, and nested maps', () => {
+  assert.strictEqual(M.decodeValue(s('hi')), 'hi');
+  assert.strictEqual(M.decodeValue(intVal(12)), 12);
+  assert.strictEqual(M.decodeValue(boolVal(true)), true);
+  assert.strictEqual(M.decodeValue(null), null);
+  assert.deepStrictEqual(M.decodeValue(arrVal([num(1), num(2)])), [1, 2]);
+  assert.deepStrictEqual(M.decodeValue(mapVal({ a: s('x'), b: num(2) })), { a: 'x', b: 2 });
+});
+
+test('extractStepPlans recovers a full step table, computing maximumMonths from the next step', () => {
+  const rows = [planRow('addison-fd', [
+    { label: 'Entry', startMonths: 0, basePay: 60000 },
+    { label: 'Step 2', startMonths: 12, basePay: 66000 },
+    { label: 'Top', startMonths: 48, basePay: 78000, isTopStep: true }
+  ], '2026-01-01T00:00:00Z')];
+  const plans = M.extractStepPlans(rows);
+  const p = plans['addison-fd'];
+  assert.ok(p);
+  assert.strictEqual(p.steps.length, 3);
+  assert.strictEqual(p.steps[0].minimumMonths, 0);
+  assert.strictEqual(p.steps[0].maximumMonths, 12);   // next step's start
+  assert.strictEqual(p.steps[2].maximumMonths, null); // last step is open-ended
+  assert.strictEqual(p.classification, 'Firefighter');
+  assert.strictEqual(p.effectiveDate, '2026-01-01');
+});
+
+test('extractStepPlans ignores non-plan-mode submissions and empty step arrays', () => {
+  const single = row({ mode: s('single'), departmentSlug: s('addison-fd'), proposedValues: mapVal({ entry: num(60000) }) });
+  const emptyPlan = planRow('denton-fd', [], '2026-01-01T00:00:00Z');
+  const plans = M.extractStepPlans([single, emptyPlan]);
+  assert.deepStrictEqual(plans, {});
+});
+
+test('extractStepPlans keeps the most recently submitted plan per department', () => {
+  const rows = [
+    planRow('addison-fd', [{ label: 'Entry', startMonths: 0, basePay: 60000 }], '2026-01-01T00:00:00Z'),
+    planRow('addison-fd', [{ label: 'Entry', startMonths: 0, basePay: 65000 }], '2026-03-01T00:00:00Z')
+  ];
+  const plans = M.extractStepPlans(rows);
+  assert.strictEqual(plans['addison-fd'].steps[0].baseAnnualSalary, 65000);
+});

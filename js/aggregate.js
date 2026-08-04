@@ -85,6 +85,28 @@
     return d;
   }
 
+  // Replaces a department's step table with a live, community-submitted full
+  // step plan — the site's own philosophy is that a community submission
+  // supersedes historical/starter seed data (schema.md: seed salary is labeled
+  // "historical...until the community updates it"). "Most recent submission
+  // wins" (selected upstream in scripts/export-overlay.js) rather than
+  // clustering across competing full plans, which the numeric entry/top/midpoint
+  // consensus already does independently and is unaffected by this. Does not
+  // mutate the input; existing community `reports` are left untouched.
+  function applyStepPlan(dept, stepPlan) {
+    if (!stepPlan || !stepPlan.steps || !stepPlan.steps.length) return dept;
+    var d = Object.assign({}, dept);
+    var salary = dept.salary ? Object.assign({}, dept.salary) : {};
+    salary.steps = stepPlan.steps;
+    if (stepPlan.classification) salary.classification = stepPlan.classification;
+    if (stepPlan.effectiveDate) salary.effectiveDate = stepPlan.effectiveDate;
+    if (stepPlan.sourceType) salary.sourceType = stepPlan.sourceType;
+    if (stepPlan.sourceUrl) salary.sourceUrl = stepPlan.sourceUrl;
+    d.salary = salary;
+    d.dataStatus = 'current';
+    return d;
+  }
+
   // Build the compact document stored at department_summaries/{slug}. Small and
   // serializable — safe to read 1-per-view if you ever enable a live overlay.
   function summarize(dept, overlayReports, now) {
@@ -109,7 +131,7 @@
     };
   }
 
-  var FireAggregate = { submissionToReport: submissionToReport, applyOverlay: applyOverlay, summarize: summarize, toMs: toMs, money: money };
+  var FireAggregate = { submissionToReport: submissionToReport, applyOverlay: applyOverlay, applyStepPlan: applyStepPlan, summarize: summarize, toMs: toMs, money: money };
   if (typeof window !== 'undefined') window.FireAggregate = FireAggregate;
   if (typeof module !== 'undefined' && module.exports) module.exports = FireAggregate;
 })();

@@ -74,11 +74,15 @@
       // Community-added departments (auto-geocoded from a ZIP by export-overlay.js)
       // — merged in alongside the owner-curated seed, same 0-Firestore-reads path.
       var overlayDepts = (arr[1] && arr[1].departments) || [];
+      // Live, community-submitted full step plans — supersede the seed's step
+      // table (see js/aggregate.js's applyStepPlan for why).
+      var stepPlans = (arr[1] && arr[1].stepPlans) || {};
       state.meta = json.meta || {};
       state.regions = json.regions || [];
       state.departments = (json.departments || []).concat(overlayDepts).map(function (d) {
         // Merge community reports (static, 0 Firestore reads) before deriving.
         var merged = Agg ? Agg.applyOverlay(d, reports[d.slug]) : d;
+        if (Agg && stepPlans[d.slug]) merged = Agg.applyStepPlan(merged, stepPlans[d.slug]);
         merged.summary = deriveSummary(merged);
         return merged;
       });
