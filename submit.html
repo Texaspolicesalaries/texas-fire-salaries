@@ -51,8 +51,11 @@
     .plan-head { background:var(--bg-sunken); padding:.45rem .55rem; font-size:var(--fs-xs); text-transform:uppercase; letter-spacing:.02em; color:var(--text-faint); font-weight:700; }
     .plan-row { padding:.45rem .55rem; border-top:1px solid var(--border); }
     .plan-row .cl { display:none; }
+    .plan-head .hd-unit { display:block; font-weight:600; color:var(--accent-2); text-transform:none; letter-spacing:0; }
     .plan-grid input { padding:.4rem .45rem !important; }
     .plan-row .pc-top { display:flex; justify-content:center; }
+    .plan-row .pc-top label { display:flex; align-items:center; gap:4px; margin:0; font-weight:500; cursor:pointer; }
+    .plan-row .top-word { font-size:var(--fs-xs); color:var(--text-soft); }
     .pc-act { display:flex; gap:2px; justify-content:flex-end; }
     .ib { width:24px; height:28px; border:1px solid var(--border); background:var(--bg-raised); border-radius:6px; cursor:pointer; color:var(--text-soft); font-size:.8rem; line-height:1; padding:0; }
     .ib:hover { background:var(--bg-sunken); color:var(--text); }
@@ -76,6 +79,7 @@
       .plan-row .cl { display:block; flex:0 0 42%; font-size:var(--fs-sm); color:var(--text-soft); font-weight:600; }
       .plan-row .pc input:not([type=radio]) { flex:1; width:auto; }
       .plan-row .pc-top { justify-content:flex-start; }
+      .plan-row .top-word { display:none; }
       .pc-act { justify-content:flex-start; margin-top:.3rem; }
     }
   </style>
