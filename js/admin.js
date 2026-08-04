@@ -108,18 +108,32 @@
     buttons.forEach(function (b) { b.disabled = true; });
     try {
       await F.updateDoc(F.doc(window.FireDB.db, 'department_claims', id), { status: action === 'approve' ? 'approved' : 'rejected' });
-      if (action === 'approve' && userId) {
-        try { await F.updateDoc(F.doc(window.FireDB.db, 'users', userId), { role: 'department' }); }
-        catch (e) { console.warn('[admin] claim approved but updating the user\'s role failed:', e.message); }
-      }
-      if (item) item.remove();
     } catch (e) {
       buttons.forEach(function (b) { b.disabled = false; });
       var err = document.createElement('div');
       err.className = 'field-error'; err.style.marginTop = '.3rem';
       err.textContent = 'Could not update: ' + e.message;
       if (item) item.appendChild(err);
+      return;
     }
+    if (action === 'approve' && userId) {
+      try {
+        await F.updateDoc(F.doc(window.FireDB.db, 'users', userId), { role: 'department' });
+      } catch (e) {
+        // The claim itself is already approved (the "Department maintained" badge
+        // will show on the next overlay refresh) — but granting the requester's
+        // account the 'department' role failed. Don't remove the row: the claim
+        // update above is idempotent, so clicking Approve again safely retries
+        // just this step instead of the failure silently vanishing.
+        buttons.forEach(function (b) { b.disabled = false; });
+        var warn = document.createElement('div');
+        warn.className = 'field-error'; warn.style.marginTop = '.3rem';
+        warn.textContent = 'Claim approved, but granting the department role failed: ' + e.message + ' — click Approve again to retry.';
+        if (item) item.appendChild(warn);
+        return;
+      }
+    }
+    if (item) item.remove();
   }
 
   // Possible-duplicate department requests get real data now too — js/submit.js's
