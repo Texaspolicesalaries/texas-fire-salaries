@@ -727,6 +727,7 @@
       status.innerHTML = notice('warn', 'Please sign in with a verified email to publish. <a href="/sign-in.html">Sign in →</a>');
       return;
     }
+    if (hasFile()) status.innerHTML = notice('info', 'Uploading source file and publishing…');
     save(payload).then(function () {
       var host = document.getElementById('submit-body');
       host.innerHTML = '<div class="notice info" style="font-size:1rem"><span class="notice-icon">✓</span><div><strong>Thank you — your submission is published</strong> and preserved as a revision. The community consensus will update automatically.<div style="margin-top:.75rem">' +
@@ -741,10 +742,35 @@
     if (o && typeof o === 'object' && o.constructor === Object) { Object.keys(o).forEach(function (k) { if (o[k] === undefined) delete o[k]; else pruneUndefined(o[k]); }); }
     return o;
   }
+  // storage.rules only cares that the path starts with sources/{anything}/{anything} —
+  // this doesn't need to be a real department slug, just filesystem-safe.
+  function safePathSegment(s) { return String(s || 'unspecified').toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/^-+|-+$/g, '') || 'unspecified'; }
+
+  // Uploads the attached file (if any) to Storage BEFORE writing the Firestore
+  // doc, and sets sourceFile to its public download URL — storage.rules already
+  // allows public read on sources/**, verified-write with a 10MB/image-or-PDF
+  // limit (matching the client-side check in wireStep()'s file-select handler).
+  // Backfills sourceUrl too when no separate public link was given, so every
+  // existing "View pay plan ↗" link just works with no further changes.
+  async function uploadSourceFile(db, payload) {
+    var input = document.getElementById('src-file');
+    var file = input && input.files && input.files[0];
+    if (!file) return;
+    var St = db.sdk.storage;
+    var folder = safePathSegment(payload.departmentSlug || payload.name);
+    var path = 'sources/' + folder + '/' + Date.now() + '-' + safePathSegment(file.name.replace(/\.[^.]+$/, '')) + (file.name.match(/\.[^.]+$/) || [''])[0];
+    var fileRef = St.ref(db.storage, path);
+    await St.uploadBytes(fileRef, file);
+    var url = await St.getDownloadURL(fileRef);
+    payload.sourceFile = url;
+    if (!payload.sourceUrl) payload.sourceUrl = url;
+  }
+
   async function save(payload) {
     var db = window.FireDB;
     if (!db || !db.ready) throw new Error('Firebase not configured');
     var F = db.sdk.firestore;
+    await uploadSourceFile(db, payload);
     pruneUndefined(payload);
     payload.contributorId = A.user.uid; payload.submittedAt = F.serverTimestamp();
     payload.status = 'published'; payload.automatedFlags = [];
