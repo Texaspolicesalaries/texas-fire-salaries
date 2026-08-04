@@ -709,6 +709,28 @@
   }
 
   // ── Submit ────────────────────────────────────────────────────────────────────
+  // Automated moderation: a submitted figure gets checked against the
+  // department's CURRENT displayed value for that same field (never against
+  // another figure in the same submission) — out-of-range or a large jump each
+  // add a human-readable reason. Any flags mean the submission publishes as
+  // 'flagged' instead of 'published' (js/admin.js's "Flagged submissions" queue
+  // reads exactly that status) rather than being blocked outright — an admin
+  // reviews and approves it from there.
+  function computeAutomatedFlags(pv) {
+    var dept = st.dept ? D.get(st.dept) : null;
+    var cur = (dept && dept.summary) || {};
+    var pairs = [
+      ['Entry pay', 'entry', 'entry'], ['Midpoint pay', 'midpoint', 'midpoint'], ['Top pay', 'top', 'topBase'],
+      ['Reported entry', 'reportedEntry', 'reportedEntry'], ['Reported midpoint', 'reportedMidpoint', 'reportedMidpoint'], ['Reported top', 'reportedTop', 'reportedTop']
+    ];
+    var flags = [];
+    pairs.forEach(function (p) {
+      if (pv[p[1]] == null) return;
+      flags = flags.concat(Lib.flagFigure(p[0], pv[p[1]], cur[p[2]]));
+    });
+    return flags;
+  }
+
   function onSubmit() {
     var status = document.getElementById('form-status');
     if (!document.getElementById('att-main') || !document.getElementById('att-main').checked) { status.innerHTML = notice('warn', 'Please confirm the accuracy statement.'); return; }
@@ -719,6 +741,7 @@
     var hasAmount = pv.entry != null || pv.midpoint != null || pv.top != null || pv.reportedEntry != null || pv.reportedMidpoint != null || pv.reportedTop != null;
     var hasChange = hasAmount || (pv.steps && pv.steps.length) || (pv.supplemental && pv.supplemental.length) || pv.schedule || pv.effectiveDate || base_effective(payload) || st.type === 'add';
     if (!hasChange) { status.innerHTML = notice('warn', 'No changes to submit — go back and add at least one figure.'); return; }
+    payload.automatedFlags = computeAutomatedFlags(pv);
     if (!(A && A.canContribute())) {
       if (!window.FireDB || !window.FireDB.configured) {
         status.innerHTML = notice('info', '<strong>Preview mode — validated, not saved.</strong> This would publish as a preserved revision. Payload:<pre class="mono" style="white-space:pre-wrap;font-size:.72rem;margin:.5rem 0 0">' + UI.esc(JSON.stringify(payload, null, 2)) + '</pre>');
@@ -730,7 +753,11 @@
     if (hasFile()) status.innerHTML = notice('info', 'Uploading source file and publishing…');
     save(payload).then(function () {
       var host = document.getElementById('submit-body');
-      host.innerHTML = '<div class="notice info" style="font-size:1rem"><span class="notice-icon">✓</span><div><strong>Thank you — your submission is published</strong> and preserved as a revision. The community consensus will update automatically.<div style="margin-top:.75rem">' +
+      var flagged = payload.automatedFlags && payload.automatedFlags.length;
+      var msg = flagged
+        ? '<strong>Thank you — your submission was received</strong> and is preserved as a revision, but one or more figures look unusual (' + UI.esc(payload.automatedFlags.join('; ')) + '), so it needs a quick admin review before it appears live.'
+        : '<strong>Thank you — your submission is published</strong> and preserved as a revision. The community consensus will update automatically.';
+      host.innerHTML = '<div class="notice info" style="font-size:1rem"><span class="notice-icon">✓</span><div>' + msg + '<div style="margin-top:.75rem">' +
         (st.dept ? '<a class="btn btn-outline btn-sm" href="/departments/' + UI.esc(st.dept) + '/">View department</a> ' : '') +
         '<button class="btn btn-ghost btn-sm" onclick="location.reload()">Submit another</button></div></div></div>';
     }).catch(function (err) { status.innerHTML = notice('warn', 'Could not save: ' + UI.esc(err.message)); });
@@ -773,7 +800,10 @@
     await uploadSourceFile(db, payload);
     pruneUndefined(payload);
     payload.contributorId = A.user.uid; payload.submittedAt = F.serverTimestamp();
-    payload.status = 'published'; payload.automatedFlags = [];
+    // computeAutomatedFlags() (called from onSubmit(), before save()) already set
+    // payload.automatedFlags — status follows from whether it found anything.
+    payload.automatedFlags = payload.automatedFlags || [];
+    payload.status = payload.automatedFlags.length ? 'flagged' : 'published';
     var col = payload.submissionType === 'add' ? 'department_requests' : 'submissions';
     await F.addDoc(F.collection(db.db, col), payload);
   }

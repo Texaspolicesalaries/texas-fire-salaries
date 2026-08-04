@@ -138,3 +138,40 @@ test('yearsToTop reads the highest step start', () => {
   assert.strictEqual(L.yearsToTop(docs), 4);
   assert.strictEqual(L.yearsToTop([]), null);
 });
+
+test('flagFigure raises no flags for a reasonable value close to current', () => {
+  assert.deepStrictEqual(L.flagFigure('Entry pay', 61000, 60000), []);
+});
+
+test('flagFigure flags a value above the reasonable maximum', () => {
+  const flags = L.flagFigure('Entry pay', 450000, null);
+  assert.strictEqual(flags.length, 1);
+  assert.match(flags[0], /unusually high/);
+});
+
+test('flagFigure flags a value below the reasonable minimum', () => {
+  const flags = L.flagFigure('Entry pay', 8000, null);
+  assert.strictEqual(flags.length, 1);
+  assert.match(flags[0], /unusually low/);
+});
+
+test('flagFigure flags a large jump vs the department\'s current value', () => {
+  const flags = L.flagFigure('Top pay', 150000, 78000); // +92%
+  assert.strictEqual(flags.length, 1);
+  assert.match(flags[0], /\+92% vs current \$78,000/);
+});
+
+test('flagFigure does not flag a large jump when there is no current value to compare against', () => {
+  assert.deepStrictEqual(L.flagFigure('Entry pay', 150000, null), []);
+  assert.deepStrictEqual(L.flagFigure('Entry pay', 150000, 0), []);
+});
+
+test('flagFigure can raise both an out-of-range and a large-jump flag together', () => {
+  const flags = L.flagFigure('Entry pay', 450000, 60000);
+  assert.strictEqual(flags.length, 2);
+});
+
+test('flagFigure is null-safe and ignores non-numeric input', () => {
+  assert.deepStrictEqual(L.flagFigure('Entry pay', null, 60000), []);
+  assert.deepStrictEqual(L.flagFigure('Entry pay', undefined, 60000), []);
+});

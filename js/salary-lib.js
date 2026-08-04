@@ -191,6 +191,29 @@ function stepIncreases(steps) {
   });
 }
 
+// Automated moderation flags for one submitted figure, checked against the
+// department's current displayed value for that same field. Deliberately just
+// two categories — out-of-range and large-jump — "placeholder data" detection
+// is left out on purpose: patterns like round numbers are too easy to
+// false-positive on legitimate real-world pay figures.
+var FLAG_MIN_REASONABLE = 15000;
+var FLAG_MAX_REASONABLE = 400000;
+var FLAG_JUMP_PCT = 50; // % change vs the department's current value
+
+function flagFigure(fieldLabel, newValue, currentValue) {
+  var flags = [];
+  if (newValue == null || typeof newValue !== 'number' || !isFinite(newValue)) return flags;
+  if (newValue > FLAG_MAX_REASONABLE) flags.push(fieldLabel + ': unusually high ($' + Math.round(newValue).toLocaleString('en-US') + ')');
+  else if (newValue < FLAG_MIN_REASONABLE) flags.push(fieldLabel + ': unusually low ($' + Math.round(newValue).toLocaleString('en-US') + ')');
+  if (currentValue != null && currentValue > 0) {
+    var pct = ((newValue - currentValue) / currentValue) * 100;
+    if (Math.abs(pct) > FLAG_JUMP_PCT) {
+      flags.push(fieldLabel + ': ' + (pct > 0 ? '+' : '') + Math.round(pct) + '% vs current $' + Math.round(currentValue).toLocaleString('en-US'));
+    }
+  }
+  return flags;
+}
+
 var FireSalaryLib = {
   parseMoney: parseMoney,
   parseNumber: parseNumber,
@@ -202,7 +225,11 @@ var FireSalaryLib = {
   stepsForField: stepsForField,
   yearsToTop: yearsToTop,
   planSummary: planSummary,
-  stepIncreases: stepIncreases
+  stepIncreases: stepIncreases,
+  flagFigure: flagFigure,
+  FLAG_MIN_REASONABLE: FLAG_MIN_REASONABLE,
+  FLAG_MAX_REASONABLE: FLAG_MAX_REASONABLE,
+  FLAG_JUMP_PCT: FLAG_JUMP_PCT
 };
 
 if (typeof window !== 'undefined') window.FireSalaryLib = FireSalaryLib;

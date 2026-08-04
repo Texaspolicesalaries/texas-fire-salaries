@@ -61,10 +61,54 @@
   async function loadQueues() {
     var db = window.FireDB; if (!db || !db.ready) return;
     var F = db.sdk.firestore;
-    await fillQueue('q-flagged', F, 'submissions', [F.where('status', '==', 'flagged')], function (d) { return (d.departmentSlug || 'unknown') + ' — flagged'; });
+    await fillFlaggedQueue(F);
     await fillDisputesQueue(F);
     await fillQueue('q-claims', F, 'department_claims', [F.where('status', '==', 'pending')], function (d) { return (d.departmentSlug || '') + ' — ' + (d.emailDomain || ''); });
     await fillQueue('q-dupes', F, 'department_requests', [F.where('status', '==', 'possible_duplicate')], function (d) { return d.name || ''; });
+  }
+
+  // Flagged submissions get their own renderer too, same reasoning as disputes:
+  // js/submit.js's computeAutomatedFlags() now actually writes status:'flagged'
+  // (out-of-range or large-jump figures), so this queue has real data for the
+  // first time — an "Approve" action publishes it, closing the loop instead of
+  // leaving a flagged submission stuck forever with no way to review it.
+  async function fillFlaggedQueue(F) {
+    var el = document.getElementById('q-flagged'); if (!el) return;
+    try {
+      var qy = F.query(F.collection(window.FireDB.db, 'submissions'), F.where('status', '==', 'flagged'), F.limit(25));
+      var snap = await F.getDocs(qy);
+      if (snap.empty) { el.innerHTML = '<p class="field-hint">Nothing in this queue. ✓</p>'; return; }
+      var rows = [];
+      snap.forEach(function (doc) {
+        var d = doc.data();
+        var deptLink = d.departmentSlug
+          ? '<a href="/departments/' + UI.esc(d.departmentSlug) + '/" target="_blank" rel="noopener">' + UI.esc(d.departmentSlug) + '</a>'
+          : 'unknown department';
+        var reasons = (d.automatedFlags || []).join('; ') || 'flagged';
+        rows.push('<div class="feed-item"><span>' + deptLink + ' — ' + UI.esc(reasons) + '</span>' +
+          '<span class="feed-when"><button class="btn btn-secondary btn-sm" data-approve-id="' + UI.esc(doc.id) + '">Approve</button></span></div>');
+      });
+      el.innerHTML = rows.join('');
+      el.querySelectorAll('[data-approve-id]').forEach(function (btn) {
+        btn.addEventListener('click', function () { approveSubmission(F, btn.getAttribute('data-approve-id'), btn); });
+      });
+    } catch (e) { el.innerHTML = '<p class="field-hint">Queue unavailable: ' + UI.esc(e.message) + '</p>'; }
+  }
+
+  async function approveSubmission(F, id, btn) {
+    var item = btn.closest('.feed-item');
+    var oldLabel = btn.textContent;
+    btn.disabled = true; btn.textContent = 'Approving…';
+    try {
+      await F.updateDoc(F.doc(window.FireDB.db, 'submissions', id), { status: 'published' });
+      if (item) item.remove();
+    } catch (e) {
+      btn.disabled = false; btn.textContent = oldLabel;
+      var err = document.createElement('div');
+      err.className = 'field-error'; err.style.marginTop = '.3rem';
+      err.textContent = 'Could not approve: ' + e.message;
+      if (item) item.appendChild(err);
+    }
   }
 
   // Disputes gets its own queue renderer (not the generic fillQueue) because it's
