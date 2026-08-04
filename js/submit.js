@@ -18,7 +18,7 @@
   var UI = window.FireUI, Lib = window.FireSalaryLib, D = window.FireData, A = window.FireAuth;
 
   var POSITIONS = ['Recruit', 'Firefighter/EMT', 'Firefighter/Paramedic', 'Driver/Engineer', 'Apparatus Operator', 'Lieutenant', 'Captain', 'Battalion Chief', 'Other'];
-  var CAREER = [['academy', 'Academy / recruit'], ['entry', 'Entry (post-academy)'], ['step', 'Step (mid-career)'], ['top', 'Top pay']];
+  var CAREER = [['entry', 'Entry pay'], ['step', 'Midpoint pay'], ['top', 'Top pay']];
   var PERIODS = [['annual', 'Per year'], ['monthly', 'Per month'], ['hourly', 'Per hour']];
   var PLAN_PERIODS = [['annual', 'Per year'], ['hourly', 'Per hour']];
   var BASIS = [['base', 'Base pay only'], ['base-ot', 'Base + scheduled overtime'], ['total', 'Reported total compensation']];
@@ -369,14 +369,16 @@
       rows.push(arrow('Top pay', cur.topBase != null ? UI.money(cur.topBase) : null, pv.top != null ? UI.money(pv.top) : '—'));
       if (pl.yearsToTop != null) rows.push(kv('Years to top', pl.yearsToTop + ' yr'));
     } else if (pv.amount != null) {
-      var careerTop = pv.careerPoint === 'top';
-      // Compare against the same kind of figure being submitted — a "reported total
-      // compensation" amount is never diffed against base pay, and vice versa.
-      var oldBasisVal = pv.basis === 'total'
-        ? (careerTop ? cur.reportedTop : cur.reportedEntry)
-        : (careerTop ? cur.topBase : cur.entry);
+      var isTotal = pv.basis === 'total';
+      // Compare against the same career point AND the same kind of figure being
+      // submitted — a midpoint amount is never diffed against entry or top, and a
+      // "reported total compensation" amount is never diffed against base pay.
+      var oldBasisVal, careerLabel;
+      if (pv.careerPoint === 'top') { oldBasisVal = isTotal ? cur.reportedTop : cur.topBase; careerLabel = ' (top)'; }
+      else if (pv.careerPoint === 'step') { oldBasisVal = isTotal ? cur.reportedMidpoint : cur.midpoint; careerLabel = ' (midpoint)'; }
+      else { oldBasisVal = isTotal ? cur.reportedEntry : cur.entry; careerLabel = ''; }
       var oldVal = oldBasisVal != null ? UI.money(oldBasisVal) : null;
-      rows.push(arrow((pv.position || 'Pay') + (careerTop ? ' (top)' : '') + ' — ' + periodLabel(pv.payPeriod), oldVal, UI.money(pv.amount) + basisSuffix(pv.basis)));
+      rows.push(arrow((pv.position || 'Pay') + careerLabel + ' — ' + periodLabel(pv.payPeriod), oldVal, UI.money(pv.amount) + basisSuffix(pv.basis)));
       if (pv.effectiveDate) rows.push(arrow('Effective date', fmtDate(dept && dept.salary && dept.salary.effectiveDate) || null, UI.esc(fmtDate(pv.effectiveDate))));
       if (pv.schedule) rows.push(arrow('Schedule', dept ? (dept.scheduleType || null) : null, UI.esc(pv.schedule)));
       if (pv.hoursAnnual) rows.push(arrow('Scheduled hours', dept ? (dept.annualScheduledHours || null) : null, UI.esc(pv.hoursAnnual)));
@@ -616,12 +618,21 @@
         amount: amount != null ? amount : undefined, basis: basis || undefined, effectiveDate: v('c-eff') || undefined,
         schedule: v('c-sched') || undefined, hoursAnnual: Lib.parseNumber(v('c-hours')) || undefined
       });
-      // "Reported total compensation" is kept out of entry/top (base pay) entirely —
-      // it lands in reportedEntry/reportedTop instead so it can never get displayed
-      // or compared as if it were base salary. See derive.js's reported consensus.
+      // Career point routes the amount to its own field — entry/midpoint/top never
+      // get mixed together. "Reported total compensation" is kept out of base pay
+      // entirely (reportedEntry/reportedMidpoint/reportedTop instead) so it can
+      // never get displayed or compared as if it were base salary. See derive.js's
+      // consensus for each of these.
       if (annual != null) {
-        if (basis === 'total') { if (career === 'top') pv.reportedTop = annual; else pv.reportedEntry = annual; }
-        else { if (career === 'top') pv.top = annual; else pv.entry = annual; }
+        if (basis === 'total') {
+          if (career === 'top') pv.reportedTop = annual;
+          else if (career === 'step') pv.reportedMidpoint = annual;
+          else pv.reportedEntry = annual;
+        } else {
+          if (career === 'top') pv.top = annual;
+          else if (career === 'step') pv.midpoint = annual;
+          else pv.entry = annual;
+        }
       }
       base.effectiveDate = pv.effectiveDate;
     }

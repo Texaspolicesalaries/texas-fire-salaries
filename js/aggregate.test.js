@@ -57,6 +57,14 @@ test('submissionToReport is non-null for a reported-total-only submission even w
   assert.strictEqual(r.reportedEntry, 68000);
 });
 
+test('submissionToReport carries a Midpoint-career-point submission on its own field', () => {
+  const r = Agg.submissionToReport({ proposedValues: { midpoint: 68000 }, contributorId: 'u7', submittedAt: NOW });
+  assert.ok(r);
+  assert.strictEqual(r.midpoint, 68000);
+  assert.strictEqual(r.entry, null);
+  assert.strictEqual(r.top, null);
+});
+
 test('submissionToReport maps a top-type amount to top pay', () => {
   const r = Agg.submissionToReport({ proposedValues: { amount: 90000, salaryType: 'top-ff' }, contributorId: 'u3', submittedAt: NOW });
   assert.strictEqual(r.top, 90000);

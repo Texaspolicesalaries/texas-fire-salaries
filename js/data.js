@@ -137,15 +137,19 @@
         var pv = d.proposedValues || {};
         var entry = Lib.parseMoney(pv.entry);
         var top = Lib.parseMoney(pv.top);
+        var midpoint = Lib.parseMoney(pv.midpoint);
         var reportedEntry = Lib.parseMoney(pv.reportedEntry);
         var reportedTop = Lib.parseMoney(pv.reportedTop);
-        if (entry == null && top == null && reportedEntry == null && reportedTop == null) return;
+        var reportedMidpoint = Lib.parseMoney(pv.reportedMidpoint);
+        if (entry == null && top == null && midpoint == null && reportedEntry == null && reportedTop == null && reportedMidpoint == null) return;
         reports.push({
           value: entry,
           entry: entry,
           top: top,
+          midpoint: midpoint,
           reportedEntry: reportedEntry,
           reportedTop: reportedTop,
+          reportedMidpoint: reportedMidpoint,
           contributorId: d.contributorId,
           submittedAt: toMs(d.submittedAt),
           hasSource: !!(d.sourceUrl || d.sourceFile),

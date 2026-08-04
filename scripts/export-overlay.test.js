@@ -121,3 +121,10 @@ test('toReport still handles an ordinary base-pay submission unchanged', () => {
   assert.strictEqual(r.entry, 61000);
   assert.strictEqual(r.reportedEntry, null);
 });
+
+test('toReport keeps a Midpoint-career-point submission separate from entry/top', () => {
+  const r = M.toReport({ contributorId: s('u4'), proposedValues: mapVal({ midpoint: num(68000) }) });
+  assert.strictEqual(r.midpoint, 68000);
+  assert.strictEqual(r.entry, null);
+  assert.strictEqual(r.top, null);
+});

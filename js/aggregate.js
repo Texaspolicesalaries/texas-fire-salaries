@@ -38,29 +38,34 @@
   }
 
   // Normalize one Firestore `submissions` doc into the report shape derive.js uses.
-  // Maps a quick-update amount to entry or top by its salary type. `reportedEntry`/
-  // `reportedTop` (set when a submission is tagged "Reported total compensation")
-  // stay on their own track — never merged into entry/top — so a total-comp figure
-  // can't get treated as base pay in comparisons. Returns null if it carries none
-  // of these four figures.
+  // Maps a quick-update amount to entry or top by its salary type. `midpoint`,
+  // and `reportedEntry`/`reportedMidpoint`/`reportedTop` (set when a submission is
+  // tagged "Reported total compensation") each stay on their own track — never
+  // merged into entry/top — so a midpoint or total-comp figure can't get treated
+  // as entry/top base pay in comparisons. Returns null if it carries none of
+  // these six figures.
   function submissionToReport(sub) {
     if (!sub) return null;
     var pv = sub.proposedValues || {};
     var amount = money(pv.amount);
     var entry = money(pv.entry);
     var top = money(pv.top);
+    var midpoint = money(pv.midpoint);
     var reportedEntry = money(pv.reportedEntry);
     var reportedTop = money(pv.reportedTop);
+    var reportedMidpoint = money(pv.reportedMidpoint);
     var metric = metricFromType(pv.salaryType);
     if (entry == null && metric === 'entry') entry = amount;
     if (top == null && metric === 'top') top = amount;
-    if (entry == null && top == null && reportedEntry == null && reportedTop == null) return null;
+    if (entry == null && top == null && midpoint == null && reportedEntry == null && reportedTop == null && reportedMidpoint == null) return null;
     return {
       value: entry != null ? entry : top,
       entry: entry,
       top: top,
+      midpoint: midpoint,
       reportedEntry: reportedEntry,
       reportedTop: reportedTop,
+      reportedMidpoint: reportedMidpoint,
       contributorId: sub.contributorId || null,
       submittedAt: toMs(sub.submittedAt),
       hasSource: !!(sub.sourceUrl || sub.sourceFile),

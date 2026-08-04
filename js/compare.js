@@ -107,6 +107,7 @@
     var rows = '';
     rows += salaryRow('Entry firefighter pay', depts, function (s) { return entryVal(s); });
     rows += salaryRow('Entry FF-paramedic pay', depts, function (s) { return s.entryMedic != null ? fmtByMode(s.entryMedic, s) : '—'; });
+    rows += salaryRow('Midpoint pay', depts, function (s) { return midpointVal(s); });
     rows += salaryRow('Top firefighter pay', depts, function (s) { return topVal(s); });
     rows += plainRow('Years to top', depts, function (s) { return s.yearsToTop != null ? s.yearsToTop + ' yr' : '—'; });
     rows += plainRow('Annual scheduled hours', depts, function (s) { return s.annualHours ? s.annualHours.toLocaleString() : '—'; });
@@ -131,6 +132,7 @@
 
   // ---- Row builders ----
   function entryVal(s) { if (!s.hasSalary) return '—'; if (mode === 'hourly') return UI.hourly(s.effectiveHourlyEntry); return fmtByMode(mode === 'reported' ? s.reportedEntry : s.entry, s); }
+  function midpointVal(s) { if (!s.hasSalary) return '—'; if (mode === 'hourly') return UI.hourly(s.effectiveHourlyMidpoint); return fmtByMode(mode === 'reported' ? s.reportedMidpoint : s.midpoint, s); }
   function topVal(s) { if (!s.hasSalary) return '—'; if (mode === 'hourly') return UI.hourly(s.effectiveHourlyTop); return fmtByMode(mode === 'reported' ? s.reportedTop : s.topBase, s); }
   function fmtByMode(v, s) { return v == null ? '—' : UI.money(v); }
 

@@ -174,6 +174,7 @@ function salaryCards(s) {
     ${card('Recruit pay', s.recruit != null ? money(s.recruit) : null, 'Starting / academy')}
     ${card('Firefighter/EMT entry', money(s.entry), 'Base salary', true)}
     ${card('Firefighter/paramedic entry', s.entryMedic != null ? money(s.entryMedic) : null, 'Base + medic incentive')}
+    ${card('Midpoint pay', s.midpoint != null ? money(s.midpoint) : null, 'Base salary')}
     ${card('Top firefighter pay', money(s.topBase), 'Base salary')}
     ${card('Years to top pay', s.yearsToTop != null ? s.yearsToTop + ' yr' : null, 'Reported')}
     ${card('Reported annual hours', s.annualHours ? s.annualHours.toLocaleString() : null, s.scheduleType || '')}

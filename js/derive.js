@@ -57,9 +57,16 @@
   }
 
   // now can be injected (tests / deterministic builds); defaults to Date.now().
+  //
+  // Deliberately does NOT bail out early just because a department has no seed
+  // salary.steps (e.g. a brand-new department auto-promoted from a ZIP-geocoded
+  // request — see scripts/export-overlay.js — starts with none at all). Live
+  // community reports are still clustered even with zero seed baseline, so a
+  // department's very first submission is never silently dropped.
   function deriveSummary(dept, extraReports, now) {
     now = now || Date.now();
-    var s = dept.salary;
+    var s = dept.salary || {};
+    var hasSteps = Array.isArray(s.steps) && s.steps.length > 0;
     var annualHours = Lib.parseNumber(dept.annualScheduledHours) || Lib.scheduleHours(dept.scheduleType) || 2912;
     var out = {
       hasSalary: false,
@@ -72,21 +79,33 @@
       hasConflict: false,
       lastUpdated: null
     };
-    if (!s || !Array.isArray(s.steps) || s.steps.length === 0) return out;
 
-    out.hasSalary = true;
-    var steps = s.steps.slice().sort(function (a, b) { return (a.minimumMonths || 0) - (b.minimumMonths || 0); });
+    var steps = hasSteps ? s.steps.slice().sort(function (a, b) { return (a.minimumMonths || 0) - (b.minimumMonths || 0); }) : [];
     var first = steps[0], last = steps[steps.length - 1];
 
-    out.steps = steps;
-    out.entryBase = Lib.parseMoney(first.baseAnnualSalary);
-    out.topBase = Lib.parseMoney(last.baseAnnualSalary);
-    out.recruit = Lib.parseMoney(first.baseAnnualSalary);
-    out.reportedTop = Lib.parseMoney(last.reportedAnnualCompensation);
-    out.reportedEntry = Lib.parseMoney(first.reportedAnnualCompensation);
-    var medics = steps.map(function (x) { return Lib.parseMoney(x.paramedicPay) || 0; });
-    out.medicPay = Math.max.apply(null, medics.concat(0)) || null;
-    out.yearsToTop = Lib.yearsToTop(steps);
+    if (hasSteps) {
+      out.steps = steps;
+      out.entryBase = Lib.parseMoney(first.baseAnnualSalary);
+      out.topBase = Lib.parseMoney(last.baseAnnualSalary);
+      out.recruit = Lib.parseMoney(first.baseAnnualSalary);
+      out.reportedTop = Lib.parseMoney(last.reportedAnnualCompensation);
+      out.reportedEntry = Lib.parseMoney(first.reportedAnnualCompensation);
+      // Midpoint: the middle step of a 3+-step plan (entry / midpoint / top is a
+      // common pay-scale shape). Null for a simple 2-step entry/top-only plan —
+      // there's no meaningful midpoint to show. Community reports (below) can
+      // still supply one even when the seed has no multi-step plan at all.
+      var midStep = steps.length >= 3 ? steps[Math.floor((steps.length - 1) / 2)] : null;
+      out.midpoint = midStep ? Lib.parseMoney(midStep.baseAnnualSalary) : null;
+      out.reportedMidpoint = midStep ? Lib.parseMoney(midStep.reportedAnnualCompensation) : null;
+      var medics = steps.map(function (x) { return Lib.parseMoney(x.paramedicPay) || 0; });
+      out.medicPay = Math.max.apply(null, medics.concat(0)) || null;
+      out.yearsToTop = Lib.yearsToTop(steps);
+    } else {
+      out.entryBase = null; out.topBase = null; out.recruit = null;
+      out.reportedTop = null; out.reportedEntry = null;
+      out.midpoint = null; out.reportedMidpoint = null;
+      out.medicPay = null; out.yearsToTop = null;
+    }
     // effectiveHourlyEntry / effectiveHourlyTop are set below, after the displayed
     // entry and top figures are chosen (which may be community-overridden).
     out.includesScheduledOvertime = !!s.includesScheduledOvertime;
@@ -97,16 +116,17 @@
     out.classification = s.classification || null;
 
     var flags = dept.flags || {};
-    if (flags.paramedicIncentive) {
+    if (hasSteps && flags.paramedicIncentive) {
       var firstMedicStep = steps.find(function (x) { return (Lib.parseMoney(x.paramedicPay) || 0) > 0; });
       if (firstMedicStep) {
         out.entryMedic = Lib.parseMoney(firstMedicStep.baseAnnualSalary) + (Lib.parseMoney(firstMedicStep.paramedicPay) || 0);
       }
     }
 
-    // ── Entry consensus (the headline figure) ──
+    // ── Entry consensus (the headline figure) — falls back to the seed's
+    // historical step value only when one actually exists.
     var entryReports = reportsForField(s, extraReports, 'entry');
-    if (entryReports.length === 0) {
+    if (entryReports.length === 0 && out.entryBase != null) {
       entryReports = [{
         value: out.entryBase,
         contributorId: 'historical',
@@ -131,10 +151,20 @@
     }
     out.effectiveHourlyTop = Lib.effectiveHourly(out.topBase, annualHours);
 
+    // ── Midpoint consensus — same pattern as top; a community "Midpoint pay"
+    // submission overrides the seed's middle-step value (or supplies one where
+    // there was none at all, e.g. a simple entry/top-only or brand-new plan). ──
+    var midpointReports = reportsForField(s, extraReports, 'midpoint');
+    if (midpointReports.length) {
+      var midCurrent = C.selectCurrentCluster(C.clusterValues(midpointReports, { now: now }), { now: now });
+      if (midCurrent) out.midpoint = midCurrent.value;
+    }
+    out.effectiveHourlyMidpoint = Lib.effectiveHourly(out.midpoint, annualHours);
+
     // ── Reported total compensation consensus — kept on its own track, never
-    // merged into entry/topBase. A submission tagged "Reported total compensation"
-    // lands here instead, so it can't silently masquerade as base pay in
-    // comparisons (compare.js's "reported" mode is what displays this).
+    // merged into entry/topBase/midpoint. A submission tagged "Reported total
+    // compensation" lands here instead, so it can't silently masquerade as base
+    // pay in comparisons (compare.js's "reported" mode is what displays this).
     var reportedEntryReports = reportsForField(s, extraReports, 'reportedEntry');
     if (reportedEntryReports.length) {
       var reCurrent = C.selectCurrentCluster(C.clusterValues(reportedEntryReports, { now: now }), { now: now });
@@ -145,14 +175,23 @@
       var rtCurrent = C.selectCurrentCluster(C.clusterValues(reportedTopReports, { now: now }), { now: now });
       if (rtCurrent) out.reportedTop = rtCurrent.value;
     }
+    var reportedMidpointReports = reportsForField(s, extraReports, 'reportedMidpoint');
+    if (reportedMidpointReports.length) {
+      var rmCurrent = C.selectCurrentCluster(C.clusterValues(reportedMidpointReports, { now: now }), { now: now });
+      if (rmCurrent) out.reportedMidpoint = rmCurrent.value;
+    }
 
-    var allReports = entryReports.concat(topReports).concat(reportedEntryReports).concat(reportedTopReports);
+    var allReports = entryReports.concat(topReports, midpointReports, reportedEntryReports, reportedTopReports, reportedMidpointReports);
     out.contributors = uniqueContributorCount(allReports);
     var newest = allReports.reduce(function (m, r) { return Math.max(m, r.submittedAt || 0); }, 0) || toMs(s.effectiveDate);
     out.lastUpdated = newest || null;
     out.newestSubmission = newest || null;
     out.oldestCurrent = current ? current.oldest : null;
     out.freshness = C.freshnessBucket(newest, { now: now, effectiveMs: toMs(s.effectiveDate) });
+    // hasSalary if there's a seed plan OR any live consensus figure came through —
+    // a department that's never had any salary data reported stays "needed".
+    out.hasSalary = hasSteps || out.entry != null || out.topBase != null || out.midpoint != null ||
+      out.reportedEntry != null || out.reportedTop != null || out.reportedMidpoint != null;
     return out;
   }
 
