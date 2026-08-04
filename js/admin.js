@@ -62,9 +62,62 @@
     var db = window.FireDB; if (!db || !db.ready) return;
     var F = db.sdk.firestore;
     await fillQueue('q-flagged', F, 'submissions', [F.where('status', '==', 'flagged')], function (d) { return (d.departmentSlug || 'unknown') + ' — flagged'; });
-    await fillQueue('q-disputes', F, 'disputes', [F.where('status', '==', 'open')], function (d) { return (d.departmentSlug || '') + ' — ' + (d.reason || '').slice(0, 80); });
+    await fillDisputesQueue(F);
     await fillQueue('q-claims', F, 'department_claims', [F.where('status', '==', 'pending')], function (d) { return (d.departmentSlug || '') + ' — ' + (d.emailDomain || ''); });
     await fillQueue('q-dupes', F, 'department_requests', [F.where('status', '==', 'possible_duplicate')], function (d) { return d.name || ''; });
+  }
+
+  // Disputes gets its own queue renderer (not the generic fillQueue) because it's
+  // the one queue with real, live data right now (step-plan flags and
+  // entry/top/midpoint disputes both write here — see js/department.js) and the
+  // only one that needs an action: resolving a dispute sets its status away from
+  // 'open', which is exactly the filter scripts/export-overlay.js's
+  // countStepPlanDisputes/countValueDisputes use, so a resolved dispute stops
+  // counting toward the revert threshold on the next scheduled refresh.
+  function disputeLabel(d) {
+    var deptLink = d.departmentSlug
+      ? '<a href="/departments/' + UI.esc(d.departmentSlug) + '/" target="_blank" rel="noopener">' + UI.esc(d.departmentSlug) + '</a>'
+      : 'unknown department';
+    var what = d.field === 'stepPlan'
+      ? 'pay-step plan flagged'
+      : (d.field || 'entry') + ' disputed (' + (d.disputedValue != null ? '$' + d.disputedValue : '?') + (d.proposedValue != null ? ' → $' + d.proposedValue : '') + ')';
+    return deptLink + ' — ' + what + (d.reason ? ': ' + UI.esc(String(d.reason).slice(0, 80)) : '');
+  }
+
+  async function fillDisputesQueue(F) {
+    var el = document.getElementById('q-disputes'); if (!el) return;
+    try {
+      var qy = F.query(F.collection(window.FireDB.db, 'disputes'), F.where('status', '==', 'open'), F.limit(25));
+      var snap = await F.getDocs(qy);
+      if (snap.empty) { el.innerHTML = '<p class="field-hint">Nothing in this queue. ✓</p>'; return; }
+      var rows = [];
+      snap.forEach(function (doc) {
+        rows.push('<div class="feed-item"><span>' + disputeLabel(doc.data()) + '</span>' +
+          '<span class="feed-when"><button class="btn btn-outline btn-sm" data-dispute-id="' + UI.esc(doc.id) + '">Resolve</button></span></div>');
+      });
+      el.innerHTML = rows.join('');
+      el.querySelectorAll('[data-dispute-id]').forEach(function (btn) {
+        btn.addEventListener('click', function () { resolveDispute(F, btn.getAttribute('data-dispute-id'), btn); });
+      });
+    } catch (e) { el.innerHTML = '<p class="field-hint">Queue unavailable: ' + UI.esc(e.message) + '</p>'; }
+  }
+
+  async function resolveDispute(F, id, btn) {
+    var item = btn.closest('.feed-item');
+    var oldLabel = btn.textContent;
+    btn.disabled = true; btn.textContent = 'Resolving…';
+    try {
+      await F.updateDoc(F.doc(window.FireDB.db, 'disputes', id), {
+        status: 'resolved', resolvedAt: F.serverTimestamp(), resolvedBy: (A && A.user && A.user.uid) || null
+      });
+      if (item) item.remove();
+    } catch (e) {
+      btn.disabled = false; btn.textContent = oldLabel;
+      var err = document.createElement('div');
+      err.className = 'field-error'; err.style.marginTop = '.3rem';
+      err.textContent = 'Could not resolve: ' + e.message;
+      if (item) item.appendChild(err);
+    }
   }
 
   async function fillQueue(id, F, coll, wheres, label) {
