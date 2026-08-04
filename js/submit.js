@@ -158,7 +158,9 @@
       return '<h2>Add a department</h2>' + typeToggle +
         '<p class="muted">Add a Texas fire department that isn’t listed yet.</p>' +
         '<div class="grid cols-2">' + field('Department name', txt('f-name', 'e.g. Sample Fire Department'), null, 'f-name') + field('City', txt('f-city'), null, 'f-city') + '</div>' +
-        '<div class="grid cols-3">' + field('County', txt('f-county'), null, 'f-county') + field('ZIP', '<input id="f-zip" type="text" inputmode="numeric" maxlength="5">', null, 'f-zip') +
+        '<div class="grid cols-3">' +
+          field('County *', txt('f-county'), null, 'f-county') +
+          field('ZIP *', '<input id="f-zip" type="text" inputmode="numeric" maxlength="5">', 'Required — this is how we place the department on the map.', 'f-zip') +
           field('Type', sel('f-dtype', [['municipal', 'Municipal'], ['esd', 'Emergency services district'], ['county', 'County'], ['university', 'University'], ['airport', 'Airport'], ['fire-rescue-district', 'Fire-rescue district'], ['combination', 'Combination'], ['other', 'Other']]), null, 'f-dtype') + '</div>' +
         field('Website or careers URL', '<input id="f-web" type="url" placeholder="https://">', null, 'f-web');
     }
@@ -501,7 +503,12 @@
     function warnOk(msgs) { if (status && msgs.length) status.innerHTML = notice('info', 'Heads up: ' + msgs.join(' ')); return true; }
     if (status) status.innerHTML = '';
     if (st.step === 1) {
-      if (st.type === 'add') { if (!v('f-name')) return fail('Enter the department name.'); if (!v('f-city')) return fail('Enter the city.'); }
+      if (st.type === 'add') {
+        if (!v('f-name')) return fail('Enter the department name.');
+        if (!v('f-city')) return fail('Enter the city.');
+        if (!v('f-county')) return fail('Enter the county.');
+        if (!/^\d{5}$/.test(v('f-zip'))) return fail('Enter a valid 5-digit ZIP code — it’s how this department gets placed on the map.');
+      }
       else if (!st.dept) return fail('Pick a department from the list.');
       return true;
     }
