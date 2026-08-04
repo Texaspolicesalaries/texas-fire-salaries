@@ -41,6 +41,9 @@
   var st = { type: 'update', step: 1, dept: '', mode: 'single', steps: [] };
   var totalSteps = 4;
   var _sid = 0;
+  // Which step (if any) is currently showing a non-blocking warning awaiting a
+  // second "Continue" click to confirm past it — see wireNav()/validateStep().
+  var _pendingWarnStep = null;
 
   document.addEventListener('DOMContentLoaded', function () {
     D.load().then(function () {
@@ -129,13 +132,25 @@
 
   function goStep(n) {
     st.step = n;
+    _pendingWarnStep = null; // a fresh arrival at any step should show its warnings again, not auto-skip them
     var s = document.getElementById('form-status'); if (s) s.innerHTML = '';
     updateChrome();
     var top = document.querySelector('main'); if (top) window.scrollTo({ top: top.offsetTop, behavior: 'smooth' });
   }
   function wireNav() {
     var back = document.getElementById('wiz-back'); if (back) back.onclick = function () { goStep(st.step - 1); };
-    var next = document.getElementById('wiz-next'); if (next) next.onclick = function () { if (validateStep()) goStep(st.step + 1); };
+    // validateStep() returns false (hard block, message shown by fail()), true
+    // (clean, advance immediately), or 'warn' (non-blocking — show the message
+    // and require a second click on the SAME step to actually confirm past it,
+    // instead of the warning flashing and being wiped by goStep() on the same
+    // click that triggered it).
+    var next = document.getElementById('wiz-next'); if (next) next.onclick = function () {
+      var result = validateStep();
+      if (result === false) { _pendingWarnStep = null; return; }
+      if (result === 'warn' && _pendingWarnStep !== st.step) { _pendingWarnStep = st.step; return; }
+      _pendingWarnStep = null;
+      goStep(st.step + 1);
+    };
     var submit = document.getElementById('wiz-submit'); if (submit) submit.onclick = onSubmit;
   }
   function nav() {
@@ -542,7 +557,11 @@
   function validateStep() {
     var status = document.getElementById('form-status');
     function fail(msg) { if (status) status.innerHTML = notice('warn', msg); return false; }
-    function warnOk(msgs) { if (status && msgs.length) status.innerHTML = notice('info', 'Heads up: ' + msgs.join(' ')); return true; }
+    function warnOk(msgs) {
+      if (!msgs.length) return true;
+      if (status) status.innerHTML = notice('info', 'Heads up: ' + msgs.join(' ') + ' Click Continue again to proceed anyway.');
+      return 'warn';
+    }
     if (status) status.innerHTML = '';
     if (st.step === 1) {
       if (st.type === 'add') {
