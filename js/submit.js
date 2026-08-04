@@ -17,7 +17,7 @@
   'use strict';
   var UI = window.FireUI, Lib = window.FireSalaryLib, D = window.FireData, A = window.FireAuth;
 
-  var POSITIONS = ['Recruit', 'Firefighter/EMT', 'Firefighter/Paramedic', 'Driver/Engineer', 'Apparatus Operator', 'Lieutenant', 'Captain', 'Battalion Chief', 'Other'];
+  var POSITIONS = ['Recruit', 'Firefighter'];
   var PERIODS = [['annual', 'Per year'], ['monthly', 'Per month'], ['hourly', 'Per hour']];
   var PLAN_PERIODS = [['annual', 'Per year'], ['hourly', 'Per hour']];
   var BASIS = [['base', 'Base pay only'], ['base-ot', 'Base + scheduled overtime'], ['total', 'Reported total compensation']];
@@ -243,7 +243,7 @@
   function planFields() {
     return '' +
       '<div class="grid cols-2">' +
-        field('Classification / position', selP('p-position', POSITIONS, 'e.g. Firefighter/EMT'), 'Stored once for the whole plan — don’t repeat it per step.', 'p-position') +
+        field('Classification / position', selP('p-position', POSITIONS, 'Select position…'), 'Stored once for the whole plan — don’t repeat it per step.', 'p-position') +
         field('Effective date', dateI('p-eff'), null, 'p-eff') +
       '</div>' +
       '<div class="grid cols-3">' +
