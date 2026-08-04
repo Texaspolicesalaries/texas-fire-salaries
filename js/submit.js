@@ -18,7 +18,6 @@
   var UI = window.FireUI, Lib = window.FireSalaryLib, D = window.FireData, A = window.FireAuth;
 
   var POSITIONS = ['Recruit', 'Firefighter/EMT', 'Firefighter/Paramedic', 'Driver/Engineer', 'Apparatus Operator', 'Lieutenant', 'Captain', 'Battalion Chief', 'Other'];
-  var CAREER = [['entry', 'Entry pay'], ['step', 'Midpoint pay'], ['top', 'Top pay']];
   var PERIODS = [['annual', 'Per year'], ['monthly', 'Per month'], ['hourly', 'Per hour']];
   var PLAN_PERIODS = [['annual', 'Per year'], ['hourly', 'Per hour']];
   var BASIS = [['base', 'Base pay only'], ['base-ot', 'Base + scheduled overtime'], ['total', 'Reported total compensation']];
@@ -201,17 +200,19 @@
 
   function singleFields() {
     return '' +
-      '<div class="grid cols-2">' +
-        field('Position', selP('c-position', POSITIONS, 'Select position…'), null, 'c-position') +
-        field('Career point', selP('c-career', CAREER, 'Select…'), null, 'c-career') +
-      '</div>' +
+      field('Position', selP('c-position', POSITIONS, 'Select position…'), null, 'c-position') +
       '<div class="grid cols-3">' +
-        field('Amount', money('c-amount', '$'), null, 'c-amount') +
+        field('Entry pay', money('c-entry', '$'), null, 'c-entry') +
+        field('Midpoint pay', money('c-midpoint', '$'), 'Optional — leave blank if there isn’t one.', 'c-midpoint') +
+        field('Top pay', money('c-top', '$'), null, 'c-top') +
+      '</div>' +
+      '<p class="field-hint">Fill in whichever of these you know — just one for a flat starting rate, or all three for a typical entry/midpoint/max pay scale. Each publishes as its own figure.</p>' +
+      '<div class="grid cols-3">' +
         field('Pay period', sel('c-period', PERIODS, 'annual'), null, 'c-period') +
         field('Amount represents', sel('c-basis', BASIS, 'base'), null, 'c-basis') +
-      '</div>' +
-      '<div class="grid cols-3">' +
         field('Effective date', dateI('c-eff'), null, 'c-eff') +
+      '</div>' +
+      '<div class="grid cols-2">' +
         field('Shift schedule', sel('c-sched', SCHEDULES, ''), null, 'c-sched') +
         field('Scheduled annual hours', numI('c-hours', '2912'), null, 'c-hours') +
       '</div>';
@@ -368,17 +369,28 @@
       rows.push(arrow('Entry pay', cur.entry != null ? UI.money(cur.entry) : null, pv.entry != null ? UI.money(pv.entry) : '—'));
       rows.push(arrow('Top pay', cur.topBase != null ? UI.money(cur.topBase) : null, pv.top != null ? UI.money(pv.top) : '—'));
       if (pl.yearsToTop != null) rows.push(kv('Years to top', pl.yearsToTop + ' yr'));
-    } else if (pv.amount != null) {
+    } else if (pv.entry != null || pv.midpoint != null || pv.top != null || pv.reportedEntry != null || pv.reportedMidpoint != null || pv.reportedTop != null) {
       var isTotal = pv.basis === 'total';
-      // Compare against the same career point AND the same kind of figure being
-      // submitted — a midpoint amount is never diffed against entry or top, and a
-      // "reported total compensation" amount is never diffed against base pay.
-      var oldBasisVal, careerLabel;
-      if (pv.careerPoint === 'top') { oldBasisVal = isTotal ? cur.reportedTop : cur.topBase; careerLabel = ' (top)'; }
-      else if (pv.careerPoint === 'step') { oldBasisVal = isTotal ? cur.reportedMidpoint : cur.midpoint; careerLabel = ' (midpoint)'; }
-      else { oldBasisVal = isTotal ? cur.reportedEntry : cur.entry; careerLabel = ''; }
-      var oldVal = oldBasisVal != null ? UI.money(oldBasisVal) : null;
-      rows.push(arrow((pv.position || 'Pay') + careerLabel + ' — ' + periodLabel(pv.payPeriod), oldVal, UI.money(pv.amount) + basisSuffix(pv.basis)));
+      var posLabel = (pv.position || 'Pay') + ' — ' + periodLabel(pv.payPeriod);
+      // Entry/midpoint/top each get their own row, compared against the matching
+      // career point AND the matching kind of figure — a midpoint amount is never
+      // diffed against entry or top, and a "reported total compensation" amount is
+      // never diffed against base pay.
+      var newEntry = pv.entry != null ? pv.entry : pv.reportedEntry;
+      if (newEntry != null) {
+        var oldEntry = isTotal ? cur.reportedEntry : cur.entry;
+        rows.push(arrow(posLabel + ' (entry)', oldEntry != null ? UI.money(oldEntry) : null, UI.money(newEntry) + basisSuffix(pv.basis)));
+      }
+      var newMid = pv.midpoint != null ? pv.midpoint : pv.reportedMidpoint;
+      if (newMid != null) {
+        var oldMid = isTotal ? cur.reportedMidpoint : cur.midpoint;
+        rows.push(arrow(posLabel + ' (midpoint)', oldMid != null ? UI.money(oldMid) : null, UI.money(newMid) + basisSuffix(pv.basis)));
+      }
+      var newTop = pv.top != null ? pv.top : pv.reportedTop;
+      if (newTop != null) {
+        var oldTop = isTotal ? cur.reportedTop : cur.topBase;
+        rows.push(arrow(posLabel + ' (top)', oldTop != null ? UI.money(oldTop) : null, UI.money(newTop) + basisSuffix(pv.basis)));
+      }
       if (pv.effectiveDate) rows.push(arrow('Effective date', fmtDate(dept && dept.salary && dept.salary.effectiveDate) || null, UI.esc(fmtDate(pv.effectiveDate))));
       if (pv.schedule) rows.push(arrow('Schedule', dept ? (dept.scheduleType || null) : null, UI.esc(pv.schedule)));
       if (pv.hoursAnnual) rows.push(arrow('Scheduled hours', dept ? (dept.annualScheduledHours || null) : null, UI.esc(pv.hoursAnnual)));
@@ -524,13 +536,14 @@
       if (supp.find(function (s) { return s.amount < 0; })) return fail('Supplemental pay can’t be negative.');
       if (st.mode === 'plan') return validatePlan(fail, warnOk, supp);
       // single mode
-      var amt = Lib.parseMoney(v('c-amount'));
-      if (st.type === 'update' && amt == null && !supp.length && !v('c-sched') && !v('c-eff')) return fail('Add at least one change — a pay amount, schedule, effective date, or supplemental pay item.');
-      if (amt != null) {
-        if (amt < 0) return fail('Pay amounts can’t be negative.');
+      var entryAmt = Lib.parseMoney(v('c-entry')), midAmt = Lib.parseMoney(v('c-midpoint')), topAmt = Lib.parseMoney(v('c-top'));
+      var anyAmt = entryAmt != null || midAmt != null || topAmt != null;
+      if (st.type === 'update' && !anyAmt && !supp.length && !v('c-sched') && !v('c-eff')) return fail('Add at least one change — a pay amount, schedule, effective date, or supplemental pay item.');
+      if (anyAmt) {
+        if ((entryAmt != null && entryAmt < 0) || (midAmt != null && midAmt < 0) || (topAmt != null && topAmt < 0)) return fail('Pay amounts can’t be negative.');
         if (!v('c-position')) return fail('Choose the position this pay is for.');
-        if (!v('c-basis')) return fail('Choose what the amount represents (base, base+OT, or total).');
-        if (!v('c-eff')) return fail('Add an effective date for the pay amount.');
+        if (!v('c-basis')) return fail('Choose what these amounts represent (base, base+OT, or total).');
+        if (!v('c-eff')) return fail('Add an effective date for these pay amounts.');
       }
       return true;
     }
@@ -611,29 +624,25 @@
       base.plan.yearsToTop = sum.yearsToTop != null ? sum.yearsToTop : undefined;
       base.effectiveDate = base.plan.effectiveDate;
     } else {
-      var amount = Lib.parseMoney(v('c-amount')), career = v('c-career'), basis = v('c-basis');
-      var annual = toAnnual(amount, v('c-period'), Lib.parseNumber(v('c-hours')));
+      var basis = v('c-basis'), period = v('c-period'), hoursAnnual = Lib.parseNumber(v('c-hours'));
+      var toAnn = function (x) { return toAnnual(x, period, hoursAnnual); };
+      var entryAmt = toAnn(Lib.parseMoney(v('c-entry')));
+      var midAmt = toAnn(Lib.parseMoney(v('c-midpoint')));
+      var topAmt = toAnn(Lib.parseMoney(v('c-top')));
       Object.assign(pv, {
-        position: v('c-position') || undefined, careerPoint: career || undefined, payPeriod: v('c-period') || undefined,
-        amount: amount != null ? amount : undefined, basis: basis || undefined, effectiveDate: v('c-eff') || undefined,
-        schedule: v('c-sched') || undefined, hoursAnnual: Lib.parseNumber(v('c-hours')) || undefined
+        position: v('c-position') || undefined, payPeriod: period || undefined,
+        basis: basis || undefined, effectiveDate: v('c-eff') || undefined,
+        schedule: v('c-sched') || undefined, hoursAnnual: hoursAnnual || undefined
       });
-      // Career point routes the amount to its own field — entry/midpoint/top never
-      // get mixed together. "Reported total compensation" is kept out of base pay
-      // entirely (reportedEntry/reportedMidpoint/reportedTop instead) so it can
-      // never get displayed or compared as if it were base salary. See derive.js's
-      // consensus for each of these.
-      if (annual != null) {
-        if (basis === 'total') {
-          if (career === 'top') pv.reportedTop = annual;
-          else if (career === 'step') pv.reportedMidpoint = annual;
-          else pv.reportedEntry = annual;
-        } else {
-          if (career === 'top') pv.top = annual;
-          else if (career === 'step') pv.midpoint = annual;
-          else pv.entry = annual;
-        }
-      }
+      // Entry/midpoint/top are independent fields, all submitted together — none
+      // get mixed with each other. "Reported total compensation" is kept out of
+      // base pay entirely (reportedEntry/reportedMidpoint/reportedTop instead) so
+      // it can never get displayed or compared as if it were base salary. See
+      // derive.js's consensus for each of these.
+      var isTotal = basis === 'total';
+      if (entryAmt != null) { if (isTotal) pv.reportedEntry = entryAmt; else pv.entry = entryAmt; }
+      if (midAmt != null) { if (isTotal) pv.reportedMidpoint = midAmt; else pv.midpoint = midAmt; }
+      if (topAmt != null) { if (isTotal) pv.reportedTop = topAmt; else pv.top = topAmt; }
       base.effectiveDate = pv.effectiveDate;
     }
     if (!pv.supplemental.length) delete pv.supplemental;
@@ -656,7 +665,8 @@
     if (fileC && !fileC.checked) { status.innerHTML = notice('warn', 'Please confirm you can share the attached file.'); return; }
     var payload = gather();
     var pv = payload.proposedValues || {};
-    var hasChange = pv.amount != null || (pv.steps && pv.steps.length) || (pv.supplemental && pv.supplemental.length) || pv.schedule || pv.effectiveDate || base_effective(payload) || st.type === 'add';
+    var hasAmount = pv.entry != null || pv.midpoint != null || pv.top != null || pv.reportedEntry != null || pv.reportedMidpoint != null || pv.reportedTop != null;
+    var hasChange = hasAmount || (pv.steps && pv.steps.length) || (pv.supplemental && pv.supplemental.length) || pv.schedule || pv.effectiveDate || base_effective(payload) || st.type === 'add';
     if (!hasChange) { status.innerHTML = notice('warn', 'No changes to submit — go back and add at least one figure.'); return; }
     if (!(A && A.canContribute())) {
       if (!window.FireDB || !window.FireDB.configured) {
