@@ -127,20 +127,24 @@
 
   // Live overlay: pull community submissions for one department from Firestore.
   // Returns [] when Firebase is unconfigured/unavailable so the page still renders.
+  // Mirrors the static overlay path (scripts/export-overlay.js) exactly: only
+  // 'published' submissions count (a 'flagged' one hasn't cleared automated
+  // moderation yet), and confirmations ("This looks correct") are folded in as
+  // ordinary reports too, so the live path and the static build agree.
   async function fetchDepartmentReports(slug) {
     var db = window.FireDB;
     if (!db || !db.ready) return [];
+    var F = db.sdk.firestore;
+    var reports = [];
     try {
-      var F = db.sdk.firestore;
       var qy = F.query(
         F.collection(db.db, 'submissions'),
         F.where('departmentSlug', '==', slug),
-        F.where('status', 'in', ['published', 'flagged']),
+        F.where('status', '==', 'published'),
         F.orderBy('submittedAt', 'desc'),
         F.limit(100)
       );
       var snap = await F.getDocs(qy);
-      var reports = [];
       snap.forEach(function (doc) {
         var d = doc.data();
         var pv = d.proposedValues || {};
@@ -165,10 +169,43 @@
           departmentMaintained: d.contributorType === 'department'
         });
       });
-      return reports;
     } catch (e) {
       console.warn('[FireData] live reports fetch failed', e);
-      return [];
     }
+    try {
+      var cqy = F.query(
+        F.collection(db.db, 'confirmations'),
+        F.where('departmentSlug', '==', slug),
+        F.orderBy('createdAt', 'desc'),
+        F.limit(100)
+      );
+      var csnap = await F.getDocs(cqy);
+      // Latest confirmation per contributor only — matches dedupeConfirmations()
+      // in the static path so a repeat click can't inflate the report count.
+      var latestByContributor = {};
+      csnap.forEach(function (doc) {
+        var d = doc.data();
+        var cid = d.contributorId;
+        if (!cid || latestByContributor[cid]) return; // already have a more recent one (desc order)
+        var entry = Lib.parseMoney(d.confirmedEntry);
+        var top = Lib.parseMoney(d.confirmedTop);
+        var midpoint = Lib.parseMoney(d.confirmedMidpoint);
+        if (entry == null && top == null && midpoint == null) return;
+        latestByContributor[cid] = true;
+        reports.push({
+          value: entry,
+          entry: entry,
+          top: top,
+          midpoint: midpoint,
+          contributorId: cid,
+          submittedAt: toMs(d.createdAt),
+          hasSource: false,
+          departmentMaintained: false
+        });
+      });
+    } catch (e) {
+      console.warn('[FireData] live confirmations fetch failed', e);
+    }
+    return reports;
   }
 })();
