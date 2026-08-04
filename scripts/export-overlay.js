@@ -305,6 +305,29 @@ async function queryAllConfirmations(baseUrl) {
   return Array.isArray(rows) ? rows : [];
 }
 
+// One "This looks correct" per contributor per department counts, no matter how
+// many times they click it (the button only disables for the current page
+// view, not permanently — reloading resets it). Keeps each contributor's MOST
+// RECENT confirmation per department and drops the rest, so a repeat click
+// can't inflate "Matching submissions" the way disputes were already protected
+// from repeat flags (countStepPlanDisputes/countValueDisputes dedupe the same
+// way, just via a Set instead of "keep the latest").
+function dedupeConfirmations(rows) {
+  const latest = {}; // "slug|contributorId" -> row
+  rows.forEach(r => {
+    if (!r.document || !r.document.fields) return;
+    const f = r.document.fields;
+    const slug = fv(f.departmentSlug);
+    const contributorId = fv(f.contributorId);
+    if (!slug || !contributorId) return;
+    const key = `${slug}|${contributorId}`;
+    const at = (f.createdAt && f.createdAt.timestampValue) || '';
+    const existingAt = latest[key] ? ((latest[key].document.fields.createdAt && latest[key].document.fields.createdAt.timestampValue) || '') : null;
+    if (existingAt == null || at > existingAt) latest[key] = r;
+  });
+  return Object.values(latest);
+}
+
 async function queryPublished(baseUrl, collectionId) {
   const body = { structuredQuery: { from: [{ collectionId }], where: { fieldFilter: { field: { fieldPath: 'status' }, op: 'EQUAL', value: { stringValue: 'published' } } } } };
   const res = await fetch(baseUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
@@ -424,7 +447,7 @@ async function main() {
   // don't count this run, not that the whole export fails.
   let confirmedCount = 0;
   try {
-    const confRows = await queryAllConfirmations(url);
+    const confRows = dedupeConfirmations(await queryAllConfirmations(url));
     confRows.forEach(r => {
       if (!r.document || !r.document.fields) return;
       const f = r.document.fields;
@@ -499,5 +522,5 @@ async function main() {
 if (require.main === module) {
   main().catch(e => { console.error('[export-overlay] failed (keeping existing overlay.json):', e.message); process.exit(0); });
 } else {
-  module.exports = { slugify, normName, isDuplicate, makeRegionResolver, promoteDepartments, readZipCentroids, toReport, decodeValue, extractStepPlans, docId, DISPUTE_REVERT_THRESHOLD, confirmationToReport, applyValueDisputes };
+  module.exports = { slugify, normName, isDuplicate, makeRegionResolver, promoteDepartments, readZipCentroids, toReport, decodeValue, extractStepPlans, docId, DISPUTE_REVERT_THRESHOLD, confirmationToReport, applyValueDisputes, dedupeConfirmations };
 }

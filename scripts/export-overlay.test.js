@@ -249,6 +249,44 @@ test('confirmationToReport returns null when nothing was confirmed', () => {
   assert.strictEqual(M.confirmationToReport({ contributorId: s('u2') }), null);
 });
 
+function confirmRow(slug, contributorId, createdAt, confirmedEntry) {
+  return row({
+    departmentSlug: s(slug), contributorId: s(contributorId),
+    confirmedEntry: num(confirmedEntry == null ? 60000 : confirmedEntry),
+    createdAt: { timestampValue: createdAt }
+  });
+}
+
+test('dedupeConfirmations keeps only one confirmation per contributor per department', () => {
+  const rows = [
+    confirmRow('addison-fd', 'u1', '2026-01-01T00:00:00Z'),
+    confirmRow('addison-fd', 'u1', '2026-02-01T00:00:00Z'), // same person, repeat click
+    confirmRow('addison-fd', 'u2', '2026-01-15T00:00:00Z')  // different person
+  ];
+  const out = M.dedupeConfirmations(rows);
+  assert.strictEqual(out.length, 2); // u1's repeat collapses to one
+});
+
+test('dedupeConfirmations keeps each contributor\'s most recent confirmation', () => {
+  const rows = [
+    confirmRow('addison-fd', 'u1', '2026-01-01T00:00:00Z', 60000),
+    confirmRow('addison-fd', 'u1', '2026-03-01T00:00:00Z', 65000)
+  ];
+  const out = M.dedupeConfirmations(rows);
+  assert.strictEqual(out.length, 1);
+  assert.strictEqual(out[0].document.fields.confirmedEntry.doubleValue, 65000); // the later one wins
+});
+
+test('dedupeConfirmations treats the same contributor confirming different departments as separate', () => {
+  const rows = [confirmRow('addison-fd', 'u1', '2026-01-01T00:00:00Z'), confirmRow('denton-fd', 'u1', '2026-01-01T00:00:00Z')];
+  assert.strictEqual(M.dedupeConfirmations(rows).length, 2);
+});
+
+test('dedupeConfirmations drops malformed rows with no department or contributor', () => {
+  const rows = [row({ confirmedEntry: num(60000) })];
+  assert.strictEqual(M.dedupeConfirmations(rows).length, 0);
+});
+
 test('applyValueDisputes leaves a report untouched when nothing about it is disputed', () => {
   const reports = [{ contributorId: 'u1', entry: 60000, top: 78000 }];
   const out = M.applyValueDisputes(reports, 'addison-fd', new Map());
