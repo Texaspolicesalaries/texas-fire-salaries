@@ -104,6 +104,11 @@ img { max-width: 100%; height: auto; }
 .nav-cta { margin-left: var(--sp-2); }
 .nav-cta.btn-outline { background: var(--navy); color: #fff; border-color: var(--navy); }
 .nav-cta.btn-outline:hover { background: var(--navy-2); color: #fff; }
+/* .nav-links a's compound selector (class+element) otherwise outranks
+   .btn-primary's single-class color rule, leaving the signed-in nav button
+   (coral bg) with --text-soft gray text instead of white. */
+.nav-cta.btn-primary { color: #fff; }
+.nav-cta.btn-primary:hover { color: #fff; }
 .nav-toggle { display: none; margin-left: auto; background: none; border: 1px solid var(--border); border-radius: var(--r-sm); width: 42px; height: 40px; cursor: pointer; color: var(--text); font-size: 1.2rem; }
 
 @media (max-width: 860px) {
