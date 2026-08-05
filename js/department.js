@@ -354,7 +354,7 @@
               '<span><small>Entry firefighter</small>' + UI.money(r.entry) + '</span>' +
               (r.top != null ? '<span><small>Top firefighter</small>' + UI.money(r.top) + '</span>' : '') +
               (r.hasSource ? payPlanLink('Source PDF ↗', '') : '') +
-              (isCurrent && hasStepPlan ? '<a href="#step-plan">Full ' + summary.steps.length + '-step pay plan ↓</a>' : '') +
+              (isCurrent && hasStepPlan ? '<a href="#step-plan">Full ' + summary.steps.length + '-step pay plan ↑</a>' : '') +
             '</div>' +
           '</div>' +
         '</div>';
