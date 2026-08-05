@@ -54,6 +54,18 @@
       q('q-flagged', 'Flagged submissions', 'Auto-flagged by the moderation rules (large jumps, out-of-range, placeholder data).') +
       q('q-disputes', 'Disputes & abuse reports', 'Community-reported incorrect information and abuse reports.') +
       q('q-claims', 'Department ownership claims', 'Requests to manage a department page via an official email domain.') +
+      '<div class="card" style="margin-bottom:1rem"><h3>Active department claims</h3>' +
+      '<p class="muted" style="margin-bottom:.75rem">Approved right now. A claim expires automatically after 18 months with no submission from the claimant — revoke here if it needs to happen sooner, or reassign it to a different department if it was granted by mistake.</p>' +
+      '<div id="q-active-claims"><p class="field-hint">Loading…</p></div>' +
+      '<div class="divider-label" style="margin:1rem 0">Grant a claim manually</div>' +
+      '<p class="field-hint" style="margin-bottom:.5rem">Only finds people who have submitted at least one claim before (even a rejected one) — there is no way to look up an arbitrary email that has never touched a claim.</p>' +
+      '<div class="grid cols-2">' +
+        '<div class="field"><label for="ac-dept">Department</label><input id="ac-dept" type="text" list="ac-dept-list" autocomplete="off" placeholder="Type a department, city, or county…"><datalist id="ac-dept-list"></datalist></div>' +
+        '<div class="field"><label for="ac-user">Claimant</label><select id="ac-user"><option value="">Loading…</option></select></div>' +
+      '</div>' +
+      '<button class="btn btn-outline btn-sm" id="ac-add">Grant claim</button>' +
+      '<div id="ac-status" class="field-hint" style="margin-top:.5rem"></div>' +
+      '</div>' +
       q('q-dupes', 'Possible duplicate departments', 'Suggested merges from contributors.') +
       '<div class="card"><h3>Management tools</h3><p class="muted">Merge duplicates · correct names · adjust coordinates · lock fields · restore revisions · manage approved email domains · suspend/restore users. <span class="pill">Phase 3</span></p></div>';
   }
@@ -64,6 +76,8 @@
     await fillFlaggedQueue(F);
     await fillDisputesQueue(F);
     await fillClaimsQueue(F);
+    await fillActiveClaimsQueue(F);
+    wireAddClaimForm(F);
     await fillDupesQueue(F);
   }
 
@@ -110,7 +124,13 @@
     var buttons = item ? item.querySelectorAll('button') : [btn];
     buttons.forEach(function (b) { b.disabled = true; });
     try {
-      await F.updateDoc(F.doc(window.FireDB.db, 'department_claims', id), { status: action === 'approve' ? 'approved' : 'rejected' });
+      // resolvedAt is the baseline scripts/export-overlay.js's
+      // computeActiveClaimants() gives a freshly-approved claimant to submit
+      // something before treating them as expired — without it, a claim
+      // approved today with no submission yet would look infinitely stale.
+      await F.updateDoc(F.doc(window.FireDB.db, 'department_claims', id), {
+        status: action === 'approve' ? 'approved' : 'rejected', resolvedAt: F.serverTimestamp()
+      });
     } catch (e) {
       buttons.forEach(function (b) { b.disabled = false; });
       var err = document.createElement('div');
@@ -137,6 +157,142 @@
       }
     }
     if (item) item.remove();
+  }
+
+  // "Remove" for an approved claim. Also expires automatically after 18
+  // months of claimant inactivity (scripts/export-overlay.js's
+  // computeActiveClaimants) — this is for revoking sooner than that, or
+  // undoing a mistake. "Edit" is handled as revoke-then-re-grant below rather
+  // than a separate inline-edit control, since granting already needs the
+  // same department/claimant pickers.
+  async function fillActiveClaimsQueue(F) {
+    var el = document.getElementById('q-active-claims'); if (!el) return;
+    try {
+      var qy = F.query(F.collection(window.FireDB.db, 'department_claims'), F.where('status', '==', 'approved'), F.limit(50));
+      var snap = await F.getDocs(qy);
+      if (snap.empty) { el.innerHTML = '<p class="field-hint">No active claims.</p>'; return; }
+      var rows = [];
+      snap.forEach(function (doc) {
+        var d = doc.data();
+        var slug = d.departmentSlug || '';
+        var deptLink = slug
+          ? '<a href="/departments/' + UI.esc(slug) + '/" target="_blank" rel="noopener">' + UI.esc(d.departmentName || slug) + '</a>'
+          : 'unknown department';
+        var who = d.email || (d.emailDomain ? ('someone @' + d.emailDomain) : 'unknown email');
+        rows.push('<div class="feed-item"><span>' + deptLink + ' — ' + UI.esc(who) + '</span>' +
+          '<span class="feed-when"><button class="btn btn-outline btn-sm" data-revoke-id="' + UI.esc(doc.id) + '" data-revoke-user="' + UI.esc(d.userId || '') + '">Revoke</button></span></div>');
+      });
+      el.innerHTML = rows.join('');
+      el.querySelectorAll('[data-revoke-id]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          revokeClaim(F, btn.getAttribute('data-revoke-id'), btn.getAttribute('data-revoke-user'), btn);
+        });
+      });
+    } catch (e) { el.innerHTML = '<p class="field-hint">Queue unavailable: ' + UI.esc(e.message) + '</p>'; }
+  }
+
+  async function revokeClaim(F, id, userId, btn) {
+    var item = btn.closest('.feed-item');
+    var buttons = item ? item.querySelectorAll('button') : [btn];
+    buttons.forEach(function (b) { b.disabled = true; });
+    try {
+      await F.updateDoc(F.doc(window.FireDB.db, 'department_claims', id), { status: 'revoked', resolvedAt: F.serverTimestamp() });
+    } catch (e) {
+      buttons.forEach(function (b) { b.disabled = false; });
+      var err = document.createElement('div');
+      err.className = 'field-error'; err.style.marginTop = '.3rem';
+      err.textContent = 'Could not revoke: ' + e.message;
+      if (item) item.appendChild(err);
+      return;
+    }
+    if (userId) {
+      try {
+        await F.updateDoc(F.doc(window.FireDB.db, 'users', userId), { role: 'contributor' });
+      } catch (e) {
+        // Same non-atomic tradeoff as approving: the claim itself is already
+        // revoked, but reverting their role failed — keep the row so Revoke
+        // can be clicked again to retry just that step.
+        buttons.forEach(function (b) { b.disabled = false; });
+        var warn = document.createElement('div');
+        warn.className = 'field-error'; warn.style.marginTop = '.3rem';
+        warn.textContent = 'Claim revoked, but reverting the user\'s role failed: ' + e.message + ' — click Revoke again to retry.';
+        if (item) item.appendChild(warn);
+        return;
+      }
+    }
+    if (item) item.remove();
+  }
+
+  // Same "Name — City" match-as-you-type pattern as js/submit.js's
+  // matchDept(), so admins search departments the same way contributors do.
+  function matchDept(text) {
+    text = String(text || '').toLowerCase().trim(); if (!text) return null;
+    var all = D.all();
+    return all.find(function (d) { return (d.name + ' — ' + d.city).toLowerCase() === text; }) ||
+      all.find(function (d) { return d.name.toLowerCase().indexOf(text) !== -1 || (d.city && d.city.toLowerCase().indexOf(text) !== -1) || (d.county && d.county.toLowerCase().indexOf(text) !== -1); });
+  }
+
+  // Only surfaces people who have submitted at least one claim before (any
+  // status) — there is no way to resolve an arbitrary email to a Firebase uid
+  // client-side without the Admin SDK, which this credential-free project
+  // deliberately doesn't use. Good enough for "grant them a second
+  // department too" or "redo a claim that was entered wrong"; someone who
+  // has never touched the claim flow has to submit one (even a fresh pending
+  // one an admin then approves) before they can be found here.
+  async function fetchClaimantDirectory(F) {
+    var snap = await F.getDocs(F.query(F.collection(window.FireDB.db, 'department_claims'), F.limit(200)));
+    var byUser = {};
+    snap.forEach(function (doc) {
+      var d = doc.data();
+      if (!d.userId) return;
+      var prior = byUser[d.userId];
+      byUser[d.userId] = { userId: d.userId, email: d.email || (prior && prior.email) || '' };
+    });
+    return Object.keys(byUser).map(function (k) { return byUser[k]; });
+  }
+
+  async function grantClaim(F, dept, userId, email) {
+    var db = window.FireDB;
+    await F.addDoc(F.collection(db.db, 'department_claims'), {
+      userId: userId, departmentSlug: dept.slug, departmentName: dept.name, email: email || '',
+      status: 'approved', createdAt: F.serverTimestamp(), resolvedAt: F.serverTimestamp()
+    });
+    // Best-effort, same non-atomic tradeoff as everywhere else here — if this
+    // fails the claim still exists and is visible in the active-claims list
+    // above, so the admin can tell the role grant needs a manual retry.
+    await F.updateDoc(F.doc(db.db, 'users', userId), { role: 'department' });
+  }
+
+  async function wireAddClaimForm(F) {
+    var deptInput = document.getElementById('ac-dept');
+    var deptList = document.getElementById('ac-dept-list');
+    var userSelect = document.getElementById('ac-user');
+    var addBtn = document.getElementById('ac-add');
+    var status = document.getElementById('ac-status');
+    if (!deptInput || !deptList || !userSelect || !addBtn) return;
+    deptList.innerHTML = D.all().map(function (d) { return '<option value="' + UI.esc(d.name + ' — ' + d.city) + '"></option>'; }).join('');
+    try {
+      var directory = await fetchClaimantDirectory(F);
+      userSelect.innerHTML = '<option value="">Select…</option>' +
+        directory.map(function (c) { return '<option value="' + UI.esc(c.userId) + '">' + UI.esc(c.email || c.userId) + '</option>'; }).join('');
+    } catch (e) {
+      userSelect.innerHTML = '<option value="">Could not load claimants</option>';
+    }
+    addBtn.addEventListener('click', function () {
+      var dept = matchDept(deptInput.value);
+      var userId = userSelect.value;
+      if (!dept) { status.innerHTML = '<span class="field-error">Type a department that matches one in the list.</span>'; return; }
+      if (!userId) { status.innerHTML = '<span class="field-error">Select a claimant.</span>'; return; }
+      var email = userSelect.options[userSelect.selectedIndex].textContent;
+      status.textContent = ''; addBtn.disabled = true; addBtn.textContent = 'Granting…';
+      grantClaim(F, dept, userId, email).then(function () {
+        status.textContent = 'Granted — ' + email + ' is now the verified contact for ' + dept.name + '.';
+        deptInput.value = ''; userSelect.value = '';
+        fillActiveClaimsQueue(F);
+      }).catch(function (e) {
+        status.innerHTML = '<span class="field-error">Could not grant: ' + UI.esc(e.message) + '</span>';
+      }).then(function () { addBtn.disabled = false; addBtn.textContent = 'Grant claim'; });
+    });
   }
 
   // Possible-duplicate department requests get real data now too — js/submit.js's

@@ -358,3 +358,56 @@ test('applyValueDisputes respects a custom threshold', () => {
   assert.strictEqual(M.applyValueDisputes(reports, 'addison-fd', counts, 2)[0].entry, null);
   assert.strictEqual(M.applyValueDisputes(reports, 'addison-fd', counts, 3)[0].entry, 60000);
 });
+
+// ── computeActiveClaimants ───────────────────────────────────────────────────
+const CLAIM_NOW = Date.parse('2026-08-05T00:00:00Z');
+function monthsAgo(n) { return new Date(CLAIM_NOW - n * 30.437 * 24 * 3600 * 1000).toISOString().slice(0, 10); }
+
+test('computeActiveClaimants keeps a claimant with a recent submission', () => {
+  const claims = [{ userId: 'u1', departmentSlug: 'addison-fd', resolvedAt: monthsAgo(20), createdAt: monthsAgo(20) }];
+  const subRows = [row({ contributorId: s('u1'), departmentSlug: s('addison-fd') }, monthsAgo(1) + 'T00:00:00Z')];
+  const active = M.computeActiveClaimants(claims, subRows, CLAIM_NOW);
+  assert.ok(active.has('u1|addison-fd'));
+});
+
+test('computeActiveClaimants expires a claimant whose last submission is past the threshold', () => {
+  const claims = [{ userId: 'u1', departmentSlug: 'addison-fd', resolvedAt: monthsAgo(30), createdAt: monthsAgo(30) }];
+  const subRows = [row({ contributorId: s('u1'), departmentSlug: s('addison-fd') }, monthsAgo(20) + 'T00:00:00Z')];
+  const active = M.computeActiveClaimants(claims, subRows, CLAIM_NOW);
+  assert.ok(!active.has('u1|addison-fd'));
+});
+
+test('computeActiveClaimants gives a brand-new claimant with no submission yet a full grace window from approval', () => {
+  const claims = [{ userId: 'u1', departmentSlug: 'addison-fd', resolvedAt: monthsAgo(2), createdAt: monthsAgo(2) }];
+  const active = M.computeActiveClaimants(claims, [], CLAIM_NOW);
+  assert.ok(active.has('u1|addison-fd'));
+});
+
+test('computeActiveClaimants expires a claimant who never submitted once the grace window from approval passes', () => {
+  const claims = [{ userId: 'u1', departmentSlug: 'addison-fd', resolvedAt: monthsAgo(20), createdAt: monthsAgo(20) }];
+  const active = M.computeActiveClaimants(claims, [], CLAIM_NOW);
+  assert.ok(!active.has('u1|addison-fd'));
+});
+
+test('computeActiveClaimants keeps departments and users separate', () => {
+  const claims = [
+    { userId: 'u1', departmentSlug: 'addison-fd', resolvedAt: monthsAgo(1), createdAt: monthsAgo(1) },
+    { userId: 'u2', departmentSlug: 'denton-fd', resolvedAt: monthsAgo(30), createdAt: monthsAgo(30) }
+  ];
+  const active = M.computeActiveClaimants(claims, [], CLAIM_NOW);
+  assert.ok(active.has('u1|addison-fd'));
+  assert.ok(!active.has('u2|denton-fd'));
+  assert.ok(!active.has('u1|denton-fd')); // never claimed this pair
+});
+
+test('computeActiveClaimants respects a custom threshold', () => {
+  const claims = [{ userId: 'u1', departmentSlug: 'addison-fd', resolvedAt: monthsAgo(10), createdAt: monthsAgo(10) }];
+  const active6mo = M.computeActiveClaimants(claims, [], CLAIM_NOW, 6);
+  const active12mo = M.computeActiveClaimants(claims, [], CLAIM_NOW, 12);
+  assert.ok(!active6mo.has('u1|addison-fd'));
+  assert.ok(active12mo.has('u1|addison-fd'));
+});
+
+test('CLAIM_EXPIRY_MONTHS matches the "possibly outdated" freshness cutoff already used elsewhere', () => {
+  assert.strictEqual(M.CLAIM_EXPIRY_MONTHS, 18);
+});

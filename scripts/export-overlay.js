@@ -337,19 +337,66 @@ async function queryAllConfirmations(baseUrl) {
 
 // Public-read only for status=='approved' per firestore.rules (an admin already
 // vetted these — see js/admin.js's approval action) — no credentials needed.
-async function queryApprovedClaimSlugs(baseUrl) {
+async function queryApprovedClaims(baseUrl) {
   const body = { structuredQuery: { from: [{ collectionId: 'department_claims' }], where: { fieldFilter: { field: { fieldPath: 'status' }, op: 'EQUAL', value: { stringValue: 'approved' } } } } };
   const res = await fetch(baseUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
   if (!res.ok) throw new Error('Firestore REST ' + res.status + ': ' + (await res.text()).slice(0, 300));
   const rows = await res.json();
   if (rows && rows.error) throw new Error(rows.error.status + ' ' + rows.error.message);
-  const slugs = new Set();
+  const claims = [];
   (Array.isArray(rows) ? rows : []).forEach(r => {
     if (!r.document || !r.document.fields) return;
-    const slug = fv(r.document.fields.departmentSlug);
-    if (slug) slugs.add(slug);
+    const f = r.document.fields;
+    const userId = fv(f.userId), slug = fv(f.departmentSlug);
+    if (!userId || !slug) return;
+    claims.push({
+      id: docId(r.document),
+      userId, departmentSlug: slug,
+      resolvedAt: isoDay(f.resolvedAt && f.resolvedAt.timestampValue),
+      createdAt: isoDay(f.createdAt && f.createdAt.timestampValue)
+    });
   });
-  return slugs;
+  return claims;
+}
+
+// A claim doesn't stay "Department maintained" forever just because it was
+// once approved — a rep who claims a department and then goes quiet leaves a
+// stale figure locked in ahead of any amount of fresh community agreement
+// (selectCurrentCluster() in js/consensus.js gives a department-maintained
+// cluster outright priority, with no recency comparison against community
+// clusters at all). Expiring the claim itself after 18 months of inactivity —
+// the same "possibly outdated" cutoff js/consensus.js already uses for the
+// freshness label — closes that gap without inventing a second threshold:
+// once expired, the badge disappears, the claim button reappears for someone
+// else, AND (since departmentMaintained is recomputed fresh on every export
+// run below, not trusted from whatever a submission's contributorType said
+// months ago) that person's old reports stop auto-winning consensus too.
+const CLAIM_EXPIRY_MONTHS = 18;
+function computeActiveClaimants(claims, subRows, now, thresholdMonths) {
+  thresholdMonths = thresholdMonths == null ? CLAIM_EXPIRY_MONTHS : thresholdMonths;
+  const thresholdMs = thresholdMonths * 30.437 * 24 * 3600 * 1000;
+  const lastActivity = new Map(); // "userId|slug" -> ms
+  (subRows || []).forEach(r => {
+    if (!r.document || !r.document.fields) return;
+    const f = r.document.fields;
+    const cid = fv(f.contributorId), slug = fv(f.departmentSlug);
+    if (!cid || !slug) return;
+    const t = Date.parse(f.submittedAt && f.submittedAt.timestampValue);
+    if (isNaN(t)) return;
+    const key = cid + '|' + slug;
+    if (!lastActivity.has(key) || t > lastActivity.get(key)) lastActivity.set(key, t);
+  });
+  const active = new Set();
+  (claims || []).forEach(c => {
+    const key = c.userId + '|' + c.departmentSlug;
+    // No submission yet since approval — give them the full window from
+    // approval (or, lacking that, from when the claim was first made) rather
+    // than treating a brand-new claimant as already stale.
+    const baselineIso = lastActivity.has(key) ? null : (c.resolvedAt || c.createdAt);
+    const baseline = lastActivity.has(key) ? lastActivity.get(key) : Date.parse(baselineIso);
+    if (!isNaN(baseline) && (now - baseline) <= thresholdMs) active.add(key);
+  });
+  return active;
 }
 
 // One "This looks correct" per contributor per department counts, no matter how
@@ -476,6 +523,20 @@ async function main() {
   const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents:runQuery?key=${apiKey}`;
 
   const subRows = await queryPublished(url, 'submissions');
+
+  // Recomputed fresh every run from the CURRENT claim state, not trusted from
+  // whatever a submission's contributorType said at the time it was written —
+  // see computeActiveClaimants() for why that matters (an expired claim must
+  // stop winning consensus on its OLD reports too, not just lose the badge).
+  let activeClaimants = new Set(), claims = [];
+  try {
+    claims = await queryApprovedClaims(url);
+    activeClaimants = computeActiveClaimants(claims, subRows, Date.now());
+  } catch (e) {
+    console.warn('[export-overlay] department-claim lookup failed (treating none as claimed):', e.message);
+  }
+  const claimedSlugs = new Set(claims.filter(c => activeClaimants.has(c.userId + '|' + c.departmentSlug)).map(c => c.departmentSlug));
+
   const reports = {};
   let n = 0;
   subRows.forEach(r => {
@@ -485,6 +546,7 @@ async function main() {
     if (!slug) return;
     const rep = toReport(f);
     if (!rep) return;
+    rep.departmentMaintained = !!(rep.contributorId && activeClaimants.has(rep.contributorId + '|' + slug));
     (reports[slug] = reports[slug] || []).push(rep);
     n++;
   });
@@ -548,15 +610,6 @@ async function main() {
     console.warn('[export-overlay] department auto-promotion skipped:', e.message);
   }
 
-  // Approved department claims -> "Department maintained" badge. A lookup
-  // failure just means no department gets marked maintained this run.
-  let claimedSlugs = new Set();
-  try {
-    claimedSlugs = await queryApprovedClaimSlugs(url);
-  } catch (e) {
-    console.warn('[export-overlay] department-claim lookup failed (treating none as claimed):', e.message);
-  }
-
   const out = {
     generated: new Date().toISOString(),
     note: 'Auto-generated by scripts/export-overlay.js from published Firestore submissions (public read; no credentials).',
@@ -583,5 +636,5 @@ async function main() {
 if (require.main === module) {
   main().catch(e => { console.error('[export-overlay] failed (keeping existing overlay.json):', e.message); process.exit(0); });
 } else {
-  module.exports = { slugify, normName, isDuplicate, makeRegionResolver, promoteDepartments, readZipCentroids, toReport, decodeValue, extractStepPlans, extractCivilService, docId, DISPUTE_REVERT_THRESHOLD, confirmationToReport, applyValueDisputes, dedupeConfirmations };
+  module.exports = { slugify, normName, isDuplicate, makeRegionResolver, promoteDepartments, readZipCentroids, toReport, decodeValue, extractStepPlans, extractCivilService, docId, DISPUTE_REVERT_THRESHOLD, confirmationToReport, applyValueDisputes, dedupeConfirmations, computeActiveClaimants, CLAIM_EXPIRY_MONTHS };
 }

@@ -121,8 +121,12 @@ service cloud.firestore {
     // "Department maintained" — a pending/rejected claim stays private.
     match /department_claims/{id} {
       allow read:   if resource.data.status == 'approved' || isAdmin() || (signedIn() && resource.data.userId == request.auth.uid);
-      allow create: if verified() && request.resource.data.userId == request.auth.uid
-                    && request.resource.data.status == 'pending';
+      // A regular user can only create their OWN claim, and only pending —
+      // admin.html's "grant a claim manually" tool needs the second branch to
+      // create an already-approved claim for someone else's uid.
+      allow create: if (verified() && request.resource.data.userId == request.auth.uid
+                        && request.resource.data.status == 'pending')
+                    || (isAdmin() && request.resource.data.status == 'approved');
       allow update, delete: if isAdmin();
     }
 
