@@ -42,6 +42,8 @@
         if (extra && extra.length) { summary = D.deriveSummary(dept, extra); renderAll(); }
       });
     }
+    // Only signed-in users trigger this read — anonymous visitors still cost 0.
+    if (A) A.onChange(function (user) { if (user) checkClaimNotifications(); });
   });
 
   function renderAll() {
@@ -104,8 +106,45 @@
     // never shown publicly: firestore.rules only lets an admin or the
     // claimant themselves read a pending claim doc.
     await F.addDoc(F.collection(db.db, 'department_claims'), {
-      userId: A.user.uid, departmentSlug: dept.slug, email: email, emailDomain: domain, status: 'pending', createdAt: F.serverTimestamp()
+      userId: A.user.uid, departmentSlug: dept.slug, departmentName: dept.name, email: email, emailDomain: domain, status: 'pending', createdAt: F.serverTimestamp()
     });
+  }
+
+  // ---- "Your claim was approved/rejected" notice ----
+  // The claimant gets no email/push when an admin resolves their claim — the
+  // only way to find out is to notice the badge appear (or the claim button
+  // vanish) on that department's own page. This surfaces it wherever they
+  // happen to be signed in, on ANY department page, not just the one they
+  // claimed. departmentName is stored on the claim doc itself (not looked up)
+  // because this page's embedded dept-data is for whichever department the
+  // visitor is CURRENTLY looking at, not necessarily the one that was claimed.
+  function claimSeenKey(id) { return 'fireClaimSeen_' + id; }
+  async function checkClaimNotifications() {
+    var host = document.getElementById('claim-notice');
+    if (!host || !A || !A.canContribute()) return;
+    var db = window.FireDB;
+    if (!db || !db.ready) return;
+    try {
+      var F = db.sdk.firestore;
+      var qy = F.query(F.collection(db.db, 'department_claims'), F.where('userId', '==', A.user.uid), F.limit(20));
+      var snap = await F.getDocs(qy);
+      var notices = [];
+      snap.forEach(function (doc) {
+        var c = doc.data();
+        if (c.status !== 'approved' && c.status !== 'rejected') return; // nothing to report on a still-pending claim
+        var key = claimSeenKey(doc.id);
+        var seen = null;
+        try { seen = localStorage.getItem(key); } catch (e) {}
+        if (seen === c.status) return; // already shown this exact resolution
+        try { localStorage.setItem(key, c.status); } catch (e) {}
+        var name = UI.esc(c.departmentName || c.departmentSlug || 'that department');
+        var link = c.departmentSlug ? ' <a href="/departments/' + UI.esc(c.departmentSlug) + '/">View page →</a>' : '';
+        notices.push(c.status === 'approved'
+          ? '<div class="notice info" style="margin-bottom:.75rem"><span class="notice-icon" aria-hidden="true">✓</span><div><strong>Your claim for ' + name + ' was approved.</strong> The page now shows "Department maintained."' + link + '</div></div>'
+          : '<div class="notice warn" style="margin-bottom:.75rem"><span class="notice-icon" aria-hidden="true">ⓘ</span><div><strong>Your claim for ' + name + ' was not approved.</strong> You can submit a new claim if this was a mistake.</div></div>');
+      });
+      if (notices.length) host.innerHTML = notices.join('');
+    } catch (e) { /* nice-to-have only — never block the page over it */ }
   }
 
   // ---- Career earnings ----

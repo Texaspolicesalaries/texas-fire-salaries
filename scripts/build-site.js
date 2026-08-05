@@ -131,6 +131,7 @@ function departmentPage(dept) {
 <body data-page="departments">
   <div id="site-header"></div>
   <main id="main" class="wrap section-sm">
+    <section id="claim-notice"></section>
     <nav class="breadcrumb" aria-label="Breadcrumb"><a href="/">Home</a> › <a href="/departments.html">Departments</a> › <a href="/counties/${slugify(dept.county)}/">${esc(dept.county)} County</a> › <span>${esc(dept.name)}</span></nav>
 
     <header style="margin-bottom:1rem">
