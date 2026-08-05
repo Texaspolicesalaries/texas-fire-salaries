@@ -28,7 +28,6 @@
     '<img class="brand-mark" src="/assets/branding/favicon-64.png" width="34" height="34" alt="" aria-hidden="true">';
 
   var DISCLAIMER = 'Texas Fire Salaries is a community-maintained database. Compensation information may be incomplete, outdated, or incorrect. Always confirm current pay, benefits, and employment terms directly with the hiring department.';
-  var FOOTER_DISCLAIMER = 'Texas Fire Salaries is an independent community-maintained website and is not affiliated with or endorsed by any fire department, city, county, or government agency. Compensation information may be incomplete or outdated. Confirm all employment information directly with the hiring department.';
 
   function headerHTML(activeKey) {
     var links = LINKS.map(function (l) {
@@ -56,14 +55,15 @@
       '<div class="wrap"><div class="footer-inner">' +
         '<div>' +
           '<div class="brand" style="margin-bottom:.6rem">' + BRAND_MARK + '<span>Texas Fire Salaries</span></div>' +
-          '<p class="faint" style="font-size:.85rem">A statewide, community-built firefighter compensation map and comparison database. Built and maintained by the Texas fire-service community.</p>' +
+          '<p class="faint" style="font-size:.85rem">A community-built firefighter compensation map and comparison database for Texas, growing region by region. Built and maintained by the Texas fire-service community.</p>' +
         '</div>' +
         '<div><h4>Explore</h4>' +
           '<a href="' + navHref('/map') + '">Interactive map</a><a href="' + navHref('/departments') + '">Department directory</a>' +
           '<a href="' + navHref('/compare') + '">Compare departments</a><a href="' + navHref('/submit') + '">Submit data</a>' +
         '</div>' +
         '<div><h4>About</h4>' +
-          '<a href="' + navHref('/how-it-works') + '">How it works</a><a href="' + navHref('/community-policy') + '">Community policy</a>' +
+          '<a href="' + navHref('/how-it-works') + '">How it works</a><a href="' + navHref('/about') + '">About &amp; contact</a>' +
+          '<a href="' + navHref('/community-policy') + '">Community policy</a>' +
           '<a href="' + navHref('/claim-policy') + '">Claim your department</a><a href="' + navHref('/disclaimer') + '">Disclaimer</a>' +
         '</div>' +
         '<div><h4>Legal</h4>' +
@@ -71,8 +71,7 @@
           '<a href="' + navHref('/disclaimer') + '">Copyright &amp; removal</a>' +
         '</div>' +
       '</div></div>' +
-      '<div class="footer-disclaimer" style="background:transparent;border-top:1px solid #2a3550;border-bottom:0"><div class="wrap"><small class="faint">' + FOOTER_DISCLAIMER + '</small></div></div>' +
-      '<div class="wrap"><div class="footer-bottom">© ' + new Date().getFullYear() + ' Texas Fire Salaries · Community reported, not official.</div></div>' +
+      '<div class="wrap"><div class="footer-bottom">© ' + new Date().getFullYear() + ' Texas Fire Salaries · Community reported, not official · Not affiliated with or endorsed by any government agency.</div></div>' +
     '</footer>';
   }
 
@@ -138,7 +137,7 @@
     }
   }
 
-  window.FireNav = { DISCLAIMER: DISCLAIMER, FOOTER_DISCLAIMER: FOOTER_DISCLAIMER };
+  window.FireNav = { DISCLAIMER: DISCLAIMER };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', mount);
   else mount();
 })();

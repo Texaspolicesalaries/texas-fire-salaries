@@ -118,11 +118,17 @@
       var medics = steps.map(function (x) { return Lib.parseMoney(x.paramedicPay) || 0; });
       out.medicPay = Math.max.apply(null, medics.concat(0)) || null;
       out.yearsToTop = Lib.yearsToTop(steps);
+      // A single reported step (often "entry" with no real progression data)
+      // makes "years to top" trivially 0 and career-earnings totals a flat,
+      // falsely precise multiple of one number — flagged here so the UI can
+      // label it plainly instead of presenting it as a real step plan.
+      out.singleRatePlan = steps.length <= 1;
     } else {
       out.entryBase = null; out.topBase = null; out.recruit = null;
       out.reportedTop = null; out.reportedEntry = null;
       out.midpoint = null; out.reportedMidpoint = null;
       out.medicPay = null; out.yearsToTop = null;
+      out.singleRatePlan = false;
     }
     // effectiveHourlyEntry / effectiveHourlyTop are set below, after the displayed
     // entry and top figures are chosen (which may be community-overridden).

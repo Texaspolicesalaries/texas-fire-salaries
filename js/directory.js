@@ -156,7 +156,13 @@
     if (!grid) return;
     if (!list.length) {
       grid.className = '';
-      grid.innerHTML = '<div class="empty-state">No departments match your search or filters. <button class="btn btn-outline btn-sm" id="reset3">Reset</button></div>';
+      // A text search that comes up empty is usually a real department that
+      // just isn't in the database yet (coverage is still growing region by
+      // region), not a typo — point at submitting it, not just resetting.
+      var searchNote = state.q
+        ? '<p><strong>' + UI.esc(state.q) + '</strong> didn\'t match anything — it may not be in the database yet.</p><a class="btn btn-primary btn-sm" href="/submit.html?mode=add">Submit this department →</a> '
+        : '<p>No departments match your current filters.</p>';
+      grid.innerHTML = '<div class="empty-state">' + searchNote + '<button class="btn btn-outline btn-sm" id="reset3">Reset filters</button></div>';
       var r = document.getElementById('reset3'); if (r) r.onclick = function () { state = F.defaults(); var host = document.getElementById('filter-panel'); if (host) { FU.render(host, state); FU.wire(host, state, onChange); } resetSearchInput(); buildSortUI(); onChange(); };
       return;
     }

@@ -94,7 +94,7 @@ function departmentPage(dept) {
     : `${dept.name} in ${dept.city}, ${dept.county} County. Firefighter salary information has not yet been submitted — help the community by adding it.`;
 
   const cards = s.hasSalary ? salaryCards(s) : '';
-  const compExplain = s.hasSalary ? compExplanation(s) : '';
+  const compExplain = s.hasSalary ? compExplanation(s, dept.slug) : '';
   // Only render the step table when there are 3+ distinct steps; a flat/2-tier
   // plan is already conveyed by the summary cards (avoids a thin, redundant table).
   const stepTable = (s.hasSalary && s.steps && s.steps.length >= 3) ? payStepTable(s) : '';
@@ -223,21 +223,24 @@ function salaryCards(s) {
     ${card('Firefighter entry', money(s.entry), lockedSub('Base salary', s.entryLocked))}
     ${card('Midpoint pay', s.midpoint != null ? money(s.midpoint) : null, lockedSub('Base salary', s.midpointLocked))}
     ${card('Top firefighter pay', money(s.topBase), lockedSub('Base salary', s.topLocked))}
-    ${card('Years to top pay', s.yearsToTop != null ? `${s.yearsToTop} <em>yr</em>` : null, 'Reported')}
+    ${card('Years to top pay', s.yearsToTop != null ? `${s.yearsToTop} <em>yr</em>` : null, s.singleRatePlan ? 'Single-rate plan reported' : 'Reported')}
     ${card('Reported annual hours', s.annualHours ? s.annualHours.toLocaleString() : null, s.scheduleType || '')}
     ${card('Effective hourly (entry)', hourly(s.effectiveHourlyEntry), 'Base ÷ scheduled hours')}
   </div>`;
 }
 
-function compExplanation(s) {
+function compExplanation(s, slug) {
   const warn = s.includesScheduledOvertime
     ? `<div class="notice warn" style="margin-top:1rem"><span class="notice-icon" aria-hidden="true">⚠</span><div>This department's reported annual compensation may include <strong>scheduled overtime</strong>. Compare base salary and annual hours before comparing it with departments that report base pay only.</div></div>`
+    : '';
+  const singleRate = s.singleRatePlan
+    ? `<div class="notice warn" style="margin-top:1rem"><span class="notice-icon" aria-hidden="true">ⓘ</span><div><strong>No progression data reported.</strong> Only a single pay rate has been submitted for this department — "years to top pay" and entry/top figures reflect that one rate, not a real step plan. <a href="/submit.html?dept=${esc(slug || '')}&mode=step">Add the full pay-step plan →</a></div></div>`
     : '';
   return `<div class="dept-context-note">
     <span class="note-icon" aria-hidden="true">i</span>
     <p><strong>About these numbers.</strong> Base salary is shown separately from reported total compensation, which can include scheduled overtime, paramedic, certification, education, longevity, assignment, and holiday pay.</p>
   </div>
-  ${warn}`;
+  ${warn}${singleRate}`;
 }
 
 function payStepTable(s) {

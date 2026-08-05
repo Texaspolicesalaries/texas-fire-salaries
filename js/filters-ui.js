@@ -34,7 +34,13 @@
 
   function render(container, state) {
     var D = window.FireData;
-    var regions = D.regions().map(function (r) { return [r.id, r.name]; });
+    // Only list a region once it actually has a department in it — the seed
+    // schema defines all 7 Texas regions up front, but showing one that's
+    // guaranteed to return zero results is exactly the "selected it, got
+    // nothing, no idea why" trap this filter should avoid.
+    var regionCounts = {};
+    D.all().forEach(function (d) { if (d.region) regionCounts[d.region] = (regionCounts[d.region] || 0) + 1; });
+    var regions = D.regions().filter(function (r) { return regionCounts[r.id]; }).map(function (r) { return [r.id, r.name]; });
     var counties = D.counties();
     var cities = D.cities();
 

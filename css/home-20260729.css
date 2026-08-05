@@ -9,7 +9,11 @@
   align-items: center;
 }
 .home-hero h1 {
-  max-width: 13ch;
+  /* Narrower than the shared .hero's --fs-display scale — at this column
+     width (~1.05fr of the hero grid) the display size was forcing three
+     lines even at desktop widths. */
+  font-size: clamp(2.2rem, 3.4vw, 3.2rem);
+  max-width: 22ch;
   margin-bottom: var(--sp-4);
 }
 .home-hero-copy .lede {

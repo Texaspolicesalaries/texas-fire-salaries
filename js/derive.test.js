@@ -184,3 +184,23 @@ test('trustedContributors is 0 when nobody trusted is behind the current value',
   const s = Derive.deriveSummary(deptFixture(), [], NOW);
   assert.strictEqual(s.trustedContributors, 0);
 });
+
+test('a single-step plan is flagged singleRatePlan (no real progression data)', () => {
+  const dept = {
+    slug: 'one-step-fd', name: 'One Step FD', scheduleType: '24/48', flags: {},
+    salary: { steps: [{ stepName: 'Entry', minimumMonths: 0, baseAnnualSalary: 60000 }] }
+  };
+  const s = Derive.deriveSummary(dept, [], NOW);
+  assert.strictEqual(s.singleRatePlan, true);
+  assert.strictEqual(s.yearsToTop, 0);
+});
+
+test('a real multi-step plan is not flagged singleRatePlan', () => {
+  const s = Derive.deriveSummary(deptFixture(), [], NOW);
+  assert.strictEqual(s.singleRatePlan, false);
+});
+
+test('a department with no salary at all is not flagged singleRatePlan', () => {
+  const s = Derive.deriveSummary({ slug: 'empty-fd', name: 'Empty FD', salary: {} }, [], NOW);
+  assert.strictEqual(s.singleRatePlan, false);
+});

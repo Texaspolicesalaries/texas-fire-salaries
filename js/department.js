@@ -191,6 +191,16 @@
     var host = document.getElementById('earnings');
     if (!host || !summary.hasSalary || !summary.steps) { if (host) { host.innerHTML = ''; host.className = ''; } return; }
     host.className = 'dept-section';
+    // A single reported rate has no real progression to project — showing
+    // exact 5/10/20-year totals off one flat number reads as far more
+    // precise than the underlying data actually supports.
+    if (summary.singleRatePlan) {
+      host.innerHTML =
+        '<div class="dept-section-heading compact"><div><span class="section-kicker">02 / Projection</span><h2>Career earnings</h2></div></div>' +
+        '<p class="dept-section-intro">Not shown yet — only a single pay rate has been reported for this department, with no step progression to project. ' +
+        '<a href="/submit.html?dept=' + UI.esc(dept.slug) + '&mode=step">Add the full pay-step plan →</a></p>';
+      return;
+    }
     var baseSteps = Lib.stepsForField(summary.steps, 'baseAnnualSalary');
     var repSteps = Lib.stepsForField(summary.steps, 'reportedAnnualCompensation');
     var years = [5, 10, 20];
@@ -210,7 +220,7 @@
     }
     host.innerHTML =
       '<div class="dept-section-heading compact"><div><span class="section-kicker">02 / Projection</span><h2>Career earnings</h2></div></div>' +
-      '<p class="dept-section-intro">Cumulative earnings if a firefighter progressed through this reported step plan. <strong>Base salary</strong> and <strong>reported total compensation</strong> are kept separate — do not add them together.</p>' +
+      '<p class="dept-section-intro">Illustrative earnings at the current reported pay plan — not a forecast. <strong>Base salary</strong> and <strong>reported total compensation</strong> are kept separate — do not add them together.</p>' +
       barsFor('Base salary', baseTotals) +
       (repSteps.length ? '<p class="field-hint" style="margin:1rem 0 .5rem">Reported total compensation</p>' + barsFor('Reported total compensation', totals(repSteps)) : '') +
       '<p class="dept-fine-print">Assumes the step in effect at the start of each service year.' +

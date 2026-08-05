@@ -22,9 +22,21 @@
     var results = document.getElementById('home-search-results');
     if (!input || !results) return;
     var active = -1, items = [];
-    function render(list) {
+    function render(list, q) {
       items = list;
-      if (!list.length) { results.classList.remove('open'); results.innerHTML = ''; return; }
+      if (!list.length) {
+        if (!q) { results.classList.remove('open'); results.innerHTML = ''; return; }
+        // A dead end ("nothing found") turned into a contribution opportunity —
+        // most misses here are real Texas departments simply not added yet,
+        // not typos, since coverage is still growing region by region.
+        results.innerHTML = '<div class="search-empty">' +
+          '<p><strong>' + UI.esc(q) + '</strong> isn\'t in the database yet.</p>' +
+          '<a href="/submit.html?mode=add">Submit this department →</a>' +
+          '<a href="/departments.html">Browse current coverage →</a>' +
+          '</div>';
+        results.classList.add('open');
+        return;
+      }
       results.innerHTML = list.map(function (d) {
         var s = d.summary || {};
         return '<a href="/departments/' + UI.esc(d.slug) + '/"><span>' + UI.esc(d.name) +
@@ -40,7 +52,7 @@
     input.addEventListener('input', function () {
       var q = input.value.trim();
       var list = q ? window.FireData.search(q) : [];
-      render(list);
+      render(list, q);
       clearTimeout(searchTrackTimer);
       if (q && window.FireAnalytics) {
         searchTrackTimer = setTimeout(function () { window.FireAnalytics.trackSearch('home', q, list.length); }, 600);
@@ -83,6 +95,23 @@
       progress.setAttribute('aria-valuenow', String(pct));
       var bar = progress.querySelector('span');
       if (bar) bar.style.width = pct + '%';
+    }
+
+    // Honest scope note, computed from the real data rather than hardcoded —
+    // this automatically stops singling out "North Texas" once a second
+    // region is actually covered, with no copy edit needed later.
+    var scope = document.getElementById('coverage-scope');
+    if (scope) {
+      var byRegion = {};
+      all.forEach(function (d) { if (d.region) byRegion[d.region] = (byRegion[d.region] || 0) + 1; });
+      var regionIds = Object.keys(byRegion);
+      if (regionIds.length <= 1) {
+        var name = regionIds.length ? window.FireData.regionName(regionIds[0]) : 'Texas';
+        scope.innerHTML = '<span aria-hidden="true">◔</span><span>Currently covers <strong>' + name + '</strong> (' + byRegion[regionIds[0]] + ' departments). More regions are being added as the community grows it — <a href="/submit.html">add yours →</a></span>';
+      } else {
+        var parts = regionIds.map(function (r) { return window.FireData.regionName(r) + ' (' + byRegion[r] + ')'; });
+        scope.innerHTML = '<span aria-hidden="true">◔</span><span>Covers ' + regionIds.length + ' regions so far: ' + parts.join(', ') + '.</span>';
+      }
     }
   }
 
