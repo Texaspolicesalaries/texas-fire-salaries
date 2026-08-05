@@ -42,8 +42,12 @@
         if (extra && extra.length) { summary = D.deriveSummary(dept, extra); renderAll(); }
       });
     }
-    // Only signed-in users trigger this read — anonymous visitors still cost 0.
-    if (A) A.onChange(function (user) { if (user) checkClaimNotifications(); });
+    // Only signed-in users trigger these reads — anonymous visitors still cost 0.
+    if (A) A.onChange(function (user) {
+      if (!user) return;
+      checkClaimNotifications();
+      if (summary.departmentMaintained) renderClaimedByMe();
+    });
   });
 
   function renderAll() {
@@ -68,7 +72,14 @@
   function renderClaim() {
     var host = document.getElementById('claim-panel');
     if (!host) return;
-    if (summary.departmentMaintained) { host.innerHTML = ''; return; } // already claimed — nothing to offer
+    // Already claimed: the public "◆ Department maintained" badge in the
+    // header covers every visitor, but the claimant themselves gets nothing
+    // to distinguish "this is generically maintained" from "this is MY dept"
+    // — a one-time toast is easy to miss, so renderClaimedByMe() (wired
+    // through auth below, once signed-in state is known) fills this panel
+    // with a standing reminder every time they're on their own department's
+    // page, instead of just leaving it blank.
+    if (summary.departmentMaintained) { host.innerHTML = ''; return; }
     host.innerHTML = '<div class="card card-tight">' +
       '<h3 style="margin-bottom:.4rem">Represent this department?</h3>' +
       '<p class="muted" style="margin-bottom:.6rem">If you manage this page officially, request "Department maintained" status. An admin reviews every request.</p>' +
@@ -92,6 +103,33 @@
         claimStatus.innerHTML = '<span class="field-error">Could not submit: ' + UI.esc(e.message) + '</span>';
       });
     });
+  }
+
+  // Approved claims are public-read per firestore.rules (status=='approved'),
+  // so this can check "is the signed-in visitor the one who claimed THIS
+  // department" without ever exposing anyone else's identity — it only
+  // renders anything when their own uid matches, and stays blank for every
+  // other visitor exactly as before. Runs every page view of a claimed
+  // department (not gated by localStorage, unlike the one-time toast) since
+  // the whole point is a standing reminder, not a one-off notice.
+  async function renderClaimedByMe() {
+    var host = document.getElementById('claim-panel');
+    if (!host || !A || !A.isSignedIn()) return;
+    var db = window.FireDB;
+    if (!db || !db.ready) return;
+    try {
+      var F = db.sdk.firestore;
+      var qy = F.query(F.collection(db.db, 'department_claims'),
+        F.where('departmentSlug', '==', dept.slug), F.where('status', '==', 'approved'), F.limit(5));
+      var snap = await F.getDocs(qy);
+      var mine = false;
+      snap.forEach(function (doc) { if (doc.data().userId === A.user.uid) mine = true; });
+      if (mine) {
+        host.innerHTML = '<div class="notice info"><span class="notice-icon" aria-hidden="true">◆</span><div>' +
+          '<strong>You are the verified contact for ' + UI.esc(dept.name) + '.</strong> ' +
+          'A pay figure you submit becomes the one shown here right away, without waiting to out-vote other community reports.</div></div>';
+      }
+    } catch (e) { /* nice-to-have only — never block the page over it */ }
   }
 
   async function writeClaim() {
