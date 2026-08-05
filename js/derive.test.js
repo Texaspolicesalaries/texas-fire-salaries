@@ -87,6 +87,51 @@ test('a community midpoint submission can supply one for a plan that never had o
   assert.strictEqual(s.midpoint, 65000);
 });
 
+test('an admin field override wins over the seed value with no community reports at all', () => {
+  const dept = deptFixture();
+  dept.fieldOverrides = { entry: { value: 61234, locked: true, note: 'Verified against city payroll PDF' } };
+  const s = Derive.deriveSummary(dept, [], NOW);
+  assert.strictEqual(s.entry, 61234);
+  assert.strictEqual(s.entryLocked, true);
+  assert.strictEqual(s.entryOverrideNote, 'Verified against city payroll PDF');
+  assert.ok(s.effectiveHourlyEntry > 0); // recomputed off the overridden value, not stale
+});
+
+test('an admin field override wins even against a flood of newer, matching community reports', () => {
+  const dept = deptFixture();
+  dept.fieldOverrides = { top: { value: 99000, locked: true } };
+  const extra = [
+    { contributorId: 'a', submittedAt: iso(0.1), top: 72000 },
+    { contributorId: 'b', submittedAt: iso(0.1), top: 72000 },
+    { contributorId: 'c', submittedAt: iso(0.1), top: 72000 }
+  ];
+  const s = Derive.deriveSummary(dept, extra, NOW);
+  assert.strictEqual(s.topBase, 99000);
+  assert.strictEqual(s.topLocked, true);
+});
+
+test('an unlocked field override still applies the value but is flagged not-locked', () => {
+  const dept = deptFixture();
+  dept.fieldOverrides = { midpoint: { value: 64000, locked: false } };
+  const s = Derive.deriveSummary(dept, [], NOW);
+  assert.strictEqual(s.midpoint, 64000);
+  assert.strictEqual(s.midpointLocked, false);
+});
+
+test('a field override can supply salary data for a department that otherwise has none', () => {
+  const dept = { slug: 'empty-fd', name: 'Empty FD', salary: {} };
+  dept.fieldOverrides = { entry: { value: 55000, locked: true } };
+  const s = Derive.deriveSummary(dept, [], NOW);
+  assert.strictEqual(s.hasSalary, true);
+  assert.strictEqual(s.entry, 55000);
+});
+
+test('no fieldOverrides on the department leaves ordinary consensus untouched', () => {
+  const s = Derive.deriveSummary(deptFixture(), [], NOW);
+  assert.strictEqual(s.entryLocked, undefined);
+  assert.strictEqual(s.entry, 60000);
+});
+
 test('a "reported total compensation" midpoint submission stays separate from base midpoint', () => {
   const extra = [{ contributorId: 'u6', submittedAt: iso(1), reportedMidpoint: 90000 }];
   const s = Derive.deriveSummary(threeStepFixture(), extra, NOW);

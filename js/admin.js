@@ -9,7 +9,7 @@
  */
 (function () {
   'use strict';
-  var UI = window.FireUI, D = window.FireData, A = window.FireAuth;
+  var UI = window.FireUI, D = window.FireData, A = window.FireAuth, Lib = window.FireSalaryLib;
 
   document.addEventListener('DOMContentLoaded', function () {
     D.load().then(gate);
@@ -67,7 +67,290 @@
       '<div id="ac-status" class="field-hint" style="margin-top:.5rem"></div>' +
       '</div>' +
       q('q-dupes', 'Possible duplicate departments', 'Suggested merges from contributors.') +
-      '<div class="card"><h3>Management tools</h3><p class="muted">Merge duplicates · correct names · adjust coordinates · lock fields · restore revisions · manage approved email domains · suspend/restore users. <span class="pill">Phase 3</span></p></div>';
+      suspendedCard() + deptOverrideCard() + fieldLockCard() + approvedDomainsCard();
+  }
+
+  // ---- Suspend / restore contributors ----
+  function suspendedCard() {
+    return '<div class="card" style="margin-bottom:1rem"><h3>Suspended contributors</h3>' +
+      '<p class="muted" style="margin-bottom:.75rem">A suspended contributor\'s reports — past and future — are excluded from consensus, and new submissions/disputes/claims are blocked at the rules level. Use "Suspend" on a flagged submission or dispute above, or enter a contributor ID directly.</p>' +
+      '<div id="q-suspended"><p class="field-hint">Loading…</p></div>' +
+      '<div class="divider-label" style="margin:1rem 0">Suspend by contributor ID</div>' +
+      '<div class="grid cols-2">' +
+        '<div class="field"><label for="susp-id">Contributor ID</label><input id="susp-id" type="text" placeholder="Firebase uid — copy from a queue item above"></div>' +
+        '<div class="field"><label for="susp-reason">Reason (admin note, not shown to the public)</label><input id="susp-reason" type="text" placeholder="Why this contributor is suspended"></div>' +
+      '</div>' +
+      '<button class="btn btn-outline btn-sm" id="susp-add">Suspend</button>' +
+      '<div id="susp-status" class="field-hint" style="margin-top:.5rem"></div>' +
+      '</div>';
+  }
+
+  async function fillSuspendedQueue(F) {
+    var el = document.getElementById('q-suspended'); if (!el) return;
+    try {
+      var snap = await F.getDocs(F.query(F.collection(window.FireDB.db, 'suspended_contributors'), F.limit(100)));
+      if (snap.empty) { el.innerHTML = '<p class="field-hint">No suspended contributors.</p>'; return; }
+      var rows = [];
+      snap.forEach(function (doc) {
+        var d = doc.data();
+        rows.push('<div class="feed-item"><span>' + UI.esc(doc.id) + (d.reason ? ' — ' + UI.esc(d.reason) : '') + '</span>' +
+          '<span class="feed-when"><button class="btn btn-outline btn-sm" data-restore-id="' + UI.esc(doc.id) + '">Restore</button></span></div>');
+      });
+      el.innerHTML = rows.join('');
+      el.querySelectorAll('[data-restore-id]').forEach(function (btn) {
+        btn.addEventListener('click', function () { restoreContributor(F, btn.getAttribute('data-restore-id'), btn); });
+      });
+    } catch (e) { el.innerHTML = '<p class="field-hint">Queue unavailable: ' + UI.esc(e.message) + '</p>'; }
+  }
+
+  async function suspendContributor(F, userId, reason) {
+    await F.setDoc(F.doc(window.FireDB.db, 'suspended_contributors', userId), {
+      userId: userId, reason: String(reason || '').slice(0, 300),
+      suspendedAt: F.serverTimestamp(), suspendedBy: (A && A.user && A.user.email) || null
+    });
+  }
+
+  async function restoreContributor(F, userId, btn) {
+    var item = btn.closest('.feed-item');
+    btn.disabled = true;
+    try {
+      await F.deleteDoc(F.doc(window.FireDB.db, 'suspended_contributors', userId));
+      if (item) item.remove();
+    } catch (e) {
+      btn.disabled = false;
+      var err = document.createElement('div');
+      err.className = 'field-error'; err.style.marginTop = '.3rem';
+      err.textContent = 'Could not restore: ' + e.message;
+      if (item) item.appendChild(err);
+    }
+  }
+
+  function wireSuspendForm(F) {
+    var idInput = document.getElementById('susp-id');
+    var reasonInput = document.getElementById('susp-reason');
+    var btn = document.getElementById('susp-add');
+    var status = document.getElementById('susp-status');
+    if (!idInput || !btn) return;
+    btn.addEventListener('click', function () {
+      var userId = idInput.value.trim();
+      if (!userId) { status.innerHTML = '<span class="field-error">Enter a contributor ID.</span>'; return; }
+      btn.disabled = true; btn.textContent = 'Suspending…';
+      suspendContributor(F, userId, reasonInput.value).then(function () {
+        status.textContent = 'Suspended ' + userId + '.';
+        idInput.value = ''; reasonInput.value = '';
+        fillSuspendedQueue(F);
+      }).catch(function (e) {
+        status.innerHTML = '<span class="field-error">Could not suspend: ' + UI.esc(e.message) + '</span>';
+      }).then(function () { btn.disabled = false; btn.textContent = 'Suspend'; });
+    });
+  }
+
+  // ---- Department details: name/coordinate corrections + duplicate merges ----
+  function deptOverrideCard() {
+    return '<div class="card" style="margin-bottom:1rem"><h3>Department details</h3>' +
+      '<p class="muted" style="margin-bottom:.75rem">Correct a department\'s display name or map coordinates, or mark it as a duplicate that should redirect to another department\'s page (a 301, so any links/bookmarks to the old page still work).</p>' +
+      '<div class="grid cols-2">' +
+        '<div class="field"><label for="do-dept">Department</label><input id="do-dept" type="text" list="do-dept-list" autocomplete="off" placeholder="Type a department, city, or county…"><datalist id="do-dept-list"></datalist></div>' +
+        '<div class="field"><label for="do-name">Corrected name (optional)</label><input id="do-name" type="text" placeholder="Leave blank to keep as-is"></div>' +
+        '<div class="field"><label for="do-lat">Corrected latitude (optional)</label><input id="do-lat" type="number" step="any" placeholder="e.g. 32.96"></div>' +
+        '<div class="field"><label for="do-lng">Corrected longitude (optional)</label><input id="do-lng" type="number" step="any" placeholder="e.g. -96.83"></div>' +
+        '<div class="field"><label for="do-merge">Merge into (optional — makes this a duplicate)</label><input id="do-merge" type="text" list="do-dept-list" autocomplete="off" placeholder="The department this one should redirect to"></div>' +
+      '</div>' +
+      '<button class="btn btn-outline btn-sm" id="do-save">Save</button>' +
+      '<div id="do-status" class="field-hint" style="margin-top:.5rem"></div>' +
+      '</div>';
+  }
+
+  function wireDeptOverrideForm(F) {
+    var deptInput = document.getElementById('do-dept');
+    var deptList = document.getElementById('do-dept-list');
+    var nameInput = document.getElementById('do-name');
+    var latInput = document.getElementById('do-lat');
+    var lngInput = document.getElementById('do-lng');
+    var mergeInput = document.getElementById('do-merge');
+    var saveBtn = document.getElementById('do-save');
+    var status = document.getElementById('do-status');
+    if (!deptInput || !saveBtn) return;
+    deptList.innerHTML = D.all().map(function (d) { return '<option value="' + UI.esc(d.name + ' — ' + d.city) + '"></option>'; }).join('');
+    saveBtn.addEventListener('click', function () {
+      var dept = matchDept(deptInput.value);
+      if (!dept) { status.innerHTML = '<span class="field-error">Type a department that matches one in the list.</span>'; return; }
+      var mergeDept = mergeInput.value.trim() ? matchDept(mergeInput.value) : null;
+      if (mergeInput.value.trim() && !mergeDept) { status.innerHTML = '<span class="field-error">Merge target doesn\'t match a known department.</span>'; return; }
+      if (mergeDept && mergeDept.slug === dept.slug) { status.innerHTML = '<span class="field-error">A department can\'t merge into itself.</span>'; return; }
+      var doc = { departmentSlug: dept.slug, updatedAt: F.serverTimestamp(), updatedBy: (A && A.user && A.user.email) || null };
+      if (nameInput.value.trim()) doc.name = nameInput.value.trim();
+      if (latInput.value !== '') doc.lat = parseFloat(latInput.value);
+      if (lngInput.value !== '') doc.lng = parseFloat(lngInput.value);
+      if (mergeDept) doc.mergeIntoSlug = mergeDept.slug;
+      saveBtn.disabled = true; saveBtn.textContent = 'Saving…';
+      F.setDoc(F.doc(window.FireDB.db, 'department_overrides', dept.slug), doc, { merge: true }).then(function () {
+        status.textContent = 'Saved — takes effect on the next scheduled refresh.';
+        deptInput.value = ''; nameInput.value = ''; latInput.value = ''; lngInput.value = ''; mergeInput.value = '';
+      }).catch(function (e) {
+        status.innerHTML = '<span class="field-error">Could not save: ' + UI.esc(e.message) + '</span>';
+      }).then(function () { saveBtn.disabled = false; saveBtn.textContent = 'Save'; });
+    });
+  }
+
+  // ---- Field locks & one-time corrections ----
+  function fieldLockCard() {
+    return '<div class="card" style="margin-bottom:1rem"><h3>Field locks &amp; corrections</h3>' +
+      '<p class="muted" style="margin-bottom:.75rem">A <strong>locked</strong> value stays fixed regardless of new submissions, until unlocked here. An <strong>unlocked</strong> one-time correction joins the normal report pool instead — it can still be naturally superseded later by fresh community reports, same as any submission.</p>' +
+      '<div id="q-field-locks"><p class="field-hint">Loading…</p></div>' +
+      '<div class="divider-label" style="margin:1rem 0">Set a value</div>' +
+      '<div class="grid cols-2">' +
+        '<div class="field"><label for="fl-dept">Department</label><input id="fl-dept" type="text" list="fl-dept-list" autocomplete="off" placeholder="Type a department, city, or county…"><datalist id="fl-dept-list"></datalist></div>' +
+        '<div class="field"><label for="fl-field">Field</label><select id="fl-field"><option value="entry">Entry pay</option><option value="midpoint">Midpoint pay</option><option value="top">Top pay</option></select></div>' +
+        '<div class="field"><label for="fl-value">Corrected amount</label><input id="fl-value" type="number" inputmode="numeric" placeholder="$"></div>' +
+        '<div class="field"><label for="fl-note">Note (shown next to the figure)</label><input id="fl-note" type="text" placeholder="e.g. Verified against the FY26 pay ordinance"></div>' +
+      '</div>' +
+      '<div class="checkline" style="margin-bottom:.75rem"><input type="checkbox" id="fl-lock"><label for="fl-lock">Lock — keep this value fixed until I unlock it</label></div>' +
+      '<button class="btn btn-outline btn-sm" id="fl-save">Save</button>' +
+      '<div id="fl-status" class="field-hint" style="margin-top:.5rem"></div>' +
+      '</div>';
+  }
+
+  async function fillFieldLocksQueue(F) {
+    var el = document.getElementById('q-field-locks'); if (!el) return;
+    try {
+      var snap = await F.getDocs(F.query(F.collection(window.FireDB.db, 'field_locks'), F.limit(100)));
+      var active = snap.docs.filter(function (doc) { return doc.data().active !== false; });
+      if (!active.length) { el.innerHTML = '<p class="field-hint">No active locks.</p>'; return; }
+      var FIELD_LABELS = { entry: 'Entry pay', midpoint: 'Midpoint pay', top: 'Top pay' };
+      var rows = active.map(function (doc) {
+        var d = doc.data();
+        var deptLink = '<a href="/departments/' + UI.esc(d.departmentSlug) + '/" target="_blank" rel="noopener">' + UI.esc(d.departmentSlug) + '</a>';
+        return '<div class="feed-item"><span>' + deptLink + ' — ' + (FIELD_LABELS[d.field] || d.field) + ': $' + UI.esc(d.value) + (d.note ? ' (' + UI.esc(d.note) + ')' : '') + '</span>' +
+          '<span class="feed-when"><button class="btn btn-outline btn-sm" data-unlock-id="' + UI.esc(doc.id) + '">Unlock</button></span></div>';
+      });
+      el.innerHTML = rows.join('');
+      el.querySelectorAll('[data-unlock-id]').forEach(function (btn) {
+        btn.addEventListener('click', function () { unlockField(F, btn.getAttribute('data-unlock-id'), btn); });
+      });
+    } catch (e) { el.innerHTML = '<p class="field-hint">Queue unavailable: ' + UI.esc(e.message) + '</p>'; }
+  }
+
+  async function unlockField(F, id, btn) {
+    var item = btn.closest('.feed-item');
+    btn.disabled = true;
+    try {
+      await F.updateDoc(F.doc(window.FireDB.db, 'field_locks', id), { active: false });
+      if (item) item.remove();
+    } catch (e) {
+      btn.disabled = false;
+      var err = document.createElement('div');
+      err.className = 'field-error'; err.style.marginTop = '.3rem';
+      err.textContent = 'Could not unlock: ' + e.message;
+      if (item) item.appendChild(err);
+    }
+  }
+
+  function wireFieldLockForm(F) {
+    var deptInput = document.getElementById('fl-dept');
+    var deptList = document.getElementById('fl-dept-list');
+    var fieldSelect = document.getElementById('fl-field');
+    var valueInput = document.getElementById('fl-value');
+    var noteInput = document.getElementById('fl-note');
+    var lockCheck = document.getElementById('fl-lock');
+    var saveBtn = document.getElementById('fl-save');
+    var status = document.getElementById('fl-status');
+    if (!deptInput || !saveBtn) return;
+    deptList.innerHTML = D.all().map(function (d) { return '<option value="' + UI.esc(d.name + ' — ' + d.city) + '"></option>'; }).join('');
+    saveBtn.addEventListener('click', function () {
+      var dept = matchDept(deptInput.value);
+      var value = Lib.parseMoney(valueInput.value);
+      if (!dept) { status.innerHTML = '<span class="field-error">Type a department that matches one in the list.</span>'; return; }
+      if (value == null) { status.innerHTML = '<span class="field-error">Enter a valid amount.</span>'; return; }
+      var field = fieldSelect.value, note = noteInput.value.trim().slice(0, 300);
+      var isLock = lockCheck.checked; // captured before the form resets below
+      saveBtn.disabled = true; saveBtn.textContent = 'Saving…';
+      var write = isLock
+        ? F.setDoc(F.doc(window.FireDB.db, 'field_locks', dept.slug + '__' + field), {
+            departmentSlug: dept.slug, field: field, value: value, note: note, active: true,
+            lockedAt: F.serverTimestamp(), lockedBy: (A && A.user && A.user.email) || null
+          })
+        : F.addDoc(F.collection(window.FireDB.db, 'admin_corrections'), {
+            departmentSlug: dept.slug, field: field, value: value, note: note,
+            createdAt: F.serverTimestamp(), createdBy: (A && A.user && A.user.email) || null
+          });
+      write.then(function () {
+        status.textContent = isLock ? 'Locked — takes effect on the next scheduled refresh.' : 'Correction submitted — takes effect on the next scheduled refresh.';
+        deptInput.value = ''; valueInput.value = ''; noteInput.value = ''; lockCheck.checked = false;
+        if (isLock) fillFieldLocksQueue(F);
+      }).catch(function (e) {
+        status.innerHTML = '<span class="field-error">Could not save: ' + UI.esc(e.message) + '</span>';
+      }).then(function () { saveBtn.disabled = false; saveBtn.textContent = 'Save'; });
+    });
+  }
+
+  // ---- Approved email domains (reference only — no automation) ----
+  function approvedDomainsCard() {
+    return '<div class="card"><h3>Approved email domains</h3>' +
+      '<p class="muted" style="margin-bottom:.75rem">Reference only — flagging a domain here doesn\'t auto-approve anything, it just makes a matching pending claim easier to recognize in the queue above.</p>' +
+      '<div id="q-approved-domains"><p class="field-hint">Loading…</p></div>' +
+      '<div class="grid cols-2" style="margin-top:.75rem">' +
+        '<div class="field"><label for="ad-domain">Domain</label><input id="ad-domain" type="text" placeholder="e.g. cityofaddison.gov"></div>' +
+        '<div class="field"><label for="ad-note">Note (optional)</label><input id="ad-note" type="text" placeholder="e.g. Addison FD official domain"></div>' +
+      '</div>' +
+      '<button class="btn btn-outline btn-sm" id="ad-add">Add</button>' +
+      '<div id="ad-status" class="field-hint" style="margin-top:.5rem"></div>' +
+      '</div>';
+  }
+
+  async function fillApprovedDomainsQueue(F) {
+    var el = document.getElementById('q-approved-domains'); if (!el) return;
+    try {
+      var snap = await F.getDocs(F.query(F.collection(window.FireDB.db, 'approved_domains'), F.limit(200)));
+      if (snap.empty) { el.innerHTML = '<p class="field-hint">No domains added yet.</p>'; return; }
+      var rows = [];
+      snap.forEach(function (doc) {
+        var d = doc.data();
+        rows.push('<div class="feed-item"><span>' + UI.esc(doc.id) + (d.note ? ' — ' + UI.esc(d.note) : '') + '</span>' +
+          '<span class="feed-when"><button class="btn btn-outline btn-sm" data-remove-domain="' + UI.esc(doc.id) + '">Remove</button></span></div>');
+      });
+      el.innerHTML = rows.join('');
+      el.querySelectorAll('[data-remove-domain]').forEach(function (btn) {
+        btn.addEventListener('click', function () { removeApprovedDomain(F, btn.getAttribute('data-remove-domain'), btn); });
+      });
+    } catch (e) { el.innerHTML = '<p class="field-hint">Queue unavailable: ' + UI.esc(e.message) + '</p>'; }
+  }
+
+  async function removeApprovedDomain(F, domain, btn) {
+    var item = btn.closest('.feed-item');
+    btn.disabled = true;
+    try {
+      await F.deleteDoc(F.doc(window.FireDB.db, 'approved_domains', domain));
+      if (item) item.remove();
+    } catch (e) {
+      btn.disabled = false;
+      var err = document.createElement('div');
+      err.className = 'field-error'; err.style.marginTop = '.3rem';
+      err.textContent = 'Could not remove: ' + e.message;
+      if (item) item.appendChild(err);
+    }
+  }
+
+  function wireApprovedDomainsForm(F) {
+    var domainInput = document.getElementById('ad-domain');
+    var noteInput = document.getElementById('ad-note');
+    var addBtn = document.getElementById('ad-add');
+    var status = document.getElementById('ad-status');
+    if (!domainInput || !addBtn) return;
+    addBtn.addEventListener('click', function () {
+      var domain = domainInput.value.trim().toLowerCase().replace(/^@/, '');
+      if (!domain || domain.indexOf('.') === -1) { status.innerHTML = '<span class="field-error">Enter a domain like cityofaddison.gov.</span>'; return; }
+      addBtn.disabled = true; addBtn.textContent = 'Adding…';
+      F.setDoc(F.doc(window.FireDB.db, 'approved_domains', domain), {
+        note: noteInput.value.trim().slice(0, 200), addedAt: F.serverTimestamp(), addedBy: (A && A.user && A.user.email) || null
+      }).then(function () {
+        status.textContent = 'Added.';
+        domainInput.value = ''; noteInput.value = '';
+        fillApprovedDomainsQueue(F);
+      }).catch(function (e) {
+        status.innerHTML = '<span class="field-error">Could not add: ' + UI.esc(e.message) + '</span>';
+      }).then(function () { addBtn.disabled = false; addBtn.textContent = 'Add'; });
+    });
   }
 
   async function loadQueues() {
@@ -79,6 +362,26 @@
     await fillActiveClaimsQueue(F);
     wireAddClaimForm(F);
     await fillDupesQueue(F);
+    await fillSuspendedQueue(F);
+    wireSuspendForm(F);
+    wireDeptOverrideForm(F);
+    await fillFieldLocksQueue(F);
+    wireFieldLockForm(F);
+    await fillApprovedDomainsQueue(F);
+    wireApprovedDomainsForm(F);
+  }
+
+  // Cheap client-side hint only — a domain match here never auto-approves
+  // anything, it just saves the admin a lookup when a pending claim's email
+  // matches a domain they've already flagged as recognized.
+  var _approvedDomainsCache = null;
+  async function approvedDomainSet(F) {
+    if (_approvedDomainsCache) return _approvedDomainsCache;
+    try {
+      var snap = await F.getDocs(F.query(F.collection(window.FireDB.db, 'approved_domains'), F.limit(200)));
+      _approvedDomainsCache = new Set(snap.docs.map(function (doc) { return doc.id; }));
+    } catch (e) { _approvedDomainsCache = new Set(); }
+    return _approvedDomainsCache;
   }
 
   // Department claims — js/department.js's "Claim this department" now writes
@@ -95,6 +398,7 @@
       var qy = F.query(F.collection(window.FireDB.db, 'department_claims'), F.where('status', '==', 'pending'), F.limit(25));
       var snap = await F.getDocs(qy);
       if (snap.empty) { el.innerHTML = '<p class="field-hint">Nothing in this queue. ✓</p>'; return; }
+      var approvedDomains = await approvedDomainSet(F);
       var rows = [];
       snap.forEach(function (doc) {
         var d = doc.data();
@@ -104,7 +408,8 @@
         // Older claims (written before email was captured) only have
         // emailDomain — fall back to that rather than showing nothing.
         var who = d.email || (d.emailDomain ? ('someone @' + d.emailDomain) : 'unknown email');
-        rows.push('<div class="feed-item"><span>' + deptLink + ' — claimed by ' + UI.esc(who) + '</span>' +
+        var recognized = d.emailDomain && approvedDomains.has(d.emailDomain) ? ' <span class="pill">recognized domain</span>' : '';
+        rows.push('<div class="feed-item"><span>' + deptLink + ' — claimed by ' + UI.esc(who) + recognized + '</span>' +
           '<span class="feed-when">' +
           '<button class="btn btn-secondary btn-sm" data-claim-id="' + UI.esc(doc.id) + '" data-claim-action="approve" data-claim-user="' + UI.esc(d.userId || '') + '">Approve</button> ' +
           '<button class="btn btn-outline btn-sm" data-claim-id="' + UI.esc(doc.id) + '" data-claim-action="reject">Reject</button>' +
@@ -361,13 +666,40 @@
           : 'unknown department';
         var reasons = (d.automatedFlags || []).join('; ') || 'flagged';
         rows.push('<div class="feed-item"><span>' + deptLink + ' — ' + UI.esc(reasons) + '</span>' +
-          '<span class="feed-when"><button class="btn btn-secondary btn-sm" data-approve-id="' + UI.esc(doc.id) + '">Approve</button></span></div>');
+          '<span class="feed-when"><button class="btn btn-secondary btn-sm" data-approve-id="' + UI.esc(doc.id) + '">Approve</button>' +
+          suspendButton(d.contributorId) + '</span></div>');
       });
       el.innerHTML = rows.join('');
       el.querySelectorAll('[data-approve-id]').forEach(function (btn) {
         btn.addEventListener('click', function () { approveSubmission(F, btn.getAttribute('data-approve-id'), btn); });
       });
+      wireSuspendButtons(F, el);
     } catch (e) { el.innerHTML = '<p class="field-hint">Queue unavailable: ' + UI.esc(e.message) + '</p>'; }
+  }
+
+  // Lets an admin suspend a contributor directly from a flagged-submission or
+  // dispute row — the queue item already has the exact contributorId at hand,
+  // which is safer and faster than looking it up separately.
+  function suspendButton(contributorId) {
+    return contributorId ? ' <button class="btn btn-ghost btn-sm" data-suspend-contributor="' + UI.esc(contributorId) + '">Suspend contributor</button>' : '';
+  }
+  function wireSuspendButtons(F, el) {
+    el.querySelectorAll('[data-suspend-contributor]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var userId = btn.getAttribute('data-suspend-contributor');
+        var oldLabel = btn.textContent;
+        btn.disabled = true; btn.textContent = 'Suspending…';
+        suspendContributor(F, userId, 'Suspended from moderation queue').then(function () {
+          btn.textContent = 'Suspended';
+        }).catch(function (e) {
+          btn.disabled = false; btn.textContent = oldLabel;
+          var err = document.createElement('div');
+          err.className = 'field-error'; err.style.marginTop = '.3rem';
+          err.textContent = 'Could not suspend: ' + e.message;
+          btn.parentNode.appendChild(err);
+        });
+      });
+    });
   }
 
   async function approveSubmission(F, id, btn) {
@@ -411,13 +743,16 @@
       if (snap.empty) { el.innerHTML = '<p class="field-hint">Nothing in this queue. ✓</p>'; return; }
       var rows = [];
       snap.forEach(function (doc) {
-        rows.push('<div class="feed-item"><span>' + disputeLabel(doc.data()) + '</span>' +
-          '<span class="feed-when"><button class="btn btn-outline btn-sm" data-dispute-id="' + UI.esc(doc.id) + '">Resolve</button></span></div>');
+        var d = doc.data();
+        rows.push('<div class="feed-item"><span>' + disputeLabel(d) + '</span>' +
+          '<span class="feed-when"><button class="btn btn-outline btn-sm" data-dispute-id="' + UI.esc(doc.id) + '">Resolve</button>' +
+          suspendButton(d.contributorId) + '</span></div>');
       });
       el.innerHTML = rows.join('');
       el.querySelectorAll('[data-dispute-id]').forEach(function (btn) {
         btn.addEventListener('click', function () { resolveDispute(F, btn.getAttribute('data-dispute-id'), btn); });
       });
+      wireSuspendButtons(F, el);
     } catch (e) { el.innerHTML = '<p class="field-hint">Queue unavailable: ' + UI.esc(e.message) + '</p>'; }
   }
 

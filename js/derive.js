@@ -198,6 +198,36 @@
       if (rmCurrent) out.reportedMidpoint = rmCurrent.value;
     }
 
+    // ── Admin field overrides ── an admin-set correction always wins over
+    // whatever consensus picked, applied last so it can't be out-voted by
+    // any number of community/department reports — see js/aggregate.js's
+    // applyFieldOverrides. `locked` just controls whether the confidence UI
+    // shows a padlock; the override itself always takes effect either way
+    // for as long as it's set (an admin clears it by removing the override,
+    // not by waiting for consensus to catch up).
+    var fo = dept.fieldOverrides || {};
+    if (fo.entry && fo.entry.value != null) {
+      out.entry = fo.entry.value;
+      out.entryLocked = !!fo.entry.locked;
+      out.entryOverrideNote = fo.entry.note || null;
+      out.effectiveHourlyEntry = Lib.effectiveHourly(out.entry, annualHours);
+    }
+    if (fo.top && fo.top.value != null) {
+      out.topBase = fo.top.value;
+      out.topLocked = !!fo.top.locked;
+      out.topOverrideNote = fo.top.note || null;
+      out.effectiveHourlyTop = Lib.effectiveHourly(out.topBase, annualHours);
+    }
+    if (fo.midpoint && fo.midpoint.value != null) {
+      out.midpoint = fo.midpoint.value;
+      out.midpointLocked = !!fo.midpoint.locked;
+      out.midpointOverrideNote = fo.midpoint.note || null;
+      out.effectiveHourlyMidpoint = Lib.effectiveHourly(out.midpoint, annualHours);
+    }
+    if ((fo.entry && fo.entry.value != null) || (fo.top && fo.top.value != null) || (fo.midpoint && fo.midpoint.value != null)) {
+      out.hasSalary = true;
+    }
+
     var allReports = entryReports.concat(topReports, midpointReports, reportedEntryReports, reportedTopReports, reportedMidpointReports);
     out.contributors = uniqueContributorCount(allReports);
     var newest = allReports.reduce(function (m, r) { return Math.max(m, r.submittedAt || 0); }, 0) || toMs(s.effectiveDate);

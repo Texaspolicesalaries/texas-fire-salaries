@@ -335,6 +335,123 @@ async function queryAllConfirmations(baseUrl) {
   return Array.isArray(rows) ? rows : [];
 }
 
+// ── Admin tools (js/admin.js) — name/coordinate corrections, duplicate merges,
+// standing field locks, one-time value corrections, and contributor
+// suspensions. All four collections are public-read per firestore.rules
+// (small, admin-authored, non-PII documents) specifically so this
+// credential-free export can pick them up — see each collection's rules
+// comment for why that's an acceptable trade vs. the alternative of needing
+// a service account.
+
+// department_overrides/{slug} — an admin's correction to a department's
+// display name or map coordinates, or a mark that it's a duplicate which
+// should redirect to another department's page. Doc ID is the slug, but this
+// reads the departmentSlug FIELD (not the REST resource name) so it still
+// works if that convention ever changes.
+function extractDeptOverrides(rows) {
+  const out = {};
+  rows.forEach(r => {
+    if (!r.document || !r.document.fields) return;
+    const f = r.document.fields;
+    const slug = fv(f.departmentSlug);
+    if (!slug) return;
+    const entry = {};
+    const name = fv(f.name); if (name) entry.name = name;
+    const lat = fv(f.lat); if (lat != null) entry.lat = Number(lat);
+    const lng = fv(f.lng); if (lng != null) entry.lng = Number(lng);
+    const mergeIntoSlug = fv(f.mergeIntoSlug); if (mergeIntoSlug) entry.mergeIntoSlug = mergeIntoSlug;
+    if (Object.keys(entry).length) out[slug] = entry;
+  });
+  return out;
+}
+
+// A duplicate department redirects to its merge target — Cloudflare Pages'
+// native `_redirects` file (see scripts/build-site.js) handles the 301, so no
+// client JS or extra page weight is needed. Self-referencing entries (a typo
+// that points a slug at itself) are dropped rather than trusted, since that
+// would otherwise redirect a page to itself.
+function computeMergedRedirects(overrides) {
+  const out = [];
+  Object.keys(overrides || {}).forEach(slug => {
+    const to = overrides[slug] && overrides[slug].mergeIntoSlug;
+    if (to && to !== slug) out.push({ from: slug, to });
+  });
+  return out;
+}
+
+// field_locks/{slug}__{field} — an admin pins entry/top/midpoint to a fixed,
+// verified value. js/derive.js applies this AFTER consensus so it can't be
+// out-voted by any number of later community submissions. `active` defaults
+// to true (locked) when absent; an admin "unlocks" by setting active:false on
+// the same doc rather than deleting it, preserving the record of what was
+// corrected and why.
+function extractFieldLocks(rows) {
+  const out = {};
+  rows.forEach(r => {
+    if (!r.document || !r.document.fields) return;
+    const f = r.document.fields;
+    const slug = fv(f.departmentSlug), field = fv(f.field);
+    if (!slug || !field || ['entry', 'top', 'midpoint'].indexOf(field) === -1) return;
+    if (fv(f.active) === false) return;
+    const value = money(fv(f.value));
+    if (value == null) return;
+    (out[slug] = out[slug] || {})[field] = { value, locked: true, note: fv(f.note) || undefined };
+  });
+  return out;
+}
+
+// admin_corrections — a one-time, non-standing correction: it joins the
+// SAME report pool a real submission would (see scripts/export-overlay.js's
+// applyOverlay via the `reports` map in main()), so it wins the way any fresh,
+// recent report would under ordinary consensus rather than being permanently
+// pinned — a later flood of genuine community reports can still naturally
+// supersede it over time. Use a field_lock instead when the value needs to
+// stay fixed regardless of what comes in later.
+function adminCorrectionToReport(fields) {
+  const slug = fv(fields.departmentSlug);
+  const field = fv(fields.field);
+  const value = money(fv(fields.value));
+  if (!slug || !field || value == null || ['entry', 'top', 'midpoint'].indexOf(field) === -1) return null;
+  const report = {
+    contributorId: 'admin:' + (fv(fields.createdBy) || 'unknown'),
+    submittedAt: isoDay(fields.createdAt && fields.createdAt.timestampValue) || isoDay(Date.now()),
+    hasSource: false,
+    departmentMaintained: false,
+    adminCorrection: true,
+    note: fv(fields.note) || undefined
+  };
+  report[field] = value;
+  return { slug, report };
+}
+
+// suspended_contributors/{userId} — a spam/abuse contributor whose input
+// should stop counting, past and future alike (see js/aggregate.js's
+// applySuspensions). Deliberately minimal (just a userId, no email/PII) so
+// public-reading this small list to filter reports doesn't expose anything
+// sensitive — matches how an approved department_claims doc is public-read
+// while its email field stays admin/claimant-only.
+function extractSuspendedContributors(rows) {
+  const out = new Set();
+  rows.forEach(r => {
+    if (!r.document || !r.document.fields) return;
+    const userId = fv(r.document.fields.userId);
+    if (userId) out.add(userId);
+  });
+  return out;
+}
+
+// Generic "read an entire small public collection" — used for the admin-tool
+// collections above, which are all tiny (dozens of docs at most) and never
+// need a status filter the way submissions/department_requests do.
+async function queryAllDocs(baseUrl, collectionId) {
+  const body = { structuredQuery: { from: [{ collectionId }] } };
+  const res = await fetch(baseUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  if (!res.ok) throw new Error('Firestore REST ' + res.status + ': ' + (await res.text()).slice(0, 300));
+  const rows = await res.json();
+  if (rows && rows.error) throw new Error(rows.error.status + ' ' + rows.error.message);
+  return Array.isArray(rows) ? rows : [];
+}
+
 // Public-read only for status=='approved' per firestore.rules (an admin already
 // vetted these — see js/admin.js's approval action) — no credentials needed.
 async function queryApprovedClaims(baseUrl) {
@@ -596,6 +713,46 @@ async function main() {
   const stepPlans = extractStepPlans(subRows, stepPlanDisputeCounts);
   const civilService = extractCivilService(subRows);
 
+  // Admin tools (js/admin.js) — name/coordinate corrections, duplicate-merge
+  // redirects, standing field locks, one-time value corrections, and
+  // contributor suspensions. Each is isolated so a lookup failure on any one
+  // just leaves that tool's effect off this run, not the whole export.
+  let departmentOverrides = {}, mergedRedirects = [];
+  try {
+    departmentOverrides = extractDeptOverrides(await queryAllDocs(url, 'department_overrides'));
+    mergedRedirects = computeMergedRedirects(departmentOverrides);
+  } catch (e) {
+    console.warn('[export-overlay] department-override lookup failed (treating none as overridden):', e.message);
+  }
+  let fieldLocks = {};
+  try {
+    fieldLocks = extractFieldLocks(await queryAllDocs(url, 'field_locks'));
+  } catch (e) {
+    console.warn('[export-overlay] field-lock lookup failed (treating none as locked):', e.message);
+  }
+  let correctionCount = 0;
+  try {
+    (await queryAllDocs(url, 'admin_corrections')).forEach(r => {
+      if (!r.document || !r.document.fields) return;
+      const parsed = adminCorrectionToReport(r.document.fields);
+      if (!parsed) return;
+      (reports[parsed.slug] = reports[parsed.slug] || []).push(parsed.report);
+      correctionCount++;
+    });
+  } catch (e) {
+    console.warn('[export-overlay] admin-correction lookup failed (treating none as corrected):', e.message);
+  }
+  // Exported as a plain list, not filtered out of `reports` here — the actual
+  // filtering happens once, at merge time, via js/aggregate.js's
+  // applySuspensions (used by BOTH build-site.js and js/data.js), the same
+  // single-application-point pattern as claimedSlugs/civilService/stepPlans.
+  let suspendedContributorIds = [];
+  try {
+    suspendedContributorIds = Array.from(extractSuspendedContributors(await queryAllDocs(url, 'suspended_contributors')));
+  } catch (e) {
+    console.warn('[export-overlay] suspended-contributor lookup failed (treating none as suspended):', e.message);
+  }
+
   // New departments: geocode from ZIP + auto-promote. Failures here (bad seed
   // read, missing ZIP table, Firestore hiccup) must not block the salary-report
   // overlay above, so they're isolated and just logged.
@@ -617,12 +774,17 @@ async function main() {
     departments,
     stepPlans,
     civilService,
-    claimedSlugs: Array.from(claimedSlugs)
+    claimedSlugs: Array.from(claimedSlugs),
+    departmentOverrides,
+    fieldLocks,
+    mergedRedirects,
+    suspendedContributorIds
   };
   fs.writeFileSync(OUT, JSON.stringify(out, null, 2) + '\n');
-  console.log(`Exported ${n} community report(s) + ${confirmedCount} confirmation(s) across ${Object.keys(reports).length} department(s) -> data/overlay.json`);
+  console.log(`Exported ${n} community report(s) + ${confirmedCount} confirmation(s) + ${correctionCount} admin correction(s) across ${Object.keys(reports).length} department(s) -> data/overlay.json`);
   console.log(`Civil service: ${Object.keys(civilService).length} department(s) with a submitted answer.`);
   console.log(`Department claims: ${claimedSlugs.size} department(s) marked "Department maintained".`);
+  console.log(`Admin tools: ${Object.keys(departmentOverrides).length} department override(s) (${mergedRedirects.length} merged), ${Object.keys(fieldLocks).length} department(s) with a locked field, ${suspendedContributorIds.length} suspended contributor(s).`);
   console.log(`Promoted ${departments.length} new department(s) to the map` +
     (skippedDup ? `, skipped ${skippedDup} possible duplicate(s)` : '') +
     (skippedNoZip ? `, skipped ${skippedNoZip} with a missing/unrecognized ZIP` : '') + '.');
@@ -636,5 +798,11 @@ async function main() {
 if (require.main === module) {
   main().catch(e => { console.error('[export-overlay] failed (keeping existing overlay.json):', e.message); process.exit(0); });
 } else {
-  module.exports = { slugify, normName, isDuplicate, makeRegionResolver, promoteDepartments, readZipCentroids, toReport, decodeValue, extractStepPlans, extractCivilService, docId, DISPUTE_REVERT_THRESHOLD, confirmationToReport, applyValueDisputes, dedupeConfirmations, computeActiveClaimants, CLAIM_EXPIRY_MONTHS };
+  module.exports = {
+    slugify, normName, isDuplicate, makeRegionResolver, promoteDepartments, readZipCentroids, toReport, decodeValue,
+    extractStepPlans, extractCivilService, docId, DISPUTE_REVERT_THRESHOLD, confirmationToReport, applyValueDisputes,
+    dedupeConfirmations, computeActiveClaimants, CLAIM_EXPIRY_MONTHS,
+    extractDeptOverrides, computeMergedRedirects, extractFieldLocks, adminCorrectionToReport,
+    extractSuspendedContributors
+  };
 }

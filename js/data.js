@@ -84,18 +84,34 @@
       // A department-level fact contributors can optionally assert alongside
       // their salary submission (see js/aggregate.js's applyCivilService).
       var civilService = (arr[1] && arr[1].civilService) || {};
+      // Admin tools (js/admin.js) — see js/aggregate.js's applyDeptOverride /
+      // applyFieldOverrides / applySuspensions for what each does.
+      var deptOverrides = (arr[1] && arr[1].departmentOverrides) || {};
+      var fieldLocks = (arr[1] && arr[1].fieldLocks) || {};
+      var suspendedIds = new Set((arr[1] && arr[1].suspendedContributorIds) || []);
+      var mergedFrom = {};
+      ((arr[1] && arr[1].mergedRedirects) || []).forEach(function (r) { mergedFrom[r.from] = true; });
       state.meta = json.meta || {};
       state.regions = json.regions || [];
-      state.departments = (json.departments || []).concat(overlayDepts).map(function (d) {
-        // Merge community reports (static, 0 Firestore reads) before deriving.
-        var merged = Agg ? Agg.applyOverlay(d, reports[d.slug]) : d;
-        if (Agg) merged = Agg.applySupplementalFlags(merged);
-        if (Agg && stepPlans[d.slug]) merged = Agg.applyStepPlan(merged, stepPlans[d.slug]);
-        if (Agg && claimedSlugs[d.slug]) merged = Agg.applyClaim(merged, true);
-        if (Agg && civilService.hasOwnProperty(d.slug)) merged = Agg.applyCivilService(merged, civilService[d.slug]);
-        merged.summary = deriveSummary(merged);
-        return merged;
-      });
+      state.departments = (json.departments || []).concat(overlayDepts)
+        // A duplicate department redirects to its merge target (see
+        // scripts/build-site.js's _redirects generation for the actual page-
+        // level 301) — drop it from the live map/directory list too so it
+        // doesn't show up twice.
+        .filter(function (d) { return !mergedFrom[d.slug]; })
+        .map(function (d) {
+          // Merge community reports (static, 0 Firestore reads) before deriving.
+          var merged = Agg ? Agg.applyOverlay(d, reports[d.slug]) : d;
+          if (Agg) merged = Agg.applySupplementalFlags(merged);
+          if (Agg) merged = Agg.applySuspensions(merged, suspendedIds);
+          if (Agg && stepPlans[d.slug]) merged = Agg.applyStepPlan(merged, stepPlans[d.slug]);
+          if (Agg && claimedSlugs[d.slug]) merged = Agg.applyClaim(merged, true);
+          if (Agg && civilService.hasOwnProperty(d.slug)) merged = Agg.applyCivilService(merged, civilService[d.slug]);
+          if (Agg && deptOverrides[d.slug]) merged = Agg.applyDeptOverride(merged, deptOverrides[d.slug]);
+          if (Agg && fieldLocks[d.slug]) merged = Agg.applyFieldOverrides(merged, fieldLocks[d.slug]);
+          merged.summary = deriveSummary(merged);
+          return merged;
+        });
       state.bySlug = {};
       state.departments.forEach(function (d) { state.bySlug[d.slug] = d; });
       state.loaded = true;

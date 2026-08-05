@@ -411,3 +411,64 @@ test('computeActiveClaimants respects a custom threshold', () => {
 test('CLAIM_EXPIRY_MONTHS matches the "possibly outdated" freshness cutoff already used elsewhere', () => {
   assert.strictEqual(M.CLAIM_EXPIRY_MONTHS, 18);
 });
+
+test('extractDeptOverrides reads a name/coordinate correction', () => {
+  const rows = [row({ departmentSlug: s('addison-fd'), name: s('Addison Fire Dept (corrected)'), lat: { doubleValue: 32.96 }, lng: { doubleValue: -96.83 } })];
+  const overrides = M.extractDeptOverrides(rows);
+  assert.strictEqual(overrides['addison-fd'].name, 'Addison Fire Dept (corrected)');
+  assert.strictEqual(overrides['addison-fd'].lat, 32.96);
+});
+
+test('extractDeptOverrides reads a duplicate merge mark', () => {
+  const rows = [row({ departmentSlug: s('addison-vfd'), mergeIntoSlug: s('addison-fd') })];
+  const overrides = M.extractDeptOverrides(rows);
+  assert.strictEqual(overrides['addison-vfd'].mergeIntoSlug, 'addison-fd');
+});
+
+test('extractDeptOverrides skips a row with no usable fields', () => {
+  const rows = [row({ departmentSlug: s('addison-fd') })];
+  assert.deepStrictEqual(M.extractDeptOverrides(rows), {});
+});
+
+test('computeMergedRedirects builds from/to pairs, dropping a self-referencing entry', () => {
+  const overrides = { 'addison-vfd': { mergeIntoSlug: 'addison-fd' }, 'plain-fd': { name: 'x' }, 'loop-fd': { mergeIntoSlug: 'loop-fd' } };
+  const redirects = M.computeMergedRedirects(overrides);
+  assert.deepStrictEqual(redirects, [{ from: 'addison-vfd', to: 'addison-fd' }]);
+});
+
+test('extractFieldLocks reads an active lock', () => {
+  const rows = [row({ departmentSlug: s('addison-fd'), field: s('entry'), value: s('76500'), note: s('Verified with city payroll') })];
+  const locks = M.extractFieldLocks(rows);
+  assert.deepStrictEqual(locks['addison-fd'].entry, { value: 76500, locked: true, note: 'Verified with city payroll' });
+});
+
+test('extractFieldLocks omits a lock explicitly marked inactive (unlocked)', () => {
+  const rows = [row({ departmentSlug: s('addison-fd'), field: s('entry'), value: s('76500'), active: { booleanValue: false } })];
+  assert.deepStrictEqual(M.extractFieldLocks(rows), {});
+});
+
+test('extractFieldLocks ignores an unrecognized field name', () => {
+  const rows = [row({ departmentSlug: s('addison-fd'), field: s('recruit'), value: s('50000') })];
+  assert.deepStrictEqual(M.extractFieldLocks(rows), {});
+});
+
+test('adminCorrectionToReport shapes a one-time correction as an ordinary, labeled report', () => {
+  const fields = { departmentSlug: s('addison-fd'), field: s('top'), value: s('99000'), note: s('Matches the FY26 pay plan'), createdBy: s('fastford19@gmail.com') };
+  const parsed = M.adminCorrectionToReport(fields);
+  assert.strictEqual(parsed.slug, 'addison-fd');
+  assert.strictEqual(parsed.report.top, 99000);
+  assert.strictEqual(parsed.report.adminCorrection, true);
+  assert.strictEqual(parsed.report.contributorId, 'admin:fastford19@gmail.com');
+});
+
+test('adminCorrectionToReport returns null with no usable value', () => {
+  assert.strictEqual(M.adminCorrectionToReport({ departmentSlug: s('addison-fd'), field: s('top') }), null);
+});
+
+test('extractSuspendedContributors collects userIds into a Set', () => {
+  const rows = [row({ userId: s('u1') }), row({ userId: s('u2') })];
+  const set = M.extractSuspendedContributors(rows);
+  assert.strictEqual(set.size, 2);
+  assert.ok(set.has('u1') && set.has('u2'));
+});
+

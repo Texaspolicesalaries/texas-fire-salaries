@@ -284,6 +284,13 @@
     var freshnessAlert = (s.freshness && (s.freshness.key === 'update_recommended' || s.freshness.key === 'possibly_outdated'))
       ? sideAlert(s.freshness.label, s.freshness.description)
       : '';
+    var LOCK_LABELS = { entry: 'Entry pay', top: 'Top pay', midpoint: 'Midpoint pay' };
+    var lockedFields = ['entry', 'top', 'midpoint'].filter(function (f) { return s[f + 'Locked']; });
+    var lockAlert = lockedFields.length
+      ? sideAlert('Verified by admin', lockedFields.map(function (f) {
+          return LOCK_LABELS[f] + (s[f + 'OverrideNote'] ? ': ' + s[f + 'OverrideNote'] : '');
+        }).join('; ') + '. This figure stays fixed until an admin changes it, regardless of new submissions.')
+      : '';
     host.innerHTML =
       '<div class="confidence-card">' +
         '<div class="confidence-header">' +
@@ -299,7 +306,7 @@
           confRow('Source supplied', s.sourceUrl ? payPlanLink('View pay plan ↗') : 'No') +
           confRow('Department maintained', s.departmentMaintained ? '<span class="positive">Yes</span>' : 'No') +
         '</div>' +
-        disputeAlert + freshnessAlert +
+        disputeAlert + freshnessAlert + lockAlert +
         '<div class="gate" id="dept-gate"><span aria-hidden="true">🔒</span><div>Sign in with a verified email to confirm, update, or dispute this information. <a href="/sign-in.html">Sign in →</a></div></div>' +
         '<div class="confidence-actions-side">' +
           '<a class="btn btn-primary full" href="/submit.html?dept=' + UI.esc(dept.slug) + '&mode=update">Submit an update</a>' +
@@ -341,7 +348,7 @@
       '<div class="history-timeline">' +
       reports.map(function (r, i) {
         var isCurrent = i === 0;
-        var type = r.departmentMaintained ? 'Department representative' : 'Community contributor';
+        var type = r.adminCorrection ? 'Admin correction' : r.departmentMaintained ? 'Department representative' : 'Community contributor';
         var when = revDate(r.submittedAt);
         return '<div class="history-card">' +
           '<div class="history-date"><strong>' + when.m + '</strong><span>' + when.y + '</span></div>' +

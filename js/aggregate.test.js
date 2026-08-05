@@ -220,6 +220,51 @@ test('applySupplementalFlags never turns an existing true flag back off', () => 
   assert.strictEqual(out.flags.longevity, true);
 });
 
+test('applyDeptOverride corrects name and coordinates without mutating the input', () => {
+  const dept = deptFixture();
+  const out = Agg.applyDeptOverride(dept, { name: 'Test Fire Dept (corrected)', lat: 32.7, lng: -97.1 });
+  assert.strictEqual(out.name, 'Test Fire Dept (corrected)');
+  assert.strictEqual(out.lat, 32.7);
+  assert.strictEqual(dept.name, 'Test Fire Department'); // original untouched
+});
+
+test('applyDeptOverride marks a duplicate department with its merge target', () => {
+  const out = Agg.applyDeptOverride(deptFixture(), { mergeIntoSlug: 'the-real-department' });
+  assert.strictEqual(out.mergeIntoSlug, 'the-real-department');
+});
+
+test('applyDeptOverride is a no-op with no override', () => {
+  const dept = deptFixture();
+  assert.strictEqual(Agg.applyDeptOverride(dept, null), dept);
+});
+
+test('applyFieldOverrides sets dept.fieldOverrides for derive.js to apply', () => {
+  const out = Agg.applyFieldOverrides(deptFixture(), { entry: { value: 61000, locked: true } });
+  assert.deepStrictEqual(out.fieldOverrides, { entry: { value: 61000, locked: true } });
+});
+
+test('applyFieldOverrides is a no-op with an empty overrides object', () => {
+  const dept = deptFixture();
+  assert.strictEqual(Agg.applyFieldOverrides(dept, {}), dept);
+});
+
+test('applySuspensions drops a suspended contributor\'s reports, past and future alike', () => {
+  const dept = Agg.applyOverlay(deptFixture(), [
+    { contributorId: 'spammer', submittedAt: iso(1), entry: 999999 },
+    { contributorId: 'legit', submittedAt: iso(1), entry: 61000 }
+  ]);
+  const out = Agg.applySuspensions(dept, new Set(['spammer']));
+  const contributorIds = out.salary.reports.map((r) => r.contributorId);
+  assert.ok(!contributorIds.includes('spammer'));
+  assert.ok(contributorIds.includes('legit'));
+  assert.ok(contributorIds.includes('dfw-fire-import')); // seed report, untouched
+});
+
+test('applySuspensions is a no-op when the suspended set is empty', () => {
+  const dept = deptFixture();
+  assert.strictEqual(Agg.applySuspensions(dept, new Set()), dept);
+});
+
 test('summarize output is compact and serializable', () => {
   const s = Agg.summarize(deptFixture(), [], NOW);
   assert.deepStrictEqual(Object.keys(s).sort(), [

@@ -17,6 +17,13 @@ service cloud.firestore {
     function isOwnerField(field) {
       return request.resource.data[field] == request.auth.uid;
     }
+    // A spam/abuse contributor an admin has suspended (js/admin.js) — checked
+    // on every create below so suspension is enforced here too, not just by
+    // the client-side gate in js/auth.js's canContribute(). Doc ID is the uid;
+    // existence alone means suspended, no field to inspect.
+    function notSuspended() {
+      return !exists(/databases/$(database)/documents/suspended_contributors/$(request.auth.uid));
+    }
 
     // ── Users ── each user reads/writes only their own profile; admin reads all.
     // Email is stored but never exposed publicly by the app. No deletes (audit).
@@ -63,6 +70,7 @@ service cloud.firestore {
     match /submissions/{id} {
       allow read: if resource.data.status in ['published', 'flagged'] || isAdmin();
       allow create: if verified()
+        && notSuspended()
         && isOwnerField('contributorId')
         && request.resource.data.status in ['published', 'flagged']
         && request.resource.data.submittedAt is timestamp
@@ -86,7 +94,7 @@ service cloud.firestore {
     // pending admin review) stay admin-only.
     match /department_requests/{id} {
       allow read:   if resource.data.status == 'published' || isAdmin();
-      allow create: if verified() && isOwnerField('contributorId')
+      allow create: if verified() && notSuspended() && isOwnerField('contributorId')
                     && request.resource.data.name is string
                     && request.resource.data.name.size() <= 140;
       allow update: if isAdmin();
@@ -96,7 +104,7 @@ service cloud.firestore {
     // ── Confirmations ("this looks correct") ── verified users only; immutable.
     match /confirmations/{id} {
       allow read:   if true;
-      allow create: if verified() && isOwnerField('contributorId')
+      allow create: if verified() && notSuspended() && isOwnerField('contributorId')
                     && request.resource.data.createdAt is timestamp;
       allow update, delete: if false;
     }
@@ -104,7 +112,7 @@ service cloud.firestore {
     // ── Disputes ("report incorrect") ── verified users only; stay visible.
     match /disputes/{id} {
       allow read:   if true;
-      allow create: if verified() && isOwnerField('contributorId')
+      allow create: if verified() && notSuspended() && isOwnerField('contributorId')
                     && request.resource.data.status == 'open'
                     && (!('reason' in request.resource.data)
                         || request.resource.data.reason is string
@@ -124,10 +132,59 @@ service cloud.firestore {
       // A regular user can only create their OWN claim, and only pending —
       // admin.html's "grant a claim manually" tool needs the second branch to
       // create an already-approved claim for someone else's uid.
-      allow create: if (verified() && request.resource.data.userId == request.auth.uid
+      allow create: if (verified() && notSuspended() && request.resource.data.userId == request.auth.uid
                         && request.resource.data.status == 'pending')
                     || (isAdmin() && request.resource.data.status == 'approved');
       allow update, delete: if isAdmin();
+    }
+
+    // ── Phase 3 admin tools (js/admin.js) ───────────────────────────────────
+
+    // A name/coordinate correction, or a mark that this department is a
+    // duplicate that should redirect to another one (scripts/build-site.js
+    // generates the actual 301). Doc ID is the department slug. Public read so
+    // the credential-free static export can pick it up with no service account.
+    match /department_overrides/{slug} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Pins entry/top/midpoint to a fixed, admin-verified value that
+    // js/derive.js applies AFTER consensus — see js/aggregate.js's
+    // applyFieldOverrides. Public read for the same credential-free-export
+    // reason as department_overrides.
+    match /field_locks/{id} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // A one-time value correction that joins the ordinary report pool (see
+    // scripts/export-overlay.js's adminCorrectionToReport) rather than
+    // standing forever like a field_locks entry. Immutable once created —
+    // same revision-preserving philosophy as `submissions`: a wrong
+    // correction is superseded by a newer one, never edited or deleted.
+    match /admin_corrections/{id} {
+      allow read: if true;
+      allow create: if isAdmin();
+      allow update, delete: if false;
+    }
+
+    // A contributor whose reports are excluded from consensus, past and
+    // future (js/aggregate.js's applySuspensions) — doc ID is their uid, no
+    // other identifying field. Public read is a deliberately minimal
+    // exposure (just a uid + the admin's own note) so the credential-free
+    // export can filter without a service account — the same trade already
+    // made for an approved department_claims doc.
+    match /suspended_contributors/{userId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Reference list only — no automation. Lets an admin flag a recognized
+    // official email domain so a matching pending claim is easier to spot in
+    // the review queue; never read by the credential-free export.
+    match /approved_domains/{domain} {
+      allow read, write: if isAdmin();
     }
 
     // ── Analytics events ── open create with a tight schema lock (no PII),

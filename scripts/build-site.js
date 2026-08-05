@@ -213,11 +213,15 @@ ${heroStat}
 function salaryCards(s) {
   const card = (lab, val, sub) => (val == null ? '' :
     `<article><span>${lab}</span><strong>${val}</strong>${sub ? `<small>${sub}</small>` : ''}</article>`);
+  // An admin-locked field (js/admin.js's "Lock a field" tool) is pinned by
+  // js/derive.js regardless of what community consensus would otherwise show —
+  // called out here so a visitor isn't left wondering why it never changes.
+  const lockedSub = (base, locked) => locked ? `${base} · Verified by admin` : base;
   return `<div class="salary-cards">
     ${card('Recruit pay', s.recruit != null ? money(s.recruit) : null, 'Starting / academy')}
-    ${card('Firefighter entry', money(s.entry), 'Base salary')}
-    ${card('Midpoint pay', s.midpoint != null ? money(s.midpoint) : null, 'Base salary')}
-    ${card('Top firefighter pay', money(s.topBase), 'Base salary')}
+    ${card('Firefighter entry', money(s.entry), lockedSub('Base salary', s.entryLocked))}
+    ${card('Midpoint pay', s.midpoint != null ? money(s.midpoint) : null, lockedSub('Base salary', s.midpointLocked))}
+    ${card('Top firefighter pay', money(s.topBase), lockedSub('Base salary', s.topLocked))}
     ${card('Years to top pay', s.yearsToTop != null ? `${s.yearsToTop} <em>yr</em>` : null, 'Reported')}
     ${card('Reported annual hours', s.annualHours ? s.annualHours.toLocaleString() : null, s.scheduleType || '')}
     ${card('Effective hourly (entry)', hourly(s.effectiveHourlyEntry), 'Base ÷ scheduled hours')}
@@ -359,25 +363,39 @@ function main() {
   const oStepPlans = overlay.stepPlans || {};           // live, community-submitted full pay-step plans
   const oClaimedSlugs = new Set(overlay.claimedSlugs || []); // admin-approved "Department maintained" claims
   const oCivilService = overlay.civilService || {};     // optional dept-level fact from a submission
+  const oDeptOverrides = overlay.departmentOverrides || {}; // admin name/coordinate corrections + duplicate merges
+  const oFieldLocks = overlay.fieldLocks || {};          // admin-pinned entry/top/midpoint values
+  const oSuspended = new Set(overlay.suspendedContributorIds || []); // spam/abuse contributors, reports excluded
+  const oMergedRedirects = overlay.mergedRedirects || []; // duplicate department -> canonical department
   // Merge community reports into each department ONCE, up front, so every page,
   // ranking, and embedded blob reflects consensus. Visitors read only static files.
   const depts = (json.departments || []).concat(oDepartments).map(d => {
     let merged = Agg.applyOverlay(d, oReports[d.slug]);
     merged = Agg.applySupplementalFlags(merged);
+    merged = Agg.applySuspensions(merged, oSuspended);
     if (oStepPlans[d.slug]) merged = Agg.applyStepPlan(merged, oStepPlans[d.slug]);
     if (oClaimedSlugs.has(d.slug)) merged = Agg.applyClaim(merged, true);
     if (Object.prototype.hasOwnProperty.call(oCivilService, d.slug)) merged = Agg.applyCivilService(merged, oCivilService[d.slug]);
+    if (oDeptOverrides[d.slug]) merged = Agg.applyDeptOverride(merged, oDeptOverrides[d.slug]);
+    if (oFieldLocks[d.slug]) merged = Agg.applyFieldOverrides(merged, oFieldLocks[d.slug]);
     return merged;
   });
   const communityCount = Object.keys(oReports).filter(k => (oReports[k] || []).length).length;
   REGIONS = {}; (json.regions || []).forEach(r => { REGIONS[r.id] = r.name; });
   const urls = ['/', '/map.html', '/departments.html', '/compare.html', '/submit.html', '/how-it-works.html'];
 
+  // A department marked as a duplicate is dropped from every listing/ranking/
+  // sitemap below and gets a 301 via Cloudflare Pages' native _redirects file
+  // instead of its own generated page — see the mergedRedirects write near the
+  // end of this function.
+  const mergedFromSlugs = new Set(oMergedRedirects.map(r => r.from));
+  const liveDepts = depts.filter(d => !mergedFromSlugs.has(d.slug));
+
   // Department pages
-  depts.forEach(d => { write(`departments/${d.slug}/index.html`, departmentPage(d)); urls.push(`/departments/${d.slug}/`); });
+  liveDepts.forEach(d => { write(`departments/${d.slug}/index.html`, departmentPage(d)); urls.push(`/departments/${d.slug}/`); });
 
   // Counties
-  const byCounty = groupBy(depts, d => d.county);
+  const byCounty = groupBy(liveDepts, d => d.county);
   const countyLinks = [];
   Object.keys(byCounty).sort().forEach(county => {
     const cslug = slugify(county);
@@ -395,7 +413,7 @@ function main() {
   urls.push('/counties/');
 
   // Regions
-  const byRegion = groupBy(depts, d => d.region);
+  const byRegion = groupBy(liveDepts, d => d.region);
   const regionLinks = [];
   Object.keys(byRegion).forEach(region => {
     const list = byRegion[region].sort(byName);
@@ -412,7 +430,7 @@ function main() {
   urls.push('/regions/');
 
   // Rankings — only when enough comparable data exists (>= 3 departments).
-  const withEntry = depts.map(d => ({ d, s: Derive.deriveSummary(d, null, NOW) })).filter(x => x.s.hasSalary && x.s.entry != null);
+  const withEntry = liveDepts.map(d => ({ d, s: Derive.deriveSummary(d, null, NOW) })).filter(x => x.s.hasSalary && x.s.entry != null);
   const rankings = [];
   if (withEntry.length >= 3) {
     const top = withEntry.slice().sort((a, b) => b.s.entry - a.s.entry).map(x => x.d);
@@ -424,7 +442,7 @@ function main() {
     urls.push('/rankings/highest-entry-pay.html');
     rankings.push({ href: '/rankings/highest-entry-pay.html', label: 'Highest entry pay', sub: 'By base entry salary' });
   }
-  const hiring = depts.filter(d => d.hiringStatus === 'hiring').sort(byName);
+  const hiring = liveDepts.filter(d => d.hiringStatus === 'hiring').sort(byName);
   if (hiring.length >= 3) {
     write('rankings/currently-hiring.html', listPage(
       'Texas Fire Departments Currently Hiring | Texas Fire Salaries',
@@ -447,7 +465,7 @@ function main() {
   }
   // Schedule pages
   ['24/48', '48/96', '24/72'].forEach(sch => {
-    const list = depts.filter(d => d.scheduleType === sch).sort(byName);
+    const list = liveDepts.filter(d => d.scheduleType === sch).sort(byName);
     if (list.length < 3) return;
     const sslug = 'schedule-' + sch.replace('/', '-');
     write(`rankings/${sslug}.html`, listPage(
@@ -463,9 +481,31 @@ function main() {
   // Sitemap
   write('sitemap.xml', sitemap(urls));
 
-  console.log(`Built ${depts.length} department pages, ${Object.keys(byCounty).length} counties, ${Object.keys(byRegion).length} regions, ${rankings.length} ranking pages.`);
+  // Duplicate-department redirects (js/admin.js's "Merge duplicate department"
+  // tool) — appended to the hand-maintained _redirects file inside a clearly
+  // marked block so a rebuild replaces just that block, not any redirects
+  // someone added by hand above it.
+  writeMergeRedirects(oMergedRedirects);
+
+  console.log(`Built ${liveDepts.length} department pages, ${Object.keys(byCounty).length} counties, ${Object.keys(byRegion).length} regions, ${rankings.length} ranking pages.` +
+    (mergedFromSlugs.size ? ` ${mergedFromSlugs.size} merged-duplicate page(s) redirect instead.` : ''));
   console.log(`Community overlay: ${communityCount} department(s) with community reports merged.`);
   console.log(`Sitemap: ${urls.length} URLs -> sitemap.xml`);
+}
+
+const REDIRECTS_BEGIN = '# --- BEGIN auto-generated department merges (scripts/build-site.js — do not hand-edit this block) ---';
+const REDIRECTS_END = '# --- END auto-generated department merges ---';
+function writeMergeRedirects(mergedRedirects) {
+  const file = path.join(ROOT, '_redirects');
+  let existing = '';
+  try { existing = fs.readFileSync(file, 'utf8'); } catch (e) { /* file doesn't exist yet */ }
+  const beginIdx = existing.indexOf(REDIRECTS_BEGIN);
+  const base = (beginIdx === -1 ? existing : existing.slice(0, beginIdx)).replace(/\s*$/, '\n');
+  if (!mergedRedirects.length) { fs.writeFileSync(file, base); return; }
+  const block = [REDIRECTS_BEGIN,
+    ...mergedRedirects.map(r => `/departments/${r.from}/  /departments/${r.to}/  301`),
+    REDIRECTS_END].join('\n');
+  fs.writeFileSync(file, base + '\n' + block + '\n');
 }
 
 function sitemap(urls) {

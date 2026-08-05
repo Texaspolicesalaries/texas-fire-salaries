@@ -178,6 +178,50 @@
     return d;
   }
 
+  // An admin-set name/coordinate correction, or a mark that this department is a
+  // duplicate that should redirect to another one — see js/admin.js's "Department
+  // details" tool and scripts/export-overlay.js's extractDeptOverrides. Applied
+  // to the SEED department object itself (before deriveSummary), unlike the
+  // salary-figure overrides below which live under dept.fieldOverrides — a name/
+  // coordinate fix isn't a consensus input, it just replaces the field outright.
+  function applyDeptOverride(dept, override) {
+    if (!override) return dept;
+    var d = Object.assign({}, dept);
+    if (override.name) d.name = override.name;
+    if (override.lat != null) d.lat = override.lat;
+    if (override.lng != null) d.lng = override.lng;
+    if (override.mergeIntoSlug) d.mergeIntoSlug = override.mergeIntoSlug;
+    return d;
+  }
+
+  // Pins entry/top/midpoint to an admin-corrected value — see js/derive.js,
+  // which applies dept.fieldOverrides AFTER consensus so it can't be out-voted
+  // by any number of community reports. Set directly on the department object
+  // (mirrors applyClaim's top-level-field pattern) rather than folded into
+  // salary.reports, since this isn't a report to cluster — it's a fixed answer.
+  function applyFieldOverrides(dept, overrides) {
+    if (!overrides || !Object.keys(overrides).length) return dept;
+    var d = Object.assign({}, dept);
+    d.fieldOverrides = overrides;
+    return d;
+  }
+
+  // Drops every report/confirmation from a suspended contributor — both past
+  // and future ones, not just new writes going forward — since the point of
+  // suspending someone is that their input stops counting toward what the page
+  // shows, not merely that they're blocked from submitting again (rules-level
+  // blocking of new writes is separate, see firestore.rules' notSuspended()).
+  // Checked by contributorId, which is all the credential-free static export
+  // (scripts/export-overlay.js) has to go on — there's no email/identity here.
+  function applySuspensions(dept, suspendedIds) {
+    if (!suspendedIds || !suspendedIds.size || !dept.salary || !dept.salary.reports || !dept.salary.reports.length) return dept;
+    var kept = dept.salary.reports.filter(function (r) { return !r.contributorId || !suspendedIds.has(r.contributorId); });
+    if (kept.length === dept.salary.reports.length) return dept;
+    var d = Object.assign({}, dept);
+    d.salary = Object.assign({}, dept.salary, { reports: kept });
+    return d;
+  }
+
   // Build the compact document stored at department_summaries/{slug}. Small and
   // serializable — safe to read 1-per-view if you ever enable a live overlay.
   function summarize(dept, overlayReports, now) {
@@ -201,7 +245,7 @@
     };
   }
 
-  var FireAggregate = { submissionToReport: submissionToReport, applyOverlay: applyOverlay, applyStepPlan: applyStepPlan, applyClaim: applyClaim, applyCivilService: applyCivilService, applySupplementalFlags: applySupplementalFlags, summarize: summarize, toMs: toMs, money: money };
+  var FireAggregate = { submissionToReport: submissionToReport, applyOverlay: applyOverlay, applyStepPlan: applyStepPlan, applyClaim: applyClaim, applyCivilService: applyCivilService, applySupplementalFlags: applySupplementalFlags, applyDeptOverride: applyDeptOverride, applyFieldOverrides: applyFieldOverrides, applySuspensions: applySuspensions, summarize: summarize, toMs: toMs, money: money };
   if (typeof window !== 'undefined') window.FireAggregate = FireAggregate;
   if (typeof module !== 'undefined' && module.exports) module.exports = FireAggregate;
 })();
