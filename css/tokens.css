@@ -56,6 +56,13 @@
   --accent:        var(--ember-600);
   --accent-hover:  var(--ember-700);
   --accent-soft:   var(--ember-050);
+  /* Text-link color, kept separate from --accent (buttons/borders/charts) --
+     --accent itself is only 3.4:1 on --paper/--card, which fails WCAG AA
+     (4.5:1) for normal-size text. These pass at 5.1:1 / 6.7:1 while staying
+     the same hue, so only inline text links change -- buttons, borders, and
+     chart lines (already fine at the 3:1 non-text threshold) are untouched. */
+  --link:          #BC3527;
+  --link-hover:    #9C2A1E;
   --accent-2:      var(--navy-2);
   --accent-2-soft: var(--teal-100);
   --focus-ring:    var(--navy-2);

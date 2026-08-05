@@ -26,7 +26,7 @@
 .dc-head { display: flex; justify-content: space-between; gap: var(--sp-3); align-items: flex-start; }
 .dept-card h3 { margin: 0; font-size: 1.15rem; line-height: 1.2; }
 .dept-card h3 a { color: var(--text); text-decoration: none; }
-.dept-card h3 a:hover { color: var(--accent); }
+.dept-card h3 a:hover { color: var(--link); }
 .dc-sub { font-size: var(--fs-sm); color: var(--text-soft); margin-top: 3px; }
 .dc-flag { flex: 0 0 auto; color: var(--c-dept-fg); font-size: 1rem; line-height: 1; }
 

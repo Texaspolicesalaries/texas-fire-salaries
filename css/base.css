@@ -25,8 +25,8 @@ h1 { font-size: var(--fs-h1); }
 h2 { font-size: var(--fs-h2); }
 h3 { font-size: var(--fs-h3); font-weight: 700; }
 p { margin: 0 0 var(--sp-4); }
-a { color: var(--accent); text-decoration: none; }
-a:hover { color: var(--accent-hover); text-decoration: underline; }
+a { color: var(--link); text-decoration: none; }
+a:hover { color: var(--link-hover); text-decoration: underline; }
 strong { font-weight: 650; }
 small { font-size: var(--fs-sm); }
 hr { border: 0; border-top: 1px solid var(--border); margin: var(--sp-6) 0; }
