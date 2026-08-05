@@ -139,11 +139,11 @@ function departmentPage(dept) {
       <h1 style="margin-bottom:.4rem">${esc(dept.name)}</h1>
       <p class="lede" style="margin-bottom:.75rem">${esc(dept.city)}, ${esc(dept.county)} County · ${regionName(dept.region)}</p>
       <div class="tag-row" style="margin-bottom:.5rem">${badges} ${hiring}</div>
-      <div style="display:flex;gap:.6rem;flex-wrap:wrap;margin-top:.75rem">
-        <a class="btn btn-primary btn-sm" href="/submit.html?dept=${esc(dept.slug)}&mode=update">Update information</a>
-        ${s.sourceUrl ? `<a class="btn btn-secondary btn-sm" href="${esc(s.sourceUrl)}" rel="nofollow noopener" target="_blank">📄 View pay plan ↗</a>` : ''}
-        ${dept.careersUrl ? `<a class="btn btn-outline btn-sm" href="${esc(dept.careersUrl)}" rel="nofollow noopener" target="_blank">Careers page ↗</a>` : ''}
-        <a class="btn btn-outline btn-sm" href="/compare.html?d=${esc(dept.slug)}">Add to comparison</a>
+      <div style="display:flex;gap:.6rem;flex-wrap:wrap;margin-top:1rem">
+        <a class="btn btn-primary" href="/submit.html?dept=${esc(dept.slug)}&mode=update">Update information</a>
+        ${s.sourceUrl ? `<a class="btn btn-outline" href="${esc(s.sourceUrl)}" rel="nofollow noopener" target="_blank">📄 View pay plan ↗</a>` : ''}
+        ${dept.careersUrl ? `<a class="btn btn-outline" href="${esc(dept.careersUrl)}" rel="nofollow noopener" target="_blank">Careers page ↗</a>` : ''}
+        <a class="btn btn-outline" href="/compare.html?d=${esc(dept.slug)}">Add to comparison</a>
       </div>
     </header>
 
