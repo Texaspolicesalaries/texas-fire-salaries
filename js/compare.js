@@ -161,14 +161,18 @@
   function plainRow(label, depts, fn) {
     return '<tr><th scope="row" class="row-label">' + label + '</th>' + depts.map(function (d) { return '<td class="num">' + (d.summary.hasSalary ? fn(d.summary) : '—') + '</td>'; }).join('') + '</tr>';
   }
+  // All data cells share the same class="num" (right-aligned) treatment as
+  // salaryRow/plainRow/careerRow above — mixing left- and right-aligned rows
+  // in the same column made it hard to scan a department's values straight
+  // down the column.
   function plainRowD(label, depts, fn) {
-    return '<tr><th scope="row" class="row-label">' + label + '</th>' + depts.map(function (d) { return '<td>' + fn(d) + '</td>'; }).join('') + '</tr>';
+    return '<tr><th scope="row" class="row-label">' + label + '</th>' + depts.map(function (d) { return '<td class="num">' + fn(d) + '</td>'; }).join('') + '</tr>';
   }
   function flagRow(label, depts, key) {
-    return '<tr><th scope="row" class="row-label">' + label + '</th>' + depts.map(function (d) { var on = d.flags && d.flags[key]; return '<td>' + (on ? '<span aria-label="yes">✓</span>' : '<span class="faint" aria-label="no">—</span>') + '</td>'; }).join('') + '</tr>';
+    return '<tr><th scope="row" class="row-label">' + label + '</th>' + depts.map(function (d) { var on = d.flags && d.flags[key]; return '<td class="num">' + (on ? '<span aria-label="yes">✓</span>' : '<span class="faint" aria-label="no">—</span>') + '</td>'; }).join('') + '</tr>';
   }
   function chipRow(label, depts, fn) {
-    return '<tr><th scope="row" class="row-label">' + label + '</th>' + depts.map(function (d) { return '<td>' + (d.summary.hasSalary || fn(d.summary) ? fn(d.summary) : '—') + '</td>'; }).join('') + '</tr>';
+    return '<tr><th scope="row" class="row-label">' + label + '</th>' + depts.map(function (d) { return '<td class="num">' + (d.summary.hasSalary || fn(d.summary) ? fn(d.summary) : '—') + '</td>'; }).join('') + '</tr>';
   }
 
   function numFromCell(cell) { if (typeof cell === 'number') return cell; var n = parseFloat(String(cell).replace(/[$,\/hryr\s]/g, '')); return isFinite(n) ? n : null; }
