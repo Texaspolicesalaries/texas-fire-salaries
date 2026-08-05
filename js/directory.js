@@ -182,6 +182,9 @@
     if (!tray) return;
     var n = CS.count();
     tray.style.display = n ? 'flex' : 'none';
+    // Reserve room at the bottom of the page while the floating tray is up,
+    // otherwise it sits permanently on top of the last row of results.
+    document.body.classList.toggle('has-compare-tray', !!n);
     var c = document.getElementById('compare-tray-count'); if (c) c.textContent = n;
   }
 })();

@@ -199,8 +199,12 @@
 .result-count { font-size: var(--fs-sm); color: var(--text-soft); font-weight: 600; }
 
 /* Off-canvas filter drawer (mobile full-screen) */
-.filter-drawer { position: fixed; inset: 0; z-index: 300; background: var(--bg); transform: translateX(-100%); transition: transform .22s ease; display: flex; flex-direction: column; }
-.filter-drawer.open { transform: translateX(0); }
+/* visibility:hidden (not just the off-screen transform) so the closed drawer
+   leaves the accessibility tree and its filter controls stop being tabbable —
+   otherwise keyboard users tab into an invisible full-screen panel. Delayed
+   so the slide-out transition still plays before it disappears. */
+.filter-drawer { position: fixed; inset: 0; z-index: 300; background: var(--bg); transform: translateX(-100%); visibility: hidden; transition: transform .22s ease, visibility 0s linear .22s; display: flex; flex-direction: column; }
+.filter-drawer.open { transform: translateX(0); visibility: visible; transition: transform .22s ease, visibility 0s; }
 .filter-drawer-head { display: flex; align-items: center; justify-content: space-between; padding: var(--sp-4); border-bottom: 1px solid var(--border); }
 .filter-drawer-body { overflow-y: auto; padding: var(--sp-4); flex: 1; }
 .filter-drawer-foot { padding: var(--sp-3) var(--sp-4); border-top: 1px solid var(--border); display: flex; gap: var(--sp-3); }

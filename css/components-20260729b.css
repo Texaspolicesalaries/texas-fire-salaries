@@ -199,8 +199,15 @@
 .result-count { font-size: var(--fs-sm); color: var(--text-soft); font-weight: 600; }
 
 /* Off-canvas filter drawer (mobile full-screen) */
-.filter-drawer { position: fixed; inset: 0; z-index: 300; background: var(--bg); transform: translateX(-100%); transition: transform .22s ease; display: flex; flex-direction: column; }
-.filter-drawer.open { transform: translateX(0); }
+/* visibility:hidden (not just the off-screen transform) so the closed drawer
+   leaves the accessibility tree and its filter controls stop being tabbable —
+   otherwise keyboard users tab into an invisible full-screen panel. Delayed
+   so the slide-out transition still plays before it disappears. Note the
+   directory page promotes this same element to a static desktop rail via its
+   own min-width:901px rule, which overrides `position` — visibility is
+   re-asserted there too. */
+.filter-drawer { position: fixed; inset: 0; z-index: 300; background: var(--bg); transform: translateX(-100%); visibility: hidden; transition: transform .22s ease, visibility 0s linear .22s; display: flex; flex-direction: column; }
+.filter-drawer.open { transform: translateX(0); visibility: visible; transition: transform .22s ease, visibility 0s; }
 .filter-drawer-head { display: flex; align-items: center; justify-content: space-between; padding: var(--sp-4); border-bottom: 1px solid var(--border); }
 .filter-drawer-body { overflow-y: auto; padding: var(--sp-4); flex: 1; }
 .filter-drawer-foot { padding: var(--sp-3) var(--sp-4); border-top: 1px solid var(--border); display: flex; gap: var(--sp-3); }
@@ -287,3 +294,17 @@ table.data tr.top-step td { font-weight: 700; }
 .empty-state { text-align: center; padding: var(--sp-8) var(--sp-4); color: var(--text-soft); }
 .spinner { width: 22px; height: 22px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.7s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
+
+/* ---------------- Compare tray (floating pill) ----------------
+   Positioning/colour live as inline styles on #compare-tray in the page HTML;
+   these rules cover the parts that were missing. The count text wrapped to two
+   lines ("4" / "selected") in the narrow mobile pill, and nothing reserved
+   space for the tray, so it permanently covered the last row of results. */
+#compare-tray > span { white-space: nowrap; }
+body.has-compare-tray { padding-bottom: 136px; }
+
+/* ---------------- Horizontal-scroll affordance ----------------
+   A wide table inside .table-scroll scrolls on its own, but on a phone there
+   is no visual hint that more columns exist off to the right. */
+.scroll-hint { display: none; font-size: var(--fs-xs); color: var(--text-faint); margin: var(--sp-2) 0 0; }
+.table-scroll.is-scrollable + .scroll-hint { display: block; }

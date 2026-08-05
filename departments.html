@@ -6,6 +6,10 @@
   <title>Texas Fire Department Directory | Texas Fire Salaries</title>
   <meta name="description" content="Browse every listed Texas fire department. Filter by pay, schedule, department type, and data freshness, and sort by entry pay, top pay, or years to top.">
   <link rel="canonical" href="https://texasfiresalaries.com/departments.html">
+  <link rel="icon" href="/assets/branding/favicon.ico" sizes="any">
+  <link rel="icon" type="image/png" sizes="32x32" href="/assets/branding/favicon-32.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="/assets/branding/favicon-192.png">
+  <link rel="apple-touch-icon" href="/assets/branding/favicon-180.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -16,8 +20,11 @@
     .dir-grid { display: grid; grid-template-columns: 280px 1fr; gap: 2rem; align-items: start; }
     /* On desktop the filter drawer becomes a static sticky rail (single panel, no duplication). */
     @media (min-width: 901px) {
+      /* visibility must be re-asserted: the shared .filter-drawer base rule
+         keeps the mobile drawer hidden-when-closed for accessibility, and
+         this desktop rail is always visible. */
       #filter-drawer { position: sticky; top: 82px; inset: auto; transform: none; height: auto;
-        max-height: calc(100vh - 100px); overflow: auto; background: var(--bg-raised);
+        visibility: visible; max-height: calc(100vh - 100px); overflow: auto; background: var(--bg-raised);
         border: 1px solid var(--border); border-radius: var(--r-lg); box-shadow: var(--shadow-sm); }
       #filter-drawer .drawer-close { display: none; }
       #filter-drawer .filter-drawer-foot .btn-primary { display: none; }

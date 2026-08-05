@@ -182,7 +182,11 @@
   .dept-hero-grid { grid-template-columns: 1fr; gap: var(--sp-6); }
   .dept-hero-stat { border-left: 0; border-top: 1px solid #39455b; padding: 1.6rem 0 0; }
   .dept-hero-stat-note { text-align: left; }
-  .dept-grid { grid-template-columns: 1fr; }
+  /* minmax(0, 1fr), not 1fr — a bare `1fr` track floors at min-content, and
+     the pay-step table's `min-width: 520px` (components CSS) then forces the
+     whole single-column grid to 520px+ on a 390px screen, scrolling the
+     entire page sideways instead of letting .table-scroll scroll on its own. */
+  .dept-grid { grid-template-columns: minmax(0, 1fr); }
   .dept-side-column { position: relative; top: auto; padding-top: 2rem; order: -1; }
 }
 @media (max-width: 500px) {

@@ -113,10 +113,30 @@
     var toggle = document.querySelector('.nav-toggle');
     var links = document.getElementById('nav-links');
     if (toggle && links) {
-      toggle.addEventListener('click', function () {
-        var open = links.classList.toggle('open');
+      // The closed drawer is only moved OFF-SCREEN by transform, so without
+      // `inert` its links stay focusable and in the accessibility tree — a
+      // keyboard or screen-reader user lands on invisible controls. Only
+      // applied at the width where the drawer actually exists; above that
+      // breakpoint the same element is the ordinary desktop nav bar and must
+      // stay interactive.
+      var MOBILE = window.matchMedia('(max-width: 860px)');
+      function syncInert() {
+        if (MOBILE.matches && !links.classList.contains('open')) links.setAttribute('inert', '');
+        else links.removeAttribute('inert');
+      }
+      function setOpen(open) {
+        links.classList.toggle('open', open);
         toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+        toggle.setAttribute('aria-label', open ? 'Close menu' : 'Menu');
+        syncInert();
+      }
+      toggle.addEventListener('click', function () { setOpen(!links.classList.contains('open')); });
+      // Escape closes and returns focus to the button that opened it.
+      document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape' && links.classList.contains('open')) { setOpen(false); toggle.focus(); }
       });
+      if (MOBILE.addEventListener) MOBILE.addEventListener('change', syncInert);
+      syncInert();
     }
 
     // Reflect auth state

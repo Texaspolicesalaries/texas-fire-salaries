@@ -301,6 +301,7 @@
     if (!tray) return;
     var n = CS.count();
     tray.style.display = n ? 'flex' : 'none';
+    document.body.classList.toggle('has-compare-tray', !!n);
     var label = document.getElementById('compare-tray-count');
     if (label) label.textContent = n;
   }

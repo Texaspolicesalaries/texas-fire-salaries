@@ -76,6 +76,19 @@
     }
     wrap.innerHTML = warningsHTML(depts) + tableHTML(depts);
     wrap.querySelectorAll('.remove-col').forEach(function (b) { b.addEventListener('click', function () { remove(b.getAttribute('data-slug')); }); });
+    markScrollable(wrap);
+  }
+
+  // The "swipe to see more" hint only makes sense when the table genuinely
+  // overflows its container — on a wide screen with two departments it doesn't,
+  // and a permanent hint would just be noise. Re-checked on resize since the
+  // same table can cross the threshold when the window changes.
+  function markScrollable(wrap) {
+    var ts = wrap.querySelector('.table-scroll');
+    if (!ts) return;
+    var check = function () { ts.classList.toggle('is-scrollable', ts.scrollWidth > ts.clientWidth + 1); };
+    check();
+    if (!markScrollable._wired) { markScrollable._wired = true; window.addEventListener('resize', function () { var el = document.querySelector('#compare-wrap .table-scroll'); if (el) el.classList.toggle('is-scrollable', el.scrollWidth > el.clientWidth + 1); }); }
   }
 
   // ---- Comparability warnings (never hide incompatibility) ----
@@ -124,6 +137,7 @@
     rows += plainRow('Contributors', depts, function (s) { return s.contributors || 0; });
 
     return '<div class="table-scroll"><table class="data compare-table"><thead><tr><th scope="col" class="row-label">Metric</th>' + cols + '</tr></thead><tbody>' + rows + '</tbody></table></div>' +
+      '<p class="scroll-hint" aria-hidden="true">← Swipe the table to see more departments →</p>' +
       '<p class="muted" style="font-size:.82rem;margin-top:.75rem">Career earnings assume the step in effect at the start of each service year; where a plan\'s final step is bounded, the final submitted step is carried forward. Base and reported-total figures are kept separate — switch the metric toggle to compare like with like.</p>';
   }
 

@@ -56,6 +56,10 @@ const HEAD = (title, desc, canonical, extra = '') => `<!DOCTYPE html>
   <meta property="og:title" content="${esc(title)}">
   <meta property="og:description" content="${esc(desc)}">
   <meta property="og:type" content="website">
+  <link rel="icon" href="/assets/branding/favicon.ico" sizes="any">
+  <link rel="icon" type="image/png" sizes="32x32" href="/assets/branding/favicon-32.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="/assets/branding/favicon-192.png">
+  <link rel="apple-touch-icon" href="/assets/branding/favicon-180.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -386,7 +390,11 @@ function main() {
   });
   const communityCount = Object.keys(oReports).filter(k => (oReports[k] || []).length).length;
   REGIONS = {}; (json.regions || []).forEach(r => { REGIONS[r.id] = r.name; });
-  const urls = ['/', '/map.html', '/departments.html', '/compare.html', '/submit.html', '/how-it-works.html'];
+  // Evergreen pages. The legal/about set is indexable and linked from every
+  // footer, so it belongs in the sitemap; admin.html and sign-in.html are
+  // deliberately excluded (both are noindex + disallowed in robots.txt).
+  const urls = ['/', '/map.html', '/departments.html', '/compare.html', '/submit.html', '/how-it-works.html',
+    '/about.html', '/terms.html', '/privacy-policy.html', '/disclaimer.html', '/community-policy.html', '/claim-policy.html'];
 
   // A department marked as a duplicate is dropped from every listing/ranking/
   // sitemap below and gets a 301 via Cloudflare Pages' native _redirects file
