@@ -173,3 +173,14 @@ test('a brand-new department with no seed salary at all still shows its first co
   assert.strictEqual(after.midpoint, 68000);
   assert.strictEqual(after.topBase, 78000);
 });
+
+test('a trusted contributor\'s report flows through to trustedContributors on the summary', () => {
+  const extra = [{ contributorId: 'trusted-1', submittedAt: iso(1), entry: 61000, trusted: true }];
+  const s = Derive.deriveSummary(deptFixture(), extra, NOW);
+  assert.strictEqual(s.trustedContributors, 1);
+});
+
+test('trustedContributors is 0 when nobody trusted is behind the current value', () => {
+  const s = Derive.deriveSummary(deptFixture(), [], NOW);
+  assert.strictEqual(s.trustedContributors, 0);
+});

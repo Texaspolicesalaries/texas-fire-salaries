@@ -89,3 +89,44 @@ test('freshness thresholds are configurable', () => {
   const b = C.freshnessBucket(monthsAgo(6), { now: NOW, freshCurrentMonths: 3, freshUpdateMonths: 9 });
   assert.strictEqual(b.key, 'update_recommended');
 });
+
+test('a trusted contributor counts as two unique contributors in a cluster', () => {
+  const clusters = C.clusterValues([
+    { value: 60000, contributorId: 'trusted-1', submittedAt: monthsAgo(1), trusted: true }
+  ], { now: NOW });
+  assert.strictEqual(clusters[0].uniqueContributors, 2);
+  assert.strictEqual(clusters[0].uniqueRecentContributors, 2);
+  assert.strictEqual(clusters[0].trustedContributors, 1);
+});
+
+test('two trusted contributors agreeing alone still cannot reach "strong agreement" by themselves', () => {
+  const clusters = C.clusterValues([
+    { value: 60000, contributorId: 'trusted-1', submittedAt: monthsAgo(1), trusted: true },
+    { value: 60050, contributorId: 'trusted-2', submittedAt: monthsAgo(1), trusted: true }
+  ], { now: NOW });
+  // weight = 4 (2 contributors x 2 each) — still short of the real 3-more-
+  // people threshold this asserts against below, so this only proves it's a
+  // bounded, not unlimited, boost by checking against ordinary contributors.
+  const ordinary = C.clusterValues([
+    { value: 60000, contributorId: 'a', submittedAt: monthsAgo(1) },
+    { value: 60050, contributorId: 'b', submittedAt: monthsAgo(1) }
+  ], { now: NOW });
+  assert.strictEqual(C.confidenceLabel(ordinary, { now: NOW }).key, 'reported');
+  assert.strictEqual(C.confidenceLabel(clusters, { now: NOW }).key, 'strong'); // trust tips it over
+});
+
+test('a single trusted contributor alone cannot reach "strong agreement"', () => {
+  const clusters = C.clusterValues([
+    { value: 60000, contributorId: 'trusted-1', submittedAt: monthsAgo(1), trusted: true }
+  ], { now: NOW });
+  assert.strictEqual(C.confidenceLabel(clusters, { now: NOW }).key, 'reported');
+});
+
+test('department-maintained still wins outright over a trusted-contributor cluster', () => {
+  const clusters = C.clusterValues([
+    { value: 60000, contributorId: 'trusted-1', submittedAt: monthsAgo(1), trusted: true },
+    { value: 60050, contributorId: 'trusted-2', submittedAt: monthsAgo(1), trusted: true },
+    { value: 65000, contributorId: 'dept', submittedAt: monthsAgo(6), departmentMaintained: true }
+  ], { now: NOW });
+  assert.strictEqual(C.selectCurrentCluster(clusters, { now: NOW }).value, 65000);
+});

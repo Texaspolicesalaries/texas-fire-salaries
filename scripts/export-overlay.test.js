@@ -472,3 +472,43 @@ test('extractSuspendedContributors collects userIds into a Set', () => {
   assert.ok(set.has('u1') && set.has('u2'));
 });
 
+function subRow(contributorId, slug, entry) {
+  return row({ contributorId: s(contributorId), departmentSlug: s(slug), proposedValues: mapVal({ entry: num(entry) }) });
+}
+
+test('computeTrustedContributors trusts a contributor with enough undisputed reports across enough departments', () => {
+  const rows = [
+    subRow('u1', 'addison-fd', 60000),
+    subRow('u1', 'allen-fd', 70000),
+    subRow('u1', 'anna-fd', 65000)
+  ];
+  const trusted = M.computeTrustedContributors(rows, new Map());
+  assert.ok(trusted.has('u1'));
+});
+
+test('computeTrustedContributors withholds trust below the report/department minimums', () => {
+  const tooFewReports = M.computeTrustedContributors([subRow('u1', 'addison-fd', 60000), subRow('u1', 'allen-fd', 70000)], new Map());
+  assert.ok(!tooFewReports.has('u1'));
+  const oneDeptOnly = M.computeTrustedContributors([subRow('u2', 'addison-fd', 60000), subRow('u2', 'addison-fd', 61000), subRow('u2', 'addison-fd', 62000)], new Map());
+  assert.ok(!oneDeptOnly.has('u2'));
+});
+
+test('computeTrustedContributors disqualifies a contributor whose value was successfully disputed', () => {
+  const rows = [subRow('u1', 'addison-fd', 60000), subRow('u1', 'allen-fd', 70000), subRow('u1', 'anna-fd', 65000)];
+  const disputeCounts = new Map([['addison-fd|entry|60000', M.DISPUTE_REVERT_THRESHOLD]]);
+  const trusted = M.computeTrustedContributors(rows, disputeCounts);
+  assert.ok(!trusted.has('u1'));
+});
+
+test('computeTrustedContributors never trusts a suspended contributor', () => {
+  const rows = [subRow('u1', 'addison-fd', 60000), subRow('u1', 'allen-fd', 70000), subRow('u1', 'anna-fd', 65000)];
+  const trusted = M.computeTrustedContributors(rows, new Map(), { suspendedIds: new Set(['u1']) });
+  assert.ok(!trusted.has('u1'));
+});
+
+test('computeTrustedContributors respects custom thresholds', () => {
+  const rows = [subRow('u1', 'addison-fd', 60000), subRow('u1', 'allen-fd', 70000)];
+  const trusted = M.computeTrustedContributors(rows, new Map(), { minReports: 2, minDepartments: 2 });
+  assert.ok(trusted.has('u1'));
+});
+

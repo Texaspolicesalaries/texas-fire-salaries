@@ -24,7 +24,10 @@
     count: function () { return read().length; },
     add: function (slug) {
       var a = read();
-      if (a.indexOf(slug) === -1 && a.length < MAX) { a.push(slug); write(a); }
+      if (a.indexOf(slug) === -1 && a.length < MAX) {
+        a.push(slug); write(a);
+        if (window.FireAnalytics) window.FireAnalytics.trackCompareAdd(slug);
+      }
       return a;
     },
     remove: function (slug) { write(read().filter(function (s) { return s !== slug; })); },

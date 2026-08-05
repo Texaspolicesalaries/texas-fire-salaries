@@ -36,6 +36,7 @@
     try { dept = JSON.parse(node.textContent); } catch (e) { console.error('bad dept-data', e); return; }
     summary = D.deriveSummary(dept);
     renderAll();
+    if (window.FireAnalytics) window.FireAnalytics.trackDepartmentView(dept.slug);
     // Optional live overlay — off by default to keep visitor reads at zero.
     if (LIVE_OVERLAY) {
       D.fetchDepartmentReports(dept.slug).then(function (extra) {
@@ -300,6 +301,7 @@
         '<div class="confidence-list">' +
           confRow('Matching submissions', clusters.length ? clusters[0].submissions.length : 0) +
           confRow('Contributors confirming', contributors) +
+          (s.trustedContributors ? confRow('Trusted contributors', '<span class="positive">' + s.trustedContributors + '</span>') : '') +
           confRow('Newest submission', newest) +
           confRow('Oldest current matching', oldest) +
           confRow('Conflicting values', s.hasConflict ? '<a href="#history">Yes, see history</a>' : 'No') +

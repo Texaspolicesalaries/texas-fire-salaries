@@ -36,6 +36,7 @@
         submittedAt: toMs(r.submittedAt),
         hasSource: !!r.hasSource,
         departmentMaintained: !!r.departmentMaintained,
+        trusted: !!r.trusted,
         disputeCount: r[field + 'DisputeCount'] || 0
       };
     }).filter(function (r) { return typeof r.value === 'number' && r.value != null; });
@@ -49,6 +50,7 @@
           submittedAt: (typeof r.submittedAt === 'number') ? r.submittedAt : toMs(r.submittedAt),
           hasSource: !!r.hasSource,
           departmentMaintained: !!r.departmentMaintained,
+          trusted: !!r.trusted,
           disputeCount: r[field + 'DisputeCount'] || 0
         });
       }
@@ -157,6 +159,11 @@
     out.entry = current ? current.value : out.entryBase;
     out.effectiveHourlyEntry = Lib.effectiveHourly(out.entry, annualHours);
     out.entryDisputeCount = clusterDisputeCount(current);
+    // How many DISTINCT trusted contributors (see scripts/export-overlay.js's
+    // computeTrustedContributors) are behind the currently-winning entry value
+    // — shown as a small note on the confidence card, not folded into the
+    // confidence label itself.
+    out.trustedContributors = (current && current.trustedContributors) || 0;
 
     // ── Top consensus — community-reported top pay overrides the step-derived top ──
     var topReports = reportsForField(s, extraReports, 'top');

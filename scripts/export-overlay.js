@@ -516,6 +516,53 @@ function computeActiveClaimants(claims, subRows, now, thresholdMonths) {
   return active;
 }
 
+// A contributor becomes "trusted" once they've submitted enough data across
+// enough different departments WITHOUT any of their individual dept/field/
+// value submissions ever being disputed past the community-revert threshold
+// (see applyValueDisputes/DISPUTE_REVERT_THRESHOLD) — a plain, defensible
+// proxy for "this person's numbers have held up," not a popularity contest.
+// A single bad dispute permanently disqualifies them from this run (they can
+// requalify on a later run once their more-recent, undisputed reports clear
+// the thresholds on their own — there's no separate appeal path, matching how
+// every other automatic promotion here works with no admin approval step).
+// Trusted contributors count DOUBLE toward "unique contributors" in
+// js/consensus.js's clusterValues() (see js/derive.js's reportsForField) — a
+// bounded boost, nowhere near department-maintained's outright override.
+const MIN_TRUSTED_REPORTS = 3;
+const MIN_TRUSTED_DEPARTMENTS = 2;
+function computeTrustedContributors(subRows, disputeCounts, opts) {
+  opts = opts || {};
+  disputeCounts = disputeCounts || new Map();
+  const minReports = opts.minReports == null ? MIN_TRUSTED_REPORTS : opts.minReports;
+  const minDepartments = opts.minDepartments == null ? MIN_TRUSTED_DEPARTMENTS : opts.minDepartments;
+  const threshold = opts.disputeThreshold == null ? DISPUTE_REVERT_THRESHOLD : opts.disputeThreshold;
+  const suspended = opts.suspendedIds || new Set();
+  const byContributor = new Map(); // contributorId -> { depts:Set, reports:Number, disqualified:Boolean }
+  subRows.forEach(r => {
+    if (!r.document || !r.document.fields) return;
+    const f = r.document.fields;
+    const contributorId = fv(f.contributorId);
+    const slug = fv(f.departmentSlug);
+    if (!contributorId || !slug) return;
+    const rep = toReport(f);
+    if (!rep) return;
+    const entry = byContributor.get(contributorId) || { depts: new Set(), reports: 0, disqualified: false };
+    ['entry', 'top', 'midpoint'].forEach(field => {
+      if (rep[field] == null) return;
+      if ((disputeCounts.get(`${slug}|${field}|${rep[field]}`) || 0) >= threshold) entry.disqualified = true;
+    });
+    entry.depts.add(slug);
+    entry.reports++;
+    byContributor.set(contributorId, entry);
+  });
+  const trusted = new Set();
+  byContributor.forEach((v, contributorId) => {
+    if (suspended.has(contributorId)) return;
+    if (!v.disqualified && v.reports >= minReports && v.depts.size >= minDepartments) trusted.add(contributorId);
+  });
+  return trusted;
+}
+
 // One "This looks correct" per contributor per department counts, no matter how
 // many times they click it (the button only disables for the current page
 // view, not permanently — reloading resets it). Keeps each contributor's MOST
@@ -691,9 +738,12 @@ async function main() {
   // A flag doesn't erase a figure on its own — it stays showing, marked
   // disputed, until enough distinct contributors dispute that same value (see
   // applyValueDisputes). An isolated lookup failure just means nothing is
-  // suppressed this run.
+  // suppressed this run. Hoisted (not `const` inside the try) so
+  // computeTrustedContributors below can reuse the same fetched counts rather
+  // than querying disputes twice.
+  let valueDisputeCounts = new Map();
   try {
-    const valueDisputeCounts = await countValueDisputes(url);
+    valueDisputeCounts = await countValueDisputes(url);
     Object.keys(reports).forEach(slug => {
       reports[slug] = applyValueDisputes(reports[slug], slug, valueDisputeCounts);
     });
@@ -753,6 +803,19 @@ async function main() {
     console.warn('[export-overlay] suspended-contributor lookup failed (treating none as suspended):', e.message);
   }
 
+  // Trusted contributors get a bounded weight boost in consensus (see
+  // js/consensus.js's clusterValues) — computed from the SAME submissions +
+  // dispute counts already fetched above, so this costs zero extra reads.
+  let trustedContributorIds = new Set();
+  try {
+    trustedContributorIds = computeTrustedContributors(subRows, valueDisputeCounts, { suspendedIds: new Set(suspendedContributorIds) });
+    Object.keys(reports).forEach(slug => {
+      reports[slug].forEach(rep => { rep.trusted = !!(rep.contributorId && trustedContributorIds.has(rep.contributorId)); });
+    });
+  } catch (e) {
+    console.warn('[export-overlay] trusted-contributor computation failed (treating none as trusted):', e.message);
+  }
+
   // New departments: geocode from ZIP + auto-promote. Failures here (bad seed
   // read, missing ZIP table, Firestore hiccup) must not block the salary-report
   // overlay above, so they're isolated and just logged.
@@ -784,7 +847,7 @@ async function main() {
   console.log(`Exported ${n} community report(s) + ${confirmedCount} confirmation(s) + ${correctionCount} admin correction(s) across ${Object.keys(reports).length} department(s) -> data/overlay.json`);
   console.log(`Civil service: ${Object.keys(civilService).length} department(s) with a submitted answer.`);
   console.log(`Department claims: ${claimedSlugs.size} department(s) marked "Department maintained".`);
-  console.log(`Admin tools: ${Object.keys(departmentOverrides).length} department override(s) (${mergedRedirects.length} merged), ${Object.keys(fieldLocks).length} department(s) with a locked field, ${suspendedContributorIds.length} suspended contributor(s).`);
+  console.log(`Admin tools: ${Object.keys(departmentOverrides).length} department override(s) (${mergedRedirects.length} merged), ${Object.keys(fieldLocks).length} department(s) with a locked field, ${suspendedContributorIds.length} suspended contributor(s), ${trustedContributorIds.size} trusted contributor(s).`);
   console.log(`Promoted ${departments.length} new department(s) to the map` +
     (skippedDup ? `, skipped ${skippedDup} possible duplicate(s)` : '') +
     (skippedNoZip ? `, skipped ${skippedNoZip} with a missing/unrecognized ZIP` : '') + '.');
@@ -803,6 +866,6 @@ if (require.main === module) {
     extractStepPlans, extractCivilService, docId, DISPUTE_REVERT_THRESHOLD, confirmationToReport, applyValueDisputes,
     dedupeConfirmations, computeActiveClaimants, CLAIM_EXPIRY_MONTHS,
     extractDeptOverrides, computeMergedRedirects, extractFieldLocks, adminCorrectionToReport,
-    extractSuspendedContributors
+    extractSuspendedContributors, computeTrustedContributors, MIN_TRUSTED_REPORTS, MIN_TRUSTED_DEPARTMENTS
   };
 }

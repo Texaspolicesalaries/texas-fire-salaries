@@ -796,6 +796,7 @@
         ? '<strong>Thank you — your submission was received</strong> and is preserved as a revision, but one or more figures look unusual (' + UI.esc(payload.automatedFlags.join('; ')) + '), so it needs a quick admin review before it appears live.'
         : '<strong>Thank you — your submission is published</strong> and preserved as a revision. The community consensus will update automatically.';
       if (fileUploadFailed) msg += ' <strong>Note:</strong> the attached file could not be uploaded, so it was saved without it — you can add the file later with a follow-up submission.';
+      if (window.FireAnalytics) window.FireAnalytics.trackSubmitComplete(st.dept, st.type);
       host.innerHTML = '<div class="notice info" style="font-size:1rem"><span class="notice-icon">✓</span><div>' + msg + '<div style="margin-top:.75rem">' +
         (st.dept ? '<a class="btn btn-outline btn-sm" href="/departments/' + UI.esc(st.dept) + '/">View department</a> ' : '') +
         '<button class="btn btn-ghost btn-sm" onclick="location.reload()">Submit another</button></div></div></div>';

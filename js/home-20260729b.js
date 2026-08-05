@@ -34,9 +34,17 @@
       results.classList.add('open');
       active = -1;
     }
+    // Tracked debounced (not per keystroke) — fires once the user pauses,
+    // same as a search a visitor actually "ran" rather than every character.
+    var searchTrackTimer = null;
     input.addEventListener('input', function () {
       var q = input.value.trim();
-      render(q ? window.FireData.search(q) : []);
+      var list = q ? window.FireData.search(q) : [];
+      render(list);
+      clearTimeout(searchTrackTimer);
+      if (q && window.FireAnalytics) {
+        searchTrackTimer = setTimeout(function () { window.FireAnalytics.trackSearch('home', q, list.length); }, 600);
+      }
     });
     input.addEventListener('keydown', function (e) {
       var links = Array.prototype.slice.call(results.querySelectorAll('a'));

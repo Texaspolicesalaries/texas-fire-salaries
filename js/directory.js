@@ -75,7 +75,18 @@
     input.value = state.q || '';
     var clearBtn = document.getElementById('dept-search-clear');
     function toggleClear() { if (clearBtn) clearBtn.style.display = (input.value.trim() ? 'flex' : 'none'); }
-    input.addEventListener('input', function () { state.q = input.value.trim(); toggleClear(); onChange(); });
+    var searchTrackTimer = null;
+    input.addEventListener('input', function () {
+      state.q = input.value.trim(); toggleClear(); onChange();
+      clearTimeout(searchTrackTimer);
+      if (state.q && window.FireAnalytics) {
+        var q = state.q;
+        searchTrackTimer = setTimeout(function () {
+          var count = document.getElementById('result-count');
+          window.FireAnalytics.trackSearch('directory', q, count ? parseInt(count.textContent, 10) : undefined);
+        }, 600);
+      }
+    });
     if (clearBtn) clearBtn.addEventListener('click', function () { input.value = ''; state.q = ''; toggleClear(); onChange(); input.focus(); });
     toggleClear();
   }
