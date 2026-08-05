@@ -142,8 +142,8 @@
       if (st.schedule && d.scheduleType !== st.schedule) return false;
       if (st.transport && d.transportStatus !== st.transport) return false;
       if (st.type && d.departmentType !== st.type) return false;
-      if (st.civil === 'yes' && !d.civilService) return false;
-      if (st.civil === 'no' && d.civilService) return false;
+      if (st.civil === 'yes' && d.civilService !== true) return false;
+      if (st.civil === 'no' && d.civilService !== false) return false;
       if (st.retirement && d.retirementSystem !== st.retirement) return false;
       if (st.emt && !f.emtRequired) return false;
       if (st.medicReq && !f.paramedicRequired) return false;

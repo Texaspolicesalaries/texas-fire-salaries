@@ -114,6 +114,50 @@
     return d;
   }
 
+  // Folds in a department-level fact (not a pay figure) a contributor
+  // optionally asserted alongside their salary submission — see
+  // scripts/export-overlay.js's extractCivilService. civilService lives at
+  // the TOP level of the department object, matching schema.md and the field
+  // js/filters.js already reads directly off `d.civilService`.
+  function applyCivilService(dept, value) {
+    if (value !== true && value !== false) return dept;
+    var d = Object.assign({}, dept);
+    d.civilService = value;
+    return d;
+  }
+
+  // Supplemental pay ITEMS a contributor attaches to a submission (certification
+  // tiers, education tiers, longevity — see js/submit.js's SUPP_TYPES) are the
+  // real, live source for the "Has certification/education/longevity pay"
+  // filter checkboxes — the flags.* booleans baked into seed data are never set
+  // by anything, so deriving from actual submitted pay items is what makes
+  // those filters correspond to real data instead of always returning zero
+  // results. Scans every report (seed + live, already merged by applyOverlay)
+  // rather than just the newest one, since a certification/education/longevity
+  // item reported once stays true going forward.
+  var CERT_PAY_TYPES = ['tcfp-basic', 'tcfp-intermediate', 'tcfp-advanced', 'tcfp-master', 'certification'];
+  var EDU_PAY_TYPES = ['edu-hs', 'edu-associate', 'edu-bachelor', 'edu-master'];
+  function applySupplementalFlags(dept) {
+    var reports = (dept.salary && dept.salary.reports) || [];
+    var hasCert = false, hasEdu = false, hasLongevity = false;
+    reports.forEach(function (r) {
+      (r.supplemental || []).forEach(function (s) {
+        if (!s || !s.type) return;
+        if (CERT_PAY_TYPES.indexOf(s.type) !== -1) hasCert = true;
+        else if (EDU_PAY_TYPES.indexOf(s.type) !== -1) hasEdu = true;
+        else if (s.type === 'longevity') hasLongevity = true;
+      });
+    });
+    if (!hasCert && !hasEdu && !hasLongevity) return dept;
+    var d = Object.assign({}, dept);
+    d.flags = Object.assign({}, dept.flags, {
+      certPay: !!(dept.flags && dept.flags.certPay) || hasCert,
+      educationPay: !!(dept.flags && dept.flags.educationPay) || hasEdu,
+      longevity: !!(dept.flags && dept.flags.longevity) || hasLongevity
+    });
+    return d;
+  }
+
   // Marks a department "Department maintained" once its claim has been
   // approved (see js/department.js's writeClaim() + js/admin.js's approval
   // action). departmentMaintained lives at the TOP level of the department
@@ -150,7 +194,7 @@
     };
   }
 
-  var FireAggregate = { submissionToReport: submissionToReport, applyOverlay: applyOverlay, applyStepPlan: applyStepPlan, applyClaim: applyClaim, summarize: summarize, toMs: toMs, money: money };
+  var FireAggregate = { submissionToReport: submissionToReport, applyOverlay: applyOverlay, applyStepPlan: applyStepPlan, applyClaim: applyClaim, applyCivilService: applyCivilService, applySupplementalFlags: applySupplementalFlags, summarize: summarize, toMs: toMs, money: money };
   if (typeof window !== 'undefined') window.FireAggregate = FireAggregate;
   if (typeof module !== 'undefined' && module.exports) module.exports = FireAggregate;
 })();

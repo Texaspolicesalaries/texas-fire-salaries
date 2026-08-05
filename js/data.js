@@ -81,13 +81,18 @@
       // maintained" badge (see js/aggregate.js's applyClaim).
       var claimedSlugs = {};
       ((arr[1] && arr[1].claimedSlugs) || []).forEach(function (slug) { claimedSlugs[slug] = true; });
+      // A department-level fact contributors can optionally assert alongside
+      // their salary submission (see js/aggregate.js's applyCivilService).
+      var civilService = (arr[1] && arr[1].civilService) || {};
       state.meta = json.meta || {};
       state.regions = json.regions || [];
       state.departments = (json.departments || []).concat(overlayDepts).map(function (d) {
         // Merge community reports (static, 0 Firestore reads) before deriving.
         var merged = Agg ? Agg.applyOverlay(d, reports[d.slug]) : d;
+        if (Agg) merged = Agg.applySupplementalFlags(merged);
         if (Agg && stepPlans[d.slug]) merged = Agg.applyStepPlan(merged, stepPlans[d.slug]);
         if (Agg && claimedSlugs[d.slug]) merged = Agg.applyClaim(merged, true);
+        if (Agg && civilService.hasOwnProperty(d.slug)) merged = Agg.applyCivilService(merged, civilService[d.slug]);
         merged.summary = deriveSummary(merged);
         return merged;
       });

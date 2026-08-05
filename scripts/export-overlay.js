@@ -76,7 +76,12 @@ function toReport(fields) {
   const metric = metricFromType(fv(pv.salaryType));
   if (entry == null && metric === 'entry') entry = amount;
   if (top == null && metric === 'top') top = amount;
-  if (entry == null && top == null && midpoint == null && reportedEntry == null && reportedTop == null && reportedMidpoint == null) return null;
+  // A submission carrying only supplemental pay items (no entry/top/midpoint
+  // figure at all) is still real data — e.g. someone adding "Longevity pay"
+  // to a department that already has its base pay on file — so it must not
+  // be dropped just because none of the six base/reported figures are set.
+  const supplemental = decodeValue(pv.supplemental) || undefined;
+  if (entry == null && top == null && midpoint == null && reportedEntry == null && reportedTop == null && reportedMidpoint == null && !(supplemental && supplemental.length)) return null;
   return {
     contributorId: fv(fields.contributorId) || null,
     submittedAt: isoDay(fields.submittedAt && fields.submittedAt.timestampValue) || isoDay(Date.now()),
@@ -86,6 +91,7 @@ function toReport(fields) {
     reportedEntry,
     reportedTop,
     reportedMidpoint,
+    supplemental,
     hasSource: !!(fv(fields.sourceUrl) || fv(fields.sourceFile)),
     departmentMaintained: fv(fields.contributorType) === 'department'
   };
@@ -221,6 +227,30 @@ function extractStepPlans(rows, disputeCounts, threshold) {
     }
   });
   return plans;
+}
+
+// A department-level fact (not a pay figure) that a contributor can optionally
+// assert alongside their salary submission — see js/submit.js's "Department
+// facts" section. Most recent assertion per department wins, no dispute
+// mechanism (unlike step plans/pay figures) since it's a simple yes/no fact,
+// not a contested number. A submission that leaves it "Not sure" simply omits
+// the field, so it never overwrites a known answer with a guess.
+function extractCivilService(rows) {
+  const bySlug = {};
+  rows.forEach(r => {
+    if (!r.document || !r.document.fields) return;
+    const f = r.document.fields;
+    const slug = fv(f.departmentSlug);
+    if (!slug) return;
+    const raw = fv(f.civilService);
+    if (raw !== true && raw !== false) return;
+    const submittedAt = isoDay(f.submittedAt && f.submittedAt.timestampValue) || isoDay(Date.now());
+    const cur = bySlug[slug];
+    if (!cur || submittedAt >= cur.submittedAt) bySlug[slug] = { value: raw, submittedAt };
+  });
+  const out = {};
+  Object.keys(bySlug).forEach(slug => { out[slug] = bySlug[slug].value; });
+  return out;
 }
 
 // Counts DISTINCT contributors who've flagged each step-plan submission (so one
@@ -502,6 +532,7 @@ async function main() {
     console.warn('[export-overlay] step-plan dispute lookup failed (treating none as flagged):', e.message);
   }
   const stepPlans = extractStepPlans(subRows, stepPlanDisputeCounts);
+  const civilService = extractCivilService(subRows);
 
   // New departments: geocode from ZIP + auto-promote. Failures here (bad seed
   // read, missing ZIP table, Firestore hiccup) must not block the salary-report
@@ -532,10 +563,12 @@ async function main() {
     reports,
     departments,
     stepPlans,
+    civilService,
     claimedSlugs: Array.from(claimedSlugs)
   };
   fs.writeFileSync(OUT, JSON.stringify(out, null, 2) + '\n');
   console.log(`Exported ${n} community report(s) + ${confirmedCount} confirmation(s) across ${Object.keys(reports).length} department(s) -> data/overlay.json`);
+  console.log(`Civil service: ${Object.keys(civilService).length} department(s) with a submitted answer.`);
   console.log(`Department claims: ${claimedSlugs.size} department(s) marked "Department maintained".`);
   console.log(`Promoted ${departments.length} new department(s) to the map` +
     (skippedDup ? `, skipped ${skippedDup} possible duplicate(s)` : '') +
@@ -550,5 +583,5 @@ async function main() {
 if (require.main === module) {
   main().catch(e => { console.error('[export-overlay] failed (keeping existing overlay.json):', e.message); process.exit(0); });
 } else {
-  module.exports = { slugify, normName, isDuplicate, makeRegionResolver, promoteDepartments, readZipCentroids, toReport, decodeValue, extractStepPlans, docId, DISPUTE_REVERT_THRESHOLD, confirmationToReport, applyValueDisputes, dedupeConfirmations };
+  module.exports = { slugify, normName, isDuplicate, makeRegionResolver, promoteDepartments, readZipCentroids, toReport, decodeValue, extractStepPlans, extractCivilService, docId, DISPUTE_REVERT_THRESHOLD, confirmationToReport, applyValueDisputes, dedupeConfirmations };
 }

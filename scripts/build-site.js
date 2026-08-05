@@ -310,12 +310,15 @@ function main() {
   const oDepartments = overlay.departments || [];       // auto-promoted, ZIP-geocoded new departments
   const oStepPlans = overlay.stepPlans || {};           // live, community-submitted full pay-step plans
   const oClaimedSlugs = new Set(overlay.claimedSlugs || []); // admin-approved "Department maintained" claims
+  const oCivilService = overlay.civilService || {};     // optional dept-level fact from a submission
   // Merge community reports into each department ONCE, up front, so every page,
   // ranking, and embedded blob reflects consensus. Visitors read only static files.
   const depts = (json.departments || []).concat(oDepartments).map(d => {
     let merged = Agg.applyOverlay(d, oReports[d.slug]);
+    merged = Agg.applySupplementalFlags(merged);
     if (oStepPlans[d.slug]) merged = Agg.applyStepPlan(merged, oStepPlans[d.slug]);
     if (oClaimedSlugs.has(d.slug)) merged = Agg.applyClaim(merged, true);
+    if (Object.prototype.hasOwnProperty.call(oCivilService, d.slug)) merged = Agg.applyCivilService(merged, oCivilService[d.slug]);
     return merged;
   });
   const communityCount = Object.keys(oReports).filter(k => (oReports[k] || []).length).length;

@@ -175,6 +175,41 @@ test('a conflicting recent submission surfaces as conflict', () => {
   assert.strictEqual(s.confidence, 'conflicting');
 });
 
+test('applyCivilService sets true/false at the top level', () => {
+  const dept = deptFixture();
+  assert.strictEqual(Agg.applyCivilService(dept, true).civilService, true);
+  assert.strictEqual(Agg.applyCivilService(dept, false).civilService, false);
+});
+
+test('applyCivilService is a no-op without an explicit true/false', () => {
+  const dept = deptFixture();
+  assert.strictEqual(Agg.applyCivilService(dept, undefined), dept);
+  assert.strictEqual(Agg.applyCivilService(dept, null), dept);
+});
+
+test('applySupplementalFlags derives certPay/educationPay/longevity from real submitted pay items', () => {
+  const dept = deptFixture();
+  const withSupp = Agg.applyOverlay(dept, [
+    { contributorId: 'u1', submittedAt: iso(1), entry: 60500, value: 60500, supplemental: [{ type: 'tcfp-master', amount: 300, unit: 'mo' }] }
+  ]);
+  const out = Agg.applySupplementalFlags(withSupp);
+  assert.strictEqual(out.flags.certPay, true);
+  assert.strictEqual(out.flags.educationPay, false);
+  assert.strictEqual(out.flags.longevity, false);
+});
+
+test('applySupplementalFlags is a no-op when nothing has been submitted', () => {
+  const dept = deptFixture();
+  assert.strictEqual(Agg.applySupplementalFlags(dept), dept);
+});
+
+test('applySupplementalFlags never turns an existing true flag back off', () => {
+  const dept = deptFixture();
+  dept.flags = Object.assign({}, dept.flags, { longevity: true });
+  const out = Agg.applySupplementalFlags(dept);
+  assert.strictEqual(out.flags.longevity, true);
+});
+
 test('summarize output is compact and serializable', () => {
   const s = Agg.summarize(deptFixture(), [], NOW);
   assert.deepStrictEqual(Object.keys(s).sort(), [

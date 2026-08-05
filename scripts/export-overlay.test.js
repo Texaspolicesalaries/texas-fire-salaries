@@ -131,6 +131,46 @@ test('toReport keeps a Midpoint-career-point submission separate from entry/top'
   assert.strictEqual(r.top, null);
 });
 
+test('toReport keeps a submission that carries only supplemental pay items, not just base figures', () => {
+  const supp = arrVal([mapVal({ type: s('longevity'), amount: num(500), unit: s('yr') })]);
+  const r = M.toReport({ contributorId: s('u5'), proposedValues: mapVal({ supplemental: supp }) });
+  assert.ok(r, 'a supplemental-only submission should not be dropped');
+  assert.deepStrictEqual(r.supplemental, [{ type: 'longevity', amount: 500, unit: 'yr' }]);
+});
+
+test('toReport decodes supplemental pay items alongside an ordinary entry figure', () => {
+  const supp = arrVal([mapVal({ type: s('tcfp-master'), amount: num(300), unit: s('mo') })]);
+  const r = M.toReport({ contributorId: s('u6'), proposedValues: mapVal({ entry: num(61000), supplemental: supp }) });
+  assert.strictEqual(r.entry, 61000);
+  assert.deepStrictEqual(r.supplemental, [{ type: 'tcfp-master', amount: 300, unit: 'mo' }]);
+});
+
+test('extractCivilService keeps the most recently submitted answer per department', () => {
+  const rows = [
+    row({ departmentSlug: s('addison-fd'), civilService: boolVal(true) }, '2026-01-01'),
+    row({ departmentSlug: s('addison-fd'), civilService: boolVal(false) }, '2026-06-01')
+  ];
+  assert.deepStrictEqual(M.extractCivilService(rows), { 'addison-fd': false });
+});
+
+test('extractCivilService ignores submissions that left it unanswered', () => {
+  const rows = [row({ departmentSlug: s('addison-fd') }, '2026-01-01')];
+  assert.deepStrictEqual(M.extractCivilService(rows), {});
+});
+
+test('extractCivilService keeps false, not just true (booleanValue: false must not be treated as absent)', () => {
+  const rows = [row({ departmentSlug: s('denton-fd'), civilService: boolVal(false) }, '2026-01-01')];
+  assert.deepStrictEqual(M.extractCivilService(rows), { 'denton-fd': false });
+});
+
+test('extractCivilService keeps departments separate', () => {
+  const rows = [
+    row({ departmentSlug: s('addison-fd'), civilService: boolVal(true) }, '2026-01-01'),
+    row({ departmentSlug: s('denton-fd'), civilService: boolVal(false) }, '2026-01-01')
+  ];
+  assert.deepStrictEqual(M.extractCivilService(rows), { 'addison-fd': true, 'denton-fd': false });
+});
+
 function intVal(v) { return { integerValue: String(v) }; }
 function boolVal(v) { return { booleanValue: v }; }
 function arrVal(items) { return { arrayValue: { values: items } }; }

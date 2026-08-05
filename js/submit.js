@@ -212,7 +212,19 @@
       '<div id="mode-single"' + (st.mode !== 'single' ? ' hidden' : '') + '>' + singleFields() + '</div>' +
       '<div id="mode-range"' + (st.mode !== 'range' ? ' hidden' : '') + '>' + rangeFields() + '</div>' +
       '<div id="mode-plan"' + (st.mode !== 'plan' ? ' hidden' : '') + '>' + planFields() + '</div>' +
-      supplementalSection();
+      supplementalSection() +
+      departmentFactsSection();
+  }
+
+  // A department-level fact, not a pay figure — asked once per submission
+  // regardless of mode, folded into whichever department this submission is
+  // for. Optional and tri-state: leaving it "Not sure" omits it entirely
+  // rather than asserting a value, so it never overwrites a known answer with
+  // a guess.
+  function departmentFactsSection() {
+    return '<div class="divider-label">Department facts (optional)</div>' +
+      field('Civil service?', sel('c-civil', [['', 'Not sure / skip'], ['yes', 'Yes — civil service'], ['no', 'No — not civil service']], ''),
+        'Whether hiring/promotion follows a civil service system (exam-based, commission-governed).', 'c-civil');
   }
 
   // A single flat rate — no raise by tenure. Sets BOTH entry and top pay to the
@@ -660,6 +672,9 @@
     base.sourceType = prov; base.sourceUrl = v('src-url') || null;
     base.sourceStatus = ((prov && SOURCED_PROVENANCE[prov]) || base.sourceUrl) ? 'sourced' : 'provisional';
     base.hasFile = hasFile();
+    var civil = v('c-civil');
+    if (civil === 'yes') base.civilService = true;
+    else if (civil === 'no') base.civilService = false;
     if (st.type === 'add') {
       Object.assign(base, { name: v('f-name'), city: v('f-city'), county: v('f-county'), zip: v('f-zip'), departmentType: v('f-dtype'), website: v('f-web') });
       base.possibleDuplicate = isDuplicateDept(base.name, base.city);
