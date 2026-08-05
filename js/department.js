@@ -83,7 +83,7 @@
     host.innerHTML = '<div class="card card-tight">' +
       '<h3 style="margin-bottom:.4rem">Represent this department?</h3>' +
       '<p class="muted" style="margin-bottom:.6rem">If you manage this page officially, request "Department maintained" status. An admin reviews every request.</p>' +
-      '<button class="btn btn-outline btn-sm" id="act-claim">Claim this department</button>' +
+      '<button class="btn btn-outline" id="act-claim">Claim this department</button>' +
       '<div id="claim-status" class="field-hint" style="margin-top:.5rem"></div>' +
       '</div>';
     var btn = document.getElementById('act-claim');
@@ -295,10 +295,10 @@
           '<p class="muted">' + UI.esc(s.confidence.description) + '</p>' +
           '<div class="gate" id="dept-gate"><span aria-hidden="true">🔒</span><div>Sign in with a verified email to confirm, update, or dispute this information. <a href="/sign-in.html">Sign in →</a></div></div>' +
           '<div class="confidence-actions">' +
-            '<button class="btn btn-secondary btn-sm" id="act-confirm">👍 This looks correct</button>' +
-            '<a class="btn btn-primary btn-sm" href="/submit.html?dept=' + UI.esc(dept.slug) + '&mode=update">Submit an update</a>' +
-            '<button class="btn btn-outline btn-sm" id="act-dispute">⚑ Report incorrect information</button>' +
-            '<a class="btn btn-outline btn-sm" href="/submit.html?dept=' + UI.esc(dept.slug) + '&mode=step">Add missing pay step</a>' +
+            '<a class="btn btn-primary" href="/submit.html?dept=' + UI.esc(dept.slug) + '&mode=update">Submit an update</a>' +
+            '<button class="btn btn-outline" id="act-confirm">👍 This looks correct</button>' +
+            '<button class="btn btn-outline" id="act-dispute">⚑ Report incorrect information</button>' +
+            '<a class="btn btn-outline" href="/submit.html?dept=' + UI.esc(dept.slug) + '&mode=step">Add missing pay step</a>' +
           '</div>' +
           '<div id="act-status" class="field-hint" style="margin-top:.6rem"></div>' +
           '<div id="dispute-form"></div>' +
