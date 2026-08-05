@@ -106,7 +106,6 @@
 
     var rows = '';
     rows += salaryRow('Entry firefighter pay', depts, function (s) { return entryVal(s); });
-    rows += salaryRow('Entry FF-paramedic pay', depts, function (s) { return s.entryMedic != null ? fmtByMode(s.entryMedic, s) : '—'; });
     rows += salaryRow('Midpoint pay', depts, function (s) { return midpointVal(s); });
     rows += salaryRow('Top firefighter pay', depts, function (s) { return topVal(s); });
     rows += plainRow('Years to top', depts, function (s) { return s.yearsToTop != null ? s.yearsToTop + ' yr' : '—'; });
@@ -120,8 +119,6 @@
     rows += flagRow('Certification pay', depts, 'certPay');
     rows += flagRow('Education pay', depts, 'educationPay');
     rows += flagRow('Longevity pay', depts, 'longevity');
-    rows += plainRowD('Retirement system', depts, function (d) { return d.retirementSystem || '—'; });
-    rows += plainRowD('Ambulance transport', depts, function (d) { return d.transportStatus === 'transport' ? 'Transports' : (d.transportStatus === 'non-transport' ? 'Non-transport' : '—'); });
     rows += chipRow('Data freshness', depts, function (s) { return UI.freshnessChip(s.freshness); });
     rows += chipRow('Community confidence', depts, function (s) { return UI.confidenceChip(s.confidence); });
     rows += plainRow('Contributors', depts, function (s) { return s.contributors || 0; });

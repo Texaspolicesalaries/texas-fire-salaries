@@ -10,12 +10,16 @@
   var zipOrigins = Object.create(null);
 
   // Which query keys we persist. (booleans stored as '1')
+  // civil (Civil service) and the hasX pay flags are backed by real submitted
+  // data (see js/submit.js + js/aggregate.js's applySupplementalFlags).
+  // transport/retirement/emt/medicReq/lateral/hiring are held back for now —
+  // no submission path sets them yet (retirementSystem is planned for a
+  // later pass; the others have no plan at all).
   var KEYS = [
     'q', 'city', 'county', 'region', 'zip', 'radius', 'nearLat', 'nearLng',
-    'entryMin', 'medicMin', 'topMin', 'maxYtt', 'hourlyMin',
+    'entryMin', 'topMin', 'maxYtt', 'hourlyMin',
     'hasSteps', 'hasMedic', 'hasCert', 'hasEdu', 'hasLongevity',
-    'schedule', 'transport', 'type', 'civil', 'retirement',
-    'emt', 'medicReq', 'lateral', 'hiring',
+    'schedule', 'type', 'civil',
     'fresh6', 'fresh12', 'deptMaint', 'hasSource', 'multiConfirm', 'complete', 'noDisputed',
     'sort', 'dir', 'view'
   ];
@@ -23,10 +27,9 @@
   function defaults() {
     return {
       q: '', city: '', county: '', region: '', zip: '', radius: '', nearLat: '', nearLng: '',
-      entryMin: '', medicMin: '', topMin: '', maxYtt: '', hourlyMin: '',
+      entryMin: '', topMin: '', maxYtt: '', hourlyMin: '',
       hasSteps: false, hasMedic: false, hasCert: false, hasEdu: false, hasLongevity: false,
-      schedule: '', transport: '', type: '', civil: '', retirement: '',
-      emt: false, medicReq: false, lateral: false, hiring: false,
+      schedule: '', type: '', civil: '',
       fresh6: false, fresh12: false, deptMaint: false, hasSource: false,
       multiConfirm: false, complete: false, noDisputed: false,
       sort: 'name', dir: 'asc', view: 'map'
@@ -127,9 +130,10 @@
         var dist = distanceFor(d, origin);
         if (dist == null || dist > radius) return false;
       }
-      // compensation
+      // compensation — a single firefighter entry figure; paramedic/EMT/cert/
+      // education/longevity pay are add-ons on top of it, never a separate
+      // "entry" dollar amount (hasMedic checks the add-on, not a figure).
       if (st.entryMin && !(s.entry >= num(st.entryMin))) return false;
-      if (st.medicMin && !(s.entryMedic >= num(st.medicMin))) return false;
       if (st.topMin && !(s.topBase >= num(st.topMin))) return false;
       if (st.maxYtt && !(s.yearsToTop != null && s.yearsToTop <= num(st.maxYtt))) return false;
       if (st.hourlyMin && !(s.effectiveHourlyEntry >= num(st.hourlyMin))) return false;
@@ -140,15 +144,9 @@
       if (st.hasLongevity && !f.longevity) return false;
       // work conditions
       if (st.schedule && d.scheduleType !== st.schedule) return false;
-      if (st.transport && d.transportStatus !== st.transport) return false;
       if (st.type && d.departmentType !== st.type) return false;
       if (st.civil === 'yes' && d.civilService !== true) return false;
       if (st.civil === 'no' && d.civilService !== false) return false;
-      if (st.retirement && d.retirementSystem !== st.retirement) return false;
-      if (st.emt && !f.emtRequired) return false;
-      if (st.medicReq && !f.paramedicRequired) return false;
-      if (st.lateral && !f.lateralsAccepted) return false;
-      if (st.hiring && d.hiringStatus !== 'hiring') return false;
       // data quality
       if (st.fresh6 && !isWithinMonths(s.lastUpdated, 6)) return false;
       if (st.fresh12 && !isWithinMonths(s.lastUpdated, 12)) return false;
@@ -175,7 +173,6 @@
       var s = d.summary || {};
       switch (sort) {
         case 'entry': return num2(s.entry);
-        case 'medic': return num2(s.entryMedic);
         case 'top': return num2(s.topBase);
         case 'ytt': return num2(s.yearsToTop);
         case 'hourly': return num2(s.effectiveHourlyEntry);

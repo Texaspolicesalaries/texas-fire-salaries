@@ -37,7 +37,6 @@
     var regions = D.regions().map(function (r) { return [r.id, r.name]; });
     var counties = D.counties();
     var cities = D.cities();
-    var retirements = uniq(D.all().map(function (d) { return d.retirementSystem; }));
 
     container.innerHTML =
       group('Location',
@@ -54,9 +53,11 @@
         '</div>' +
         '<div class="zip-status" id="f-zip-status" aria-live="polite"></div>'
       , true) +
+      // Firefighter entry is the one entry figure — paramedic/EMT, certification,
+      // education, and longevity pay are add-ons on top of it (see submit.html's
+      // supplemental pay section), never a separate "entry" dollar amount.
       group('Compensation',
         numField('entryMin', 'Min entry FF salary', state, '$') +
-        numField('medicMin', 'Min FF-paramedic entry', state, '$') +
         numField('topMin', 'Min top FF salary', state, '$') +
         numField('maxYtt', 'Max years to top', state, 'yrs') +
         numField('hourlyMin', 'Min effective hourly', state, '$/hr') +
@@ -68,14 +69,8 @@
       ) +
       group('Work conditions',
         selectField('schedule', 'Shift schedule', SCHEDULES, state) +
-        selectField('transport', 'Ambulance transport', [['transport', 'Transports'], ['non-transport', 'Non-transport']], state) +
         selectField('type', 'Department type', TYPES, state) +
-        selectField('civil', 'Civil service', [['yes', 'Civil service'], ['no', 'Non–civil service']], state) +
-        selectField('retirement', 'Retirement system', retirements, state) +
-        check('emt', 'EMT certification required', state) +
-        check('medicReq', 'Paramedic certification required', state) +
-        check('lateral', 'Accepts laterals', state) +
-        check('hiring', 'Currently hiring', state)
+        selectField('civil', 'Civil service', [['yes', 'Civil service'], ['no', 'Non–civil service']], state)
       ) +
       group('Data quality',
         check('fresh6', 'Updated within 6 months', state) +
@@ -87,8 +82,6 @@
         check('noDisputed', 'Exclude disputed records', state)
       );
   }
-
-  function uniq(arr) { var s = {}; arr.forEach(function (v) { if (v) s[v] = true; }); return Object.keys(s).sort(); }
 
   // DOM -> state
   function read(container, state) {

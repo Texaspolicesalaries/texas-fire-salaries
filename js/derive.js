@@ -137,14 +137,6 @@
     out.stepPlanDisputed = !!s.stepPlanDisputed;
     out.stepPlanDisputeCount = s.stepPlanDisputeCount || 0;
 
-    var flags = dept.flags || {};
-    if (hasSteps && flags.paramedicIncentive) {
-      var firstMedicStep = steps.find(function (x) { return (Lib.parseMoney(x.paramedicPay) || 0) > 0; });
-      if (firstMedicStep) {
-        out.entryMedic = Lib.parseMoney(firstMedicStep.baseAnnualSalary) + (Lib.parseMoney(firstMedicStep.paramedicPay) || 0);
-      }
-    }
-
     // ── Entry consensus (the headline figure) — falls back to the seed's
     // historical step value only when one actually exists.
     var entryReports = reportsForField(s, extraReports, 'entry');

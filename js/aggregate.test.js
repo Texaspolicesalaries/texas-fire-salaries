@@ -196,6 +196,16 @@ test('applySupplementalFlags derives certPay/educationPay/longevity from real su
   assert.strictEqual(out.flags.certPay, true);
   assert.strictEqual(out.flags.educationPay, false);
   assert.strictEqual(out.flags.longevity, false);
+  assert.strictEqual(out.flags.paramedicIncentive, false);
+});
+
+test('applySupplementalFlags derives paramedicIncentive from a real submitted paramedic-incentive item (an add-on, not a separate entry figure)', () => {
+  const dept = deptFixture();
+  const withSupp = Agg.applyOverlay(dept, [
+    { contributorId: 'u1', submittedAt: iso(1), entry: 60500, value: 60500, supplemental: [{ type: 'paramedic-incentive', amount: 6000, unit: 'yr' }] }
+  ]);
+  const out = Agg.applySupplementalFlags(withSupp);
+  assert.strictEqual(out.flags.paramedicIncentive, true);
 });
 
 test('applySupplementalFlags is a no-op when nothing has been submitted', () => {
@@ -214,7 +224,7 @@ test('summarize output is compact and serializable', () => {
   const s = Agg.summarize(deptFixture(), [], NOW);
   assert.deepStrictEqual(Object.keys(s).sort(), [
     'communityReports', 'confidence', 'contributors', 'effectiveHourlyEntry', 'entry',
-    'entryMedic', 'freshness', 'hasConflict', 'hasSalary', 'lastUpdated', 'slug', 'topBase',
+    'freshness', 'hasConflict', 'hasSalary', 'lastUpdated', 'slug', 'topBase',
     'updatedAt', 'yearsToTop'
   ].sort());
   assert.strictEqual(JSON.parse(JSON.stringify(s)).slug, 'test-fd');

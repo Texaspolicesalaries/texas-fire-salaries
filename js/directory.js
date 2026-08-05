@@ -12,7 +12,7 @@
   try { layout = localStorage.getItem('fireDirLayout') || 'cards'; } catch (e) {}
 
   var SORTS = [
-    ['name', 'Department name'], ['entry', 'Entry pay'], ['medic', 'Paramedic pay'],
+    ['name', 'Department name'], ['entry', 'Entry pay'],
     ['top', 'Top pay'], ['ytt', 'Years to top'], ['hourly', 'Effective hourly'],
     ['distance', 'Distance'], ['updated', 'Most recently updated'], ['confirmations', 'Most confirmations']
   ];

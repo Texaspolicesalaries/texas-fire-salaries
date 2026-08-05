@@ -127,33 +127,41 @@
   }
 
   // Supplemental pay ITEMS a contributor attaches to a submission (certification
-  // tiers, education tiers, longevity — see js/submit.js's SUPP_TYPES) are the
-  // real, live source for the "Has certification/education/longevity pay"
-  // filter checkboxes — the flags.* booleans baked into seed data are never set
-  // by anything, so deriving from actual submitted pay items is what makes
+  // tiers, education tiers, longevity, paramedic incentive — see
+  // js/submit.js's SUPP_TYPES) are the real, live source for the "Has
+  // certification/education/longevity/paramedic incentive pay" filter
+  // checkboxes — the flags.* booleans baked into seed data are never set by
+  // anything, so deriving from actual submitted pay items is what makes
   // those filters correspond to real data instead of always returning zero
   // results. Scans every report (seed + live, already merged by applyOverlay)
-  // rather than just the newest one, since a certification/education/longevity
-  // item reported once stays true going forward.
+  // rather than just the newest one, since a certification/education/
+  // longevity/medic item reported once stays true going forward.
+  //
+  // Paramedic/EMT pay is an ADD-ON on top of the single firefighter entry
+  // figure, not a separate "entry" salary point — there is deliberately no
+  // distinct paramedic-entry dollar amount anywhere in this model (see
+  // js/derive.js; entryMedic was removed for exactly this reason).
   var CERT_PAY_TYPES = ['tcfp-basic', 'tcfp-intermediate', 'tcfp-advanced', 'tcfp-master', 'certification'];
   var EDU_PAY_TYPES = ['edu-hs', 'edu-associate', 'edu-bachelor', 'edu-master'];
   function applySupplementalFlags(dept) {
     var reports = (dept.salary && dept.salary.reports) || [];
-    var hasCert = false, hasEdu = false, hasLongevity = false;
+    var hasCert = false, hasEdu = false, hasLongevity = false, hasMedic = false;
     reports.forEach(function (r) {
       (r.supplemental || []).forEach(function (s) {
         if (!s || !s.type) return;
         if (CERT_PAY_TYPES.indexOf(s.type) !== -1) hasCert = true;
         else if (EDU_PAY_TYPES.indexOf(s.type) !== -1) hasEdu = true;
         else if (s.type === 'longevity') hasLongevity = true;
+        else if (s.type === 'paramedic-incentive') hasMedic = true;
       });
     });
-    if (!hasCert && !hasEdu && !hasLongevity) return dept;
+    if (!hasCert && !hasEdu && !hasLongevity && !hasMedic) return dept;
     var d = Object.assign({}, dept);
     d.flags = Object.assign({}, dept.flags, {
       certPay: !!(dept.flags && dept.flags.certPay) || hasCert,
       educationPay: !!(dept.flags && dept.flags.educationPay) || hasEdu,
-      longevity: !!(dept.flags && dept.flags.longevity) || hasLongevity
+      longevity: !!(dept.flags && dept.flags.longevity) || hasLongevity,
+      paramedicIncentive: !!(dept.flags && dept.flags.paramedicIncentive) || hasMedic
     });
     return d;
   }
@@ -181,7 +189,6 @@
       hasSalary: !!s.hasSalary,
       entry: s.entry != null ? s.entry : null,
       topBase: s.topBase != null ? s.topBase : null,
-      entryMedic: s.entryMedic != null ? s.entryMedic : null,
       yearsToTop: s.yearsToTop != null ? s.yearsToTop : null,
       effectiveHourlyEntry: s.effectiveHourlyEntry != null ? s.effectiveHourlyEntry : null,
       confidence: s.confidence ? s.confidence.key : 'needed',

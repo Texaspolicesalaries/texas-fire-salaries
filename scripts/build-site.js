@@ -173,8 +173,7 @@ function salaryCards(s) {
     `<div class="salary-card${accent ? ' accent' : ''}"><div class="sc-lab">${lab}</div><div class="sc-val">${val}</div>${sub ? `<div class="sc-sub">${sub}</div>` : ''}</div>`);
   return `<div class="salary-grid" style="margin-top:1rem">
     ${card('Recruit pay', s.recruit != null ? money(s.recruit) : null, 'Starting / academy')}
-    ${card('Firefighter/EMT entry', money(s.entry), 'Base salary', true)}
-    ${card('Firefighter/paramedic entry', s.entryMedic != null ? money(s.entryMedic) : null, 'Base + medic incentive')}
+    ${card('Firefighter entry', money(s.entry), 'Base salary', true)}
     ${card('Midpoint pay', s.midpoint != null ? money(s.midpoint) : null, 'Base salary')}
     ${card('Top firefighter pay', money(s.topBase), 'Base salary')}
     ${card('Years to top pay', s.yearsToTop != null ? s.yearsToTop + ' yr' : null, 'Reported')}
@@ -375,17 +374,6 @@ function main() {
       'Ranked by community-reported base entry pay. Base salary only — schedules and incentives vary, so compare carefully.', top));
     urls.push('/rankings/highest-entry-pay.html');
     rankings.push({ href: '/rankings/highest-entry-pay.html', label: 'Highest entry pay', sub: 'By base entry salary' });
-  }
-  const withMedic = withEntry.filter(x => x.s.entryMedic != null);
-  if (withMedic.length >= 3) {
-    const top = withMedic.slice().sort((a, b) => b.s.entryMedic - a.s.entryMedic).map(x => x.d);
-    write('rankings/highest-paramedic-pay.html', listPage(
-      'Highest Reported Firefighter-Paramedic Salaries in Texas | Texas Fire Salaries',
-      'Texas fire departments with the highest community-reported firefighter-paramedic entry pay.',
-      `${SITE}/rankings/highest-paramedic-pay.html`, 'Highest reported firefighter-paramedic pay',
-      'Ranked by community-reported firefighter-paramedic entry pay (base plus medic incentive).', top));
-    urls.push('/rankings/highest-paramedic-pay.html');
-    rankings.push({ href: '/rankings/highest-paramedic-pay.html', label: 'Highest paramedic pay', sub: 'FF-paramedic entry' });
   }
   const hiring = depts.filter(d => d.hiringStatus === 'hiring').sort(byName);
   if (hiring.length >= 3) {

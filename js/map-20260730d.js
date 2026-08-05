@@ -243,7 +243,6 @@
     var dist = origin ? F.distanceFor(d, origin) : null;
     var rows = s.hasSalary ? (
       row('Entry FF', UI.money(s.entry)) +
-      (s.entryMedic ? row('FF-Paramedic entry', UI.money(s.entryMedic)) : '') +
       row('Top FF', UI.money(s.topBase)) +
       row('Years to top', s.yearsToTop != null ? s.yearsToTop + ' yr' : '—') +
       row('Schedule', d.scheduleType || '—')
