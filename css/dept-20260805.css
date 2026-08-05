@@ -43,12 +43,11 @@
 
 .dept-hero-stat { border-left: 1px solid #39455b; padding-left: var(--sp-6); }
 .dept-hero-stat-label { color: #aab4c3; text-transform: uppercase; letter-spacing: .12em; font-size: 11px; font-weight: 750; }
-.dept-hero-stat-value { font-family: var(--font-mono); font-size: clamp(2rem, 4vw, 3rem); letter-spacing: -.05em; line-height: 1.1; margin: 4px 0 .9rem; color: #fff; }
-.dept-hero-stat-value sup { color: var(--orange); font-size: 45%; top: -1em; position: relative; margin-right: 2px; }
-.dept-hero-stat-bottom { border-top: 1px solid #39455b; padding-top: 13px; display: flex; align-items: baseline; justify-content: space-between; gap: var(--sp-3); }
-.dept-hero-stat-bottom span { color: #8f9aad; font-size: 13px; }
+.dept-hero-stat-value { font-family: var(--font-mono); font-size: clamp(2rem, 4vw, 3rem); letter-spacing: -.05em; line-height: 1.1; margin: 16px 0 .9rem; color: #fff; }
+.dept-hero-stat-value sup { color: var(--orange); font-size: 40%; position: relative; top: -.4em; margin-right: 2px; }
+.dept-hero-stat-bottom { border-top: 1px solid #39455b; padding-top: 13px; display: flex; align-items: baseline; gap: 7px; }
 .dept-hero-stat-bottom strong { font-family: var(--font-mono); font-size: 18px; font-weight: 550; color: #fff; }
-.dept-hero-stat-bottom small { color: #8f9aad; font-family: var(--font-body); font-size: 11px; }
+.dept-hero-stat-bottom small { color: #8f9aad; font-family: var(--font-body); font-size: 12px; }
 .dept-hero-stat-note { color: #8b96a9; font-size: 11px; margin: 10px 0 0; text-align: right; }
 .dept-hero-empty { color: #aab4c3; font-size: .95rem; line-height: 1.6; }
 
@@ -71,10 +70,7 @@
 .salary-cards article > span { color: var(--text-faint); font-size: 12px; text-transform: uppercase; letter-spacing: .08em; font-weight: 750; }
 .salary-cards article strong { font-family: var(--font-mono); font-size: 1.5rem; letter-spacing: -.05em; margin: 1.3rem 0 auto; }
 .salary-cards article small { color: var(--text-faint); font-size: 12px; }
-.salary-cards .dark-card { background: var(--navy); color: #fff; }
-.salary-cards .dark-card > span, .salary-cards .dark-card small { color: #94a0b2; }
-.salary-cards .dark-card strong { font-size: 1.9rem; color: #fff; }
-.salary-cards .dark-card em { font-size: .85rem; font-style: normal; color: var(--orange); }
+.salary-cards article strong em { font-size: .85rem; font-style: normal; color: var(--text-faint); }
 @media (max-width: 860px) {
   .salary-cards { grid-template-columns: 1fr 1fr; }
   .salary-cards article:nth-child(2) { border-right: 0; }

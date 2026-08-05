@@ -131,10 +131,7 @@ function departmentPage(dept) {
           <div class="dept-hero-stat" aria-label="Featured salary">
             <span class="dept-hero-stat-label">Firefighter base salary</span>
             <div class="dept-hero-stat-value"><sup>$</sup>${esc(entryDollars)}</div>
-            <div class="dept-hero-stat-bottom">
-              <span>Starting pay</span>
-              ${s.effectiveHourlyEntry != null ? `<strong>${hourly(s.effectiveHourlyEntry)} <small>/ hour*</small></strong>` : ''}
-            </div>
+            ${s.effectiveHourlyEntry != null ? `<div class="dept-hero-stat-bottom"><strong>${hourly(s.effectiveHourlyEntry)}</strong><small>/ hour*</small></div>` : ''}
             ${s.annualHours ? `<p class="dept-hero-stat-note">*Effective hourly based on ${s.annualHours.toLocaleString()} scheduled annual hours.</p>` : ''}
           </div>` : `
           <div class="dept-hero-stat" aria-label="Featured salary">
@@ -214,14 +211,14 @@ ${heroStat}
 }
 
 function salaryCards(s) {
-  const card = (lab, val, sub, dark) => (val == null ? '' :
-    `<article${dark ? ' class="dark-card"' : ''}><span>${lab}</span><strong>${val}</strong>${sub ? `<small>${sub}</small>` : ''}</article>`);
+  const card = (lab, val, sub) => (val == null ? '' :
+    `<article><span>${lab}</span><strong>${val}</strong>${sub ? `<small>${sub}</small>` : ''}</article>`);
   return `<div class="salary-cards">
     ${card('Recruit pay', s.recruit != null ? money(s.recruit) : null, 'Starting / academy')}
     ${card('Firefighter entry', money(s.entry), 'Base salary')}
     ${card('Midpoint pay', s.midpoint != null ? money(s.midpoint) : null, 'Base salary')}
     ${card('Top firefighter pay', money(s.topBase), 'Base salary')}
-    ${card('Years to top pay', s.yearsToTop != null ? `${s.yearsToTop} <em>yr</em>` : null, 'Reported', true)}
+    ${card('Years to top pay', s.yearsToTop != null ? `${s.yearsToTop} <em>yr</em>` : null, 'Reported')}
     ${card('Reported annual hours', s.annualHours ? s.annualHours.toLocaleString() : null, s.scheduleType || '')}
     ${card('Effective hourly (entry)', hourly(s.effectiveHourlyEntry), 'Base ÷ scheduled hours')}
   </div>`;
@@ -269,7 +266,7 @@ function payStepTable(s) {
     <button class="btn btn-outline btn-sm" id="flag-step-plan" data-step-plan-id="${esc(s.stepPlanId)}">⚑ Flag this pay-step plan</button>
     <div id="flag-step-plan-status" class="field-hint" style="margin-top:.4rem"></div>
   </div>` : '';
-  return `<section class="dept-section">
+  return `<section id="step-plan" class="dept-section">
     <div class="dept-section-heading"><div><span class="section-kicker">Pay-step plan</span><h2>Full pay schedule</h2></div></div>
     <p class="dept-section-intro">Reported step schedule${s.classification ? ` for the ${esc(s.classification)} classification` : ''}. Only submitted columns are shown.</p>
     ${disputeNotice}

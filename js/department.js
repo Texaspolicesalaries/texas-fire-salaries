@@ -332,6 +332,10 @@
     var reports = ((dept.salary && dept.salary.reports) || []).slice();
     if (!reports.length) { host.innerHTML = ''; return; }
     reports.sort(function (a, b) { return Date.parse(b.submittedAt) - Date.parse(a.submittedAt); });
+    // Only the CURRENT full pay-step plan is retained (see export-overlay.js's
+    // extractStepPlans — no per-revision step history yet), so a link to it only
+    // makes sense on the current entry, not on superseded ones below.
+    var hasStepPlan = !!(summary.steps && summary.steps.length >= 3);
     host.innerHTML =
       '<p class="dept-section-intro" style="margin-top:0">Every submission is preserved. Contributor identities are shown by type only.</p>' +
       '<div class="history-timeline">' +
@@ -350,6 +354,7 @@
               '<span><small>Entry firefighter</small>' + UI.money(r.entry) + '</span>' +
               (r.top != null ? '<span><small>Top firefighter</small>' + UI.money(r.top) + '</span>' : '') +
               (r.hasSource ? payPlanLink('Source PDF ↗', '') : '') +
+              (isCurrent && hasStepPlan ? '<a href="#step-plan">Full ' + summary.steps.length + '-step pay plan ↓</a>' : '') +
             '</div>' +
           '</div>' +
         '</div>';
