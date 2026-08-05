@@ -168,7 +168,10 @@ textarea { min-height: 96px; resize: vertical; }
 input:focus, select:focus, textarea:focus { outline: none; border-color: var(--accent-2); box-shadow: 0 0 0 3px var(--accent-2-soft); }
 input[aria-invalid="true"], select[aria-invalid="true"] { border-color: var(--f-outdated-fg); }
 .checkline { display: flex; align-items: flex-start; gap: var(--sp-2); font-weight: 500; }
-.checkline input { width: auto; margin-top: 3px; }
+/* flex: 0 0 auto, not width: auto — width:auto strips the checkbox's native
+   intrinsic size, which in a flex row makes it stretch to fill the row
+   instead of staying checkbox-sized. */
+.checkline input { flex: 0 0 auto; width: 1.15em; height: 1.15em; margin-top: 3px; }
 .checkline label { margin: 0; font-weight: 500; }
 
 /* ============================ Footer ============================ */
