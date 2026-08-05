@@ -35,7 +35,7 @@
       '<span class="chip-icon" aria-hidden="true">' + esc(fresh.icon) + '</span>' + esc(fresh.label) + '</span>';
   }
   function deptMaintainedBadge() {
-    return '<span class="badge-dept-maintained"><span aria-hidden="true">◆</span> Department maintained</span>';
+    return '<span class="badge-dept-maintained"><span class="chip-icon" aria-hidden="true"></span>Department maintained</span>';
   }
 
   function relTime(ms) {

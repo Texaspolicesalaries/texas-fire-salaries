@@ -99,12 +99,12 @@ function departmentPage(dept) {
   const stepTable = (s.hasSalary && s.steps && s.steps.length >= 3) ? payStepTable(s) : '';
   const facts = detailsBlock(dept);
   const badges = [
-    dept.departmentMaintained ? '<span class="badge-dept-maintained"><span aria-hidden="true">◆</span> Department maintained</span>' : '',
+    dept.departmentMaintained ? '<span class="badge-dept-maintained"><span class="chip-icon" aria-hidden="true"></span>Department maintained</span>' : '',
     confChip(s.confidence), freshChip(s.freshness)
   ].join(' ');
 
   const hiring = dept.hiringStatus === 'hiring'
-    ? '<span class="chip current"><span class="chip-icon">◉</span> Currently hiring</span>'
+    ? '<span class="chip current"><span class="chip-icon" aria-hidden="true"></span>Currently hiring</span>'
     : (dept.hiringStatus === 'not-hiring' ? '<span class="pill">Not currently hiring</span>' : '');
 
   const embedded = JSON.stringify(dept).replace(/</g, '\\u003c');
