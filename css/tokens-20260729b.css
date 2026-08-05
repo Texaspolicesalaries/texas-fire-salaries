@@ -1,37 +1,51 @@
 /* ============================================================================
    Texas Fire Salaries — Design tokens
-   Restrained public-information design: neutral surfaces and slate typography,
-   with the logo colors used sparingly for actions and data states.
+   Premium civic-data editorial: warm ivory surfaces, midnight navy for
+   authority/structure (nav, footer, dark hero, confidence header), signal red
+   as the one action color, ember orange and muted green reserved for status
+   accents. Tabular/mono treatment for salary figures.
    ========================================================================== */
 
 :root {
   /* ---- Brand palette ---- */
-  --stone-50:  #FAFAFA;
-  --stone-100: #F3F5F6;
-  --stone-200: #E8EBEE;
-  --stone-300: #D9DEE3;
-  --stone-400: #B7C0C8;
+  --stone-50:  #FAFAF7;
+  --stone-100: #EAE6DD;
+  --stone-200: #E4DED2;
+  --stone-300: #DCD8CE;
+  --stone-400: #B9B4AA;
 
-  --ink-900: #17212B;
-  --ink-700: #35424E;
-  --ink-500: #5D6975;
-  --ink-400: #7B8690;
+  --ink-900: #152033;
+  --ink-700: #2B3648;
+  --ink-500: #536071;
+  --ink-400: #7E8793;
   --ink-300: #9BA4AC;
 
-  --ember-700: #B93F1B;
-  --ember-600: #D65329;
-  --ember-500: #E86C43;
-  --ember-100: #F8DCD1;
-  --ember-050: #FFF3EE;
+  --ember-700: #D94132;
+  --ember-600: #E84A3A;
+  --ember-500: #EF6B5C;
+  --ember-100: #FBDAD5;
+  --ember-050: #FDEDEB;
 
-  --teal-700: #315E65;
-  --teal-600: #47747B;
-  --teal-500: #638E94;
-  --teal-100: #E7EFF0;
+  --teal-700: #101827;
+  --teal-600: #172238;
+  --teal-500: #39455B;
+  --teal-100: #E6E9EF;
+
+  --navy:   #101827;
+  --navy-2: #172238;
+  --red:    #E84A3A;
+  --orange: #FFB45A;
+  --green:  #2D8068;
+  --paper:  #F4F1EA;
+  --card:   #FFFEFA;
+  --ink:      var(--ink-900);
+  --ink-soft: var(--ink-500);
+  --line:     var(--stone-300);
+  --white:    #FFFFFF;
 
   /* ---- Semantic surfaces ---- */
-  --bg:            #F7F8F9;
-  --bg-raised:     #FFFFFF;
+  --bg:            var(--paper);
+  --bg-raised:     var(--card);
   --bg-sunken:     var(--stone-100);
   --bg-inset:      var(--stone-200);
   --border:        var(--stone-300);
@@ -42,29 +56,29 @@
   --accent:        var(--ember-600);
   --accent-hover:  var(--ember-700);
   --accent-soft:   var(--ember-050);
-  --accent-2:      var(--teal-600);
+  --accent-2:      var(--navy-2);
   --accent-2-soft: var(--teal-100);
-  --focus-ring:    #638E94;
+  --focus-ring:    var(--navy-2);
 
   /* ---- Status: data confidence (keys mirror consensus.js CONFIDENCE) ---- */
-  --c-dept-fg:        #006D86; --c-dept-bg:        #DDF7FC;
-  --c-strong-fg:      #197340; --c-strong-bg:      #DFF4E7;
-  --c-reported-fg:    #43566F; --c-reported-bg:    #E8EEF5;
-  --c-conflicting-fg: #B83A11; --c-conflicting-bg: #FFE6DC;
-  --c-needed-fg:      #5F6F82; --c-needed-bg:      #E9EEF4;
+  --c-dept-fg:        #101827; --c-dept-bg:        #E6E9EF;
+  --c-strong-fg:      #1C7059; --c-strong-bg:      #E8F2EE;
+  --c-reported-fg:    #536071; --c-reported-bg:    #EEEBE3;
+  --c-conflicting-fg: #D94132; --c-conflicting-bg: #FCE8E6;
+  --c-needed-fg:      #7E8793; --c-needed-bg:      #EEEBE3;
 
   /* ---- Status: freshness (keys mirror consensus.js FRESHNESS) ---- */
-  --f-current-fg:  #006D86; --f-current-bg:  #DDF7FC;
-  --f-update-fg:   #8A5A12; --f-update-bg:   #FFF1CF;
-  --f-outdated-fg: #B83A11; --f-outdated-bg: #FFE6DC;
+  --f-current-fg:  #1C7059; --f-current-bg:  #E8F2EE;
+  --f-update-fg:   #87541D; --f-update-bg:   #FFF4E5;
+  --f-outdated-fg: #D94132; --f-outdated-bg: #FCE8E6;
   --f-upcoming-fg: #4A4A8A; --f-upcoming-bg: #E9E8FB;
 
   /* ---- Typography ---- */
-  --font-display: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  --font-body: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  --font-mono: ui-monospace, "SF Mono", "Cascadia Mono", "Roboto Mono", Menlo, Consolas, monospace;
+  --font-display: "Geist", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-body: "Geist", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, "SF Mono", "Cascadia Mono", "Roboto Mono", Menlo, Consolas, monospace;
 
-  --fs-display: clamp(2.55rem, 5.2vw, 4.35rem);
+  --fs-display: clamp(2.6rem, 5.4vw, 4.6rem);
   --fs-h1: clamp(1.9rem, 3.6vw, 2.7rem);
   --fs-h2: clamp(1.4rem, 2.4vw, 1.9rem);
   --fs-h3: 1.25rem;
@@ -73,7 +87,7 @@
   --fs-sm: 0.875rem;
   --fs-xs: 0.78rem;
 
-  --lh-tight: 1.06;
+  --lh-tight: 1.04;
   --lh-snug: 1.3;
   --lh-body: 1.6;
 
@@ -82,13 +96,13 @@
   --sp-5: 1.5rem;  --sp-6: 2rem;    --sp-7: 3rem;    --sp-8: 4rem; --sp-9: 6rem;
 
   /* ---- Radius / shadow / layout ---- */
-  --r-sm: 8px; --r-md: 12px; --r-lg: 18px; --r-xl: 24px; --r-pill: 999px;
-  --shadow-sm: 0 1px 2px rgba(23,33,43,.04), 0 3px 10px rgba(23,33,43,.035);
-  --shadow-md: 0 8px 22px rgba(23,33,43,.08);
-  --shadow-lg: 0 18px 42px rgba(23,33,43,.13);
-  --maxw: 1180px;
+  --r-sm: 6px; --r-md: 8px; --r-lg: 10px; --r-xl: 14px; --r-pill: 999px;
+  --shadow-sm: 0 1px 2px rgba(16,24,39,.05), 0 3px 10px rgba(16,24,39,.04);
+  --shadow-md: 0 8px 22px rgba(16,24,39,.09);
+  --shadow-lg: 0 18px 46px rgba(16,24,39,.12);
+  --maxw: 1240px;
   --maxw-narrow: 780px;
-  --nav-h: 72px;
+  --nav-h: 76px;
 
   color-scheme: light;
 }

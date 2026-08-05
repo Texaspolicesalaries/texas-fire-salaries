@@ -58,7 +58,7 @@ const HEAD = (title, desc, canonical, extra = '') => `<!DOCTYPE html>
   <meta property="og:type" content="website">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/css/tokens-20260729b.css">
   <link rel="stylesheet" href="/css/base-20260729b.css">
   <link rel="stylesheet" href="/css/components-20260729b.css">
@@ -121,46 +121,99 @@ function departmentPage(dept) {
   }).replace(/</g, '\\u003c')}</script>` : '';
 
   const incomplete = !s.hasSalary ? `
-      <div class="card" style="text-align:center;padding:2.5rem 1.5rem;margin:1.5rem 0">
-        <h2 style="margin-bottom:.5rem">Current salary information has not yet been submitted.</h2>
-        <p class="muted" style="max-width:46ch;margin:0 auto 1.25rem">Be the first to add ${esc(dept.name)}'s firefighter pay. Routine submissions publish automatically and are preserved as revisions.</p>
-        <a class="btn btn-primary btn-lg" href="/submit.html?dept=${esc(dept.slug)}">Add salary information</a>
+      <div class="dept-context-note" style="margin:1.5rem 0">
+        <span class="note-icon" aria-hidden="true">i</span>
+        <p><strong>Current salary information has not yet been submitted.</strong> Be the first to add ${esc(dept.name)}'s firefighter pay — routine submissions publish automatically and are preserved as revisions.</p>
       </div>` : '';
 
-  return HEAD(title, desc, canonical, jsonLd) + `
+  const entryDollars = s.hasSalary ? money(s.entry).replace(/^\$/, '') : '';
+  const heroStat = s.hasSalary ? `
+          <div class="dept-hero-stat" aria-label="Featured salary">
+            <span class="dept-hero-stat-label">Firefighter base salary</span>
+            <div class="dept-hero-stat-value"><sup>$</sup>${esc(entryDollars)}</div>
+            <div class="dept-hero-stat-bottom">
+              <span>Starting pay</span>
+              ${s.effectiveHourlyEntry != null ? `<strong>${hourly(s.effectiveHourlyEntry)} <small>/ hour*</small></strong>` : ''}
+            </div>
+            ${s.annualHours ? `<p class="dept-hero-stat-note">*Effective hourly based on ${s.annualHours.toLocaleString()} scheduled annual hours.</p>` : ''}
+          </div>` : `
+          <div class="dept-hero-stat" aria-label="Featured salary">
+            <span class="dept-hero-stat-label">Firefighter base salary</span>
+            <p class="dept-hero-empty">No salary information submitted yet — be the first to add it.</p>
+          </div>`;
+
+  const sectionLinks = [
+    s.hasSalary ? '<a href="#salary" class="selected">Salary</a>' : '',
+    s.hasSalary ? '<a href="#earnings">Career earnings</a>' : '',
+    '<a href="#history">History</a>',
+    '<a href="#details">Department</a>'
+  ].filter(Boolean).join('');
+
+  return HEAD(title, desc, canonical, `<link rel="stylesheet" href="/css/dept-20260805.css">${jsonLd}`) + `
 <body data-page="departments">
   <div id="site-header"></div>
-  <main id="main" class="wrap section-sm">
+  <main id="main">
     <section id="claim-notice"></section>
-    <nav class="breadcrumb" aria-label="Breadcrumb"><a href="/">Home</a> › <a href="/departments.html">Departments</a> › <a href="/counties/${slugify(dept.county)}/">${esc(dept.county)} County</a> › <span>${esc(dept.name)}</span></nav>
 
-    <header style="margin-bottom:1rem">
-      <p class="eyebrow">${esc(typeLabel)}</p>
-      <h1 style="margin-bottom:.4rem">${esc(dept.name)}</h1>
-      <p class="lede" style="margin-bottom:.75rem">${esc(dept.city)}, ${esc(dept.county)} County · ${regionName(dept.region)}</p>
-      <div class="tag-row" style="margin-bottom:.5rem">${badges} ${hiring}</div>
-      <div style="display:flex;gap:.6rem;flex-wrap:wrap;margin-top:1rem">
-        <a class="btn btn-primary" href="/submit.html?dept=${esc(dept.slug)}&mode=update">Update information</a>
-        ${s.sourceUrl ? `<a class="btn btn-outline" href="${esc(s.sourceUrl)}" rel="nofollow noopener" target="_blank">📄 View pay plan ↗</a>` : ''}
-        ${dept.careersUrl ? `<a class="btn btn-outline" href="${esc(dept.careersUrl)}" rel="nofollow noopener" target="_blank">Careers page ↗</a>` : ''}
-        <a class="btn btn-outline" href="/compare.html?d=${esc(dept.slug)}">Add to comparison</a>
+    <section class="dept-hero">
+      <div class="dept-hero-inner">
+        <nav class="dept-breadcrumb" aria-label="Breadcrumb"><a href="/">Texas</a><span>/</span><a href="/counties/${slugify(dept.county)}/">${esc(dept.county)} County</a><span>/</span><span>${esc(dept.city)}</span></nav>
+        <div class="dept-hero-grid">
+          <div class="dept-hero-copy">
+            <p class="eyebrow">${esc(typeLabel)}</p>
+            <h1>${esc(dept.name)}</h1>
+            <p class="dept-hero-loc">${esc(dept.city)}, Texas <span>•</span> ${esc(dept.county)} County <span>•</span> ${esc(regionName(dept.region))}</p>
+            <div class="dept-status-row" aria-label="Data status">${badges} ${hiring}</div>
+            <div class="dept-hero-buttons">
+              ${s.sourceUrl ? `<a class="btn btn-light" href="${esc(s.sourceUrl)}" rel="nofollow noopener" target="_blank">View pay plan <span aria-hidden="true">↗</span></a>` : `<a class="btn btn-light" href="/submit.html?dept=${esc(dept.slug)}&mode=update">Update information</a>`}
+              <a class="btn btn-ghost-dark" href="/compare.html?d=${esc(dept.slug)}">Add to comparison <span aria-hidden="true">＋</span></a>
+              ${dept.careersUrl ? `<a class="btn btn-ghost-dark" href="${esc(dept.careersUrl)}" rel="nofollow noopener" target="_blank">Careers page ↗</a>` : ''}
+            </div>
+          </div>
+${heroStat}
+        </div>
       </div>
-    </header>
+    </section>
 
-    ${DISCLAIMER}
-    ${incomplete}
-    ${s.hasSalary ? `<section style="margin:1.5rem 0"><h2>Salary summary</h2>${cards}</section>` : ''}
-    ${compExplain}
-    ${stepTable}
+    <nav class="dept-section-nav" aria-label="On this page"><div>${sectionLinks}</div></nav>
 
-    <section id="career-earnings" style="margin:2rem 0"></section>
-    <section id="salary-history" style="margin:2rem 0"></section>
+    <div class="dept-grid">
+      <div class="dept-main-column">
+        ${DISCLAIMER}
+        ${incomplete}
+        ${s.hasSalary ? `<section id="salary" class="dept-section first">
+          <div class="dept-section-heading">
+            <div><span class="section-kicker">01 / Compensation</span><h2>Salary at a glance</h2></div>
+            <a href="/submit.html?dept=${esc(dept.slug)}&mode=update">Suggest an update <span aria-hidden="true">↗</span></a>
+          </div>
+          ${cards}
+          ${compExplain}
+        </section>` : `<section id="salary"></section>`}
+        ${stepTable}
 
-    <section style="margin:2rem 0"><h2>Department details</h2>${facts}</section>
+        <section id="earnings"></section>
+        <section id="history" class="dept-section${s.hasSalary ? '' : ' first'}">
+          <div class="dept-section-heading compact"><div><span class="section-kicker">03 / Record</span><h2>History</h2></div></div>
+          <div id="salary-history"></div>
+          <div id="revision-history"></div>
+        </section>
 
-    <section id="confidence-panel" style="margin:2rem 0"></section>
-    <section id="revision-history" style="margin:2rem 0"></section>
-    <section id="claim-panel" style="margin:2rem 0"></section>
+        <section id="details" class="dept-section">
+          <div class="dept-section-heading compact"><div><span class="section-kicker">04 / Department</span><h2>At the station</h2></div></div>
+          ${facts}
+        </section>
+
+        <section id="claim-panel"></section>
+      </div>
+
+      <aside class="dept-side-column" aria-label="Data confidence">
+        <div id="confidence-panel"></div>
+        <a class="compare-card-link" href="/compare.html?d=${esc(dept.slug)}">
+          <span>See how ${esc(dept.city)} compares</span>
+          <strong>Build a department comparison <span aria-hidden="true">↗</span></strong>
+        </a>
+      </aside>
+    </div>
   </main>
   <div id="site-footer"></div>
   <script type="application/json" id="dept-data">${embedded}</script>
@@ -170,14 +223,14 @@ function departmentPage(dept) {
 }
 
 function salaryCards(s) {
-  const card = (lab, val, sub, accent) => (val == null ? '' :
-    `<div class="salary-card${accent ? ' accent' : ''}"><div class="sc-lab">${lab}</div><div class="sc-val">${val}</div>${sub ? `<div class="sc-sub">${sub}</div>` : ''}</div>`);
-  return `<div class="salary-grid" style="margin-top:1rem">
+  const card = (lab, val, sub, dark) => (val == null ? '' :
+    `<article${dark ? ' class="dark-card"' : ''}><span>${lab}</span><strong>${val}</strong>${sub ? `<small>${sub}</small>` : ''}</article>`);
+  return `<div class="salary-cards">
     ${card('Recruit pay', s.recruit != null ? money(s.recruit) : null, 'Starting / academy')}
-    ${card('Firefighter entry', money(s.entry), 'Base salary', true)}
+    ${card('Firefighter entry', money(s.entry), 'Base salary')}
     ${card('Midpoint pay', s.midpoint != null ? money(s.midpoint) : null, 'Base salary')}
     ${card('Top firefighter pay', money(s.topBase), 'Base salary')}
-    ${card('Years to top pay', s.yearsToTop != null ? s.yearsToTop + ' yr' : null, 'Reported')}
+    ${card('Years to top pay', s.yearsToTop != null ? `${s.yearsToTop} <em>yr</em>` : null, 'Reported', true)}
     ${card('Reported annual hours', s.annualHours ? s.annualHours.toLocaleString() : null, s.scheduleType || '')}
     ${card('Effective hourly (entry)', hourly(s.effectiveHourlyEntry), 'Base ÷ scheduled hours')}
   </div>`;
@@ -187,11 +240,11 @@ function compExplanation(s) {
   const warn = s.includesScheduledOvertime
     ? `<div class="notice warn" style="margin-top:1rem"><span class="notice-icon" aria-hidden="true">⚠</span><div>This department's reported annual compensation may include <strong>scheduled overtime</strong>. Compare base salary and annual hours before comparing it with departments that report base pay only.</div></div>`
     : '';
-  return `<section style="margin:1.5rem 0">
-    <h2>Understanding the numbers</h2>
-    <p class="muted">We keep <strong>base salary</strong> separate from <strong>reported total compensation</strong> (base + scheduled overtime + paramedic, certification, education, longevity, assignment, and holiday pay). Figures shown as “base” exclude overtime and incentives.</p>
-    ${warn}
-  </section>`;
+  return `<div class="dept-context-note">
+    <span class="note-icon" aria-hidden="true">i</span>
+    <p><strong>About these numbers.</strong> Base salary is shown separately from reported total compensation, which can include scheduled overtime, paramedic, certification, education, longevity, assignment, and holiday pay.</p>
+  </div>
+  ${warn}`;
 }
 
 function payStepTable(s) {
@@ -225,25 +278,32 @@ function payStepTable(s) {
     <button class="btn btn-outline btn-sm" id="flag-step-plan" data-step-plan-id="${esc(s.stepPlanId)}">⚑ Flag this pay-step plan</button>
     <div id="flag-step-plan-status" class="field-hint" style="margin-top:.4rem"></div>
   </div>` : '';
-  return `<section style="margin:1.5rem 0"><h2>Pay-step plan</h2>
-    <p class="muted">Reported step schedule${s.classification ? ` for the ${esc(s.classification)} classification` : ''}. Only submitted columns are shown.</p>
+  return `<section class="dept-section">
+    <div class="dept-section-heading"><div><span class="section-kicker">Pay-step plan</span><h2>Full pay schedule</h2></div></div>
+    <p class="dept-section-intro">Reported step schedule${s.classification ? ` for the ${esc(s.classification)} classification` : ''}. Only submitted columns are shown.</p>
     ${disputeNotice}
     <div class="table-scroll"><table class="data"><caption class="visually-hidden">Pay steps</caption><thead><tr>${head}</tr></thead><tbody>${rows}</tbody></table></div>${flag}</section>`;
 }
 function monthsLabel(m) { if (m === 0) return 'Start'; const y = Math.floor(m / 12); const mo = m % 12; return (y ? `${y} yr` : '') + (mo ? ` ${mo} mo` : '') || `${m} mo`; }
 
 function detailsBlock(dept) {
+  // Numeric/short facts get the big mono stat treatment (matches salary
+  // cards); longer text facts (dept type, retirement system name) use the
+  // smaller sans "detail-text" style instead of trying to force them into
+  // the same oversized mono numerals.
   const rows = [
-    ['Shift schedule', dept.scheduleType], ['Scheduled annual hours', dept.annualScheduledHours ? dept.annualScheduledHours.toLocaleString() : null],
-    ['Number of stations', dept.stations], ['Ambulance transport', dept.transportStatus === 'transport' ? 'Transports patients' : (dept.transportStatus === 'non-transport' ? 'Non-transport' : null)],
-    ['Civil service', dept.civilService == null ? null : (dept.civilService ? 'Yes' : 'No')],
-    ['Retirement system', dept.retirementSystem], ['Department type', TYPE_LABELS[dept.departmentType]],
-    ['EMT required', dept.flags && dept.flags.emtRequired ? 'Yes' : null], ['Paramedic required', dept.flags && dept.flags.paramedicRequired ? 'Yes' : null],
-    ['Accepts laterals', dept.flags && dept.flags.lateralsAccepted ? 'Yes' : null], ['ZIP', dept.zip]
+    ['Shift schedule', dept.scheduleType, false], ['Scheduled annual hours', dept.annualScheduledHours ? dept.annualScheduledHours.toLocaleString() : null, false],
+    ['Number of stations', dept.stations, false], ['Ambulance transport', dept.transportStatus === 'transport' ? 'Transports patients' : (dept.transportStatus === 'non-transport' ? 'Non-transport' : null), true],
+    ['Civil service', dept.civilService == null ? null : (dept.civilService ? 'Yes' : 'No'), false],
+    ['Retirement system', dept.retirementSystem, true], ['Department type', TYPE_LABELS[dept.departmentType], true],
+    ['EMT required', dept.flags && dept.flags.emtRequired ? 'Yes' : null, false], ['Paramedic required', dept.flags && dept.flags.paramedicRequired ? 'Yes' : null, false],
+    ['Accepts laterals', dept.flags && dept.flags.lateralsAccepted ? 'Yes' : null, false], ['ZIP', dept.zip, true]
   ].filter(([, v]) => v != null && v !== '');
-  return `<div class="card"><div class="grid cols-2">${rows.map(([k, v]) =>
-    `<div class="conf-stat"><span class="k">${esc(k)}</span><span class="v">${esc(v)}</span></div>`).join('')}</div>
-    ${dept.website ? `<p style="margin:1rem 0 0"><a href="${esc(dept.website)}" rel="nofollow noopener" target="_blank">Department website ↗</a></p>` : ''}</div>`;
+  if (!rows.length) return '<p class="dept-section-intro">No additional department facts on file yet.</p>';
+  const cards = rows.map(([k, v, isText], i) =>
+    `<div class="detail-card${i === 0 ? ' accent-card' : ''}"><span class="detail-label">${esc(k)}</span><strong${isText ? ' class="detail-text"' : ''}>${esc(v)}</strong></div>`).join('');
+  return `<div class="detail-grid">${cards}</div>
+    ${dept.website ? `<p style="margin:1rem 0 0"><a href="${esc(dept.website)}" rel="nofollow noopener" target="_blank">Department website ↗</a></p>` : ''}`;
 }
 
 // ── List pages (counties, regions, rankings) ─────────────────────────────────

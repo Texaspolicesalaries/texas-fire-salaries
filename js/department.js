@@ -80,11 +80,11 @@
     // with a standing reminder every time they're on their own department's
     // page, instead of just leaving it blank.
     if (summary.departmentMaintained) { host.innerHTML = ''; return; }
-    host.innerHTML = '<div class="card card-tight">' +
-      '<h3 style="margin-bottom:.4rem">Represent this department?</h3>' +
-      '<p class="muted" style="margin-bottom:.6rem">If you manage this page officially, request "Department maintained" status. An admin reviews every request.</p>' +
+    host.innerHTML = '<div class="dept-claim-panel">' +
+      '<div><h3>Represent this department?</h3>' +
+      '<p>If you manage this page officially, request "Department maintained" status. An admin reviews every request.</p>' +
+      '<div id="claim-status" class="field-hint" style="margin-top:.5rem"></div></div>' +
       '<button class="btn btn-outline" id="act-claim">Claim this department</button>' +
-      '<div id="claim-status" class="field-hint" style="margin-top:.5rem"></div>' +
       '</div>';
     var btn = document.getElementById('act-claim');
     if (!btn) return;
@@ -125,9 +125,9 @@
       var mine = false;
       snap.forEach(function (doc) { if (doc.data().userId === A.user.uid) mine = true; });
       if (mine) {
-        host.innerHTML = '<div class="notice info"><span class="notice-icon" aria-hidden="true">◆</span><div>' +
+        host.innerHTML = '<div class="dept-claimed-notice"><span aria-hidden="true">◆</span><div>' +
           '<strong>You are the verified contact for ' + UI.esc(dept.name) + '.</strong> ' +
-          'A pay figure you submit becomes the one shown here right away, without waiting to out-vote other community reports.</div></div>';
+          '<p>A pay figure you submit becomes the one shown here right away, without waiting to out-vote other community reports.</p></div></div>';
       }
     } catch (e) { /* nice-to-have only — never block the page over it */ }
   }
@@ -187,41 +187,48 @@
 
   // ---- Career earnings ----
   function renderCareer() {
-    var host = document.getElementById('career-earnings');
-    if (!host || !summary.hasSalary || !summary.steps) { if (host) host.innerHTML = ''; return; }
+    var host = document.getElementById('earnings');
+    if (!host || !summary.hasSalary || !summary.steps) { if (host) { host.innerHTML = ''; host.className = ''; } return; }
+    host.className = 'dept-section';
     var baseSteps = Lib.stepsForField(summary.steps, 'baseAnnualSalary');
     var repSteps = Lib.stepsForField(summary.steps, 'reportedAnnualCompensation');
-    function cell(steps, y) { var r = Lib.projectEarnings(steps, y); return r.total == null ? '—' : { total: UI.money(r.total), cf: r.assumedCarryForward }; }
     var years = [5, 10, 20];
-    var anyCF = years.some(function (y) { return Lib.projectEarnings(baseSteps, y).assumedCarryForward || Lib.projectEarnings(repSteps, y).assumedCarryForward; });
-    function rowFor(label, steps) {
-      return '<tr><th scope="row">' + label + '</th>' + years.map(function (y) {
-        var c = cell(steps, y); var v = (typeof c === 'object') ? c.total : c;
-        return '<td class="num">' + v + '</td>';
-      }).join('') + '</tr>';
+    function totals(steps) { return years.map(function (y) { return Lib.projectEarnings(steps, y); }); }
+    var baseTotals = totals(baseSteps);
+    var anyCF = baseTotals.some(function (r) { return r.assumedCarryForward; }) ||
+      (repSteps.length && totals(repSteps).some(function (r) { return r.assumedCarryForward; }));
+    function barsFor(label, rows) {
+      var max = Math.max.apply(null, rows.map(function (r) { return r.total || 0; })) || 1;
+      return '<div class="earnings-card">' + years.map(function (y, i) {
+        var r = rows[i];
+        var pct = r.total == null ? 0 : Math.max(4, Math.round((r.total / max) * 100));
+        return '<div class="earnings-row"><span class="years">' + y + ' <small>years</small></span>' +
+          '<div class="earnings-bar-track"><span style="width:' + pct + '%"></span></div>' +
+          '<strong>' + (r.total == null ? '—' : UI.money(r.total)) + '</strong></div>';
+      }).join('') + '</div>';
     }
     host.innerHTML =
-      '<h2>Career earnings</h2>' +
-      '<p class="muted">Cumulative earnings if a firefighter progressed through this reported step plan. <strong>Base salary</strong> and <strong>reported total compensation</strong> are kept separate — do not add them together.</p>' +
-      '<div class="table-scroll"><table class="data"><thead><tr><th scope="col">Basis</th><th class="num" scope="col">5 years</th><th class="num" scope="col">10 years</th><th class="num" scope="col">20 years</th></tr></thead><tbody>' +
-        rowFor('Base salary', baseSteps) +
-        (repSteps.length ? rowFor('Reported total compensation', repSteps) : '') +
-      '</tbody></table></div>' +
-      '<p class="field-hint" style="margin-top:.5rem">Assumes the step in effect at the start of each service year.' +
+      '<div class="dept-section-heading compact"><div><span class="section-kicker">02 / Projection</span><h2>Career earnings</h2></div></div>' +
+      '<p class="dept-section-intro">Cumulative earnings if a firefighter progressed through this reported step plan. <strong>Base salary</strong> and <strong>reported total compensation</strong> are kept separate — do not add them together.</p>' +
+      barsFor('Base salary', baseTotals) +
+      (repSteps.length ? '<p class="field-hint" style="margin:1rem 0 .5rem">Reported total compensation</p>' + barsFor('Reported total compensation', totals(repSteps)) : '') +
+      '<p class="dept-fine-print">Assumes the step in effect at the start of each service year.' +
         (anyCF ? ' Where the plan\'s final step is bounded, it assumes the final submitted step continues for later years.' : '') +
         ' Excludes raises, promotions, actual overtime worked, and benefits.</p>';
   }
 
   // ---- Salary history (SVG chart + table) ----
+  // Only the trend chart — the tabular breakdown of every submission already
+  // lives in renderRevisions() below (same section now), which additionally
+  // shows contributor type and current/superseded status, so a separate plain
+  // table here would just repeat the same dates and figures.
   function renderHistory() {
     var host = document.getElementById('salary-history');
     if (!host) return;
     var reports = ((dept.salary && dept.salary.reports) || []).slice().filter(function (r) { return r.entry != null && r.submittedAt; });
-    if (!reports.length) { host.innerHTML = ''; return; }
     reports.sort(function (a, b) { return Date.parse(a.submittedAt) - Date.parse(b.submittedAt); });
     var pts = reports.map(function (r) { return { t: Date.parse(r.submittedAt), entry: r.entry, top: r.top, when: r.submittedAt }; });
-
-    host.innerHTML = '<h2>Salary history</h2>' + (pts.length >= 2 ? chartSVG(pts) : '') + historyTable(reports);
+    host.innerHTML = pts.length >= 2 ? chartSVG(pts) : '';
   }
 
   function chartSVG(pts) {
@@ -249,14 +256,6 @@
       yTicks + line('entry', 'entry') + line('top', 'top') + '</svg></div>';
   }
 
-  function historyTable(reports) {
-    return '<div class="table-scroll" style="margin-top:1rem"><table class="data"><thead><tr>' +
-      '<th scope="col">Submitted</th><th class="num" scope="col">Entry FF</th><th class="num" scope="col">Top FF</th><th scope="col">Source</th></tr></thead><tbody>' +
-      reports.slice().reverse().map(function (r) {
-        return '<tr><td>' + UI.esc(r.submittedAt) + '</td><td class="num">' + UI.money(r.entry) + '</td><td class="num">' + (r.top != null ? UI.money(r.top) : '—') + '</td><td>' + (r.hasSource ? payPlanLink('View pay plan ↗', 'Source on file') : 'Community report') + '</td></tr>';
-      }).join('') + '</tbody></table></div>';
-  }
-
   // ---- Community confidence panel + actions ----
   var DISPUTE_FIELDS = [['entry', 'Entry pay'], ['midpoint', 'Midpoint pay'], ['top', 'Top pay']];
 
@@ -267,69 +266,95 @@
     var clusters = s.clusters || [];
     var newest = s.newestSubmission ? new Date(s.newestSubmission).toISOString().slice(0, 10) : '—';
     var oldest = s.oldestCurrent ? new Date(s.oldestCurrent).toISOString().slice(0, 10) : '—';
+    var contributors = s.contributors || 0;
+    // Ring fill is a rough "how close to strong consensus" gauge, reusing the
+    // same 3-contributor threshold export-overlay.js uses elsewhere to treat a
+    // value as strongly agreed-upon — not a precise statistic, just a glance cue.
+    var ringPct = Math.max(0, Math.min(100, Math.round((contributors / 3) * 100)));
     // A disputed figure stays showing (never silently reverted by a single flag)
     // until enough distinct community members dispute the SAME value — see
     // scripts/export-overlay.js's applyValueDisputes. Below the threshold, it's
     // just called out here so visitors know it's contested.
     var disputed = DISPUTE_FIELDS.filter(function (f) { return (s[f[0] + 'DisputeCount'] || 0) > 0; });
-    var disputeNotice = disputed.length
-      ? '<div class="notice warn" style="margin-bottom:1rem"><span class="notice-icon" aria-hidden="true">⚠</span><div>' +
-        disputed.map(function (f) { return f[1] + ' disputed by ' + s[f[0] + 'DisputeCount'] + ' community member' + (s[f[0] + 'DisputeCount'] === 1 ? '' : 's'); }).join('; ') +
-        '. It will revert to the prior value if enough others agree.</div></div>'
+    var disputeAlert = disputed.length
+      ? sideAlert('Disputed figures', disputed.map(function (f) {
+          return f[1] + ' disputed by ' + s[f[0] + 'DisputeCount'] + ' community member' + (s[f[0] + 'DisputeCount'] === 1 ? '' : 's');
+        }).join('; ') + '. Reverts to the prior value if enough others agree.')
+      : '';
+    var freshnessAlert = (s.freshness && (s.freshness.key === 'update_recommended' || s.freshness.key === 'possibly_outdated'))
+      ? sideAlert(s.freshness.label, s.freshness.description)
       : '';
     host.innerHTML =
-      '<h2>Community confidence</h2>' +
-      disputeNotice +
-      '<div class="tag-row" style="margin-bottom:1rem">' + UI.confidenceChip(s.confidence) + UI.freshnessChip(s.freshness) + (s.departmentMaintained ? UI.deptMaintainedBadge() : '') + '</div>' +
-      '<div class="confidence-panel">' +
-        '<div class="card card-tight">' +
-          stat('Matching submissions', clusters.length ? clusters[0].submissions.length : 0) +
-          stat('Contributors confirming', s.contributors || 0) +
-          stat('Newest submission', newest) +
-          stat('Oldest current matching', oldest) +
-          stat('Conflicting values', s.hasConflict ? 'Yes — reports disagree' : 'No') +
-          stat('Source supplied', s.sourceUrl ? payPlanLink('View pay plan ↗') : 'No') +
-          stat('Department maintained', s.departmentMaintained ? 'Yes' : 'No') +
+      '<div class="confidence-card">' +
+        '<div class="confidence-header">' +
+          '<div><span>Data confidence</span><strong>' + UI.esc(s.confidence.label) + '</strong></div>' +
+          '<div class="confidence-ring" style="--ring-pct:' + ringPct + '"><span>' + contributors + '</span><small>REPORTS</small></div>' +
         '</div>' +
-        '<div>' +
-          '<p class="muted">' + UI.esc(s.confidence.description) + '</p>' +
-          '<div class="gate" id="dept-gate"><span aria-hidden="true">🔒</span><div>Sign in with a verified email to confirm, update, or dispute this information. <a href="/sign-in.html">Sign in →</a></div></div>' +
-          '<div class="confidence-actions">' +
-            '<a class="btn btn-primary" href="/submit.html?dept=' + UI.esc(dept.slug) + '&mode=update">Submit an update</a>' +
-            '<button class="btn btn-outline" id="act-confirm">👍 This looks correct</button>' +
-            '<button class="btn btn-outline" id="act-dispute">⚑ Report incorrect information</button>' +
-            '<a class="btn btn-outline" href="/submit.html?dept=' + UI.esc(dept.slug) + '&mode=step">Add missing pay step</a>' +
-          '</div>' +
-          '<div id="act-status" class="field-hint" style="margin-top:.6rem"></div>' +
-          '<div id="dispute-form"></div>' +
+        '<div class="confidence-list">' +
+          confRow('Matching submissions', clusters.length ? clusters[0].submissions.length : 0) +
+          confRow('Contributors confirming', contributors) +
+          confRow('Newest submission', newest) +
+          confRow('Oldest current matching', oldest) +
+          confRow('Conflicting values', s.hasConflict ? '<a href="#history">Yes, see history</a>' : 'No') +
+          confRow('Source supplied', s.sourceUrl ? payPlanLink('View pay plan ↗') : 'No') +
+          confRow('Department maintained', s.departmentMaintained ? '<span class="positive">Yes</span>' : 'No') +
         '</div>' +
+        disputeAlert + freshnessAlert +
+        '<div class="gate" id="dept-gate"><span aria-hidden="true">🔒</span><div>Sign in with a verified email to confirm, update, or dispute this information. <a href="/sign-in.html">Sign in →</a></div></div>' +
+        '<div class="confidence-actions-side">' +
+          '<a class="btn btn-primary full" href="/submit.html?dept=' + UI.esc(dept.slug) + '&mode=update">Submit an update</a>' +
+          '<button class="btn btn-outline" id="act-confirm">This looks correct</button>' +
+          '<button class="btn btn-outline" id="act-dispute">Report incorrect information</button>' +
+          '<a class="btn btn-outline" href="/submit.html?dept=' + UI.esc(dept.slug) + '&mode=step">Add missing pay step</a>' +
+        '</div>' +
+        '<div id="act-status" class="field-hint" style="margin:0 var(--sp-5) var(--sp-4)"></div>' +
+        '<div id="dispute-form"></div>' +
+        '<p class="confidence-card-disclaimer">' + UI.esc(s.confidence.description) + ' Community-submitted, not verified payroll records.</p>' +
       '</div>';
   }
-  function stat(k, v) { return '<div class="conf-stat"><span class="k">' + k + '</span><span class="v">' + v + '</span></div>'; }
+  function confRow(k, v) { return '<div><span>' + k + '</span><strong>' + v + '</strong></div>'; }
+  function sideAlert(title, body) {
+    return '<div class="confidence-side-alert"><span class="alert-dot" aria-hidden="true"></span><div><strong>' + UI.esc(title) + '</strong><p>' + UI.esc(body) + '</p></div></div>';
+  }
   function fieldValue(field) { return field === 'top' ? summary.topBase : field === 'midpoint' ? summary.midpoint : summary.entry; }
 
   // ---- Revision history (public; no emails) ----
+  var REV_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  function revDate(iso) {
+    var t = Date.parse(iso);
+    if (isNaN(t)) return { m: UI.esc(iso || '—'), y: '' };
+    var d = new Date(t);
+    return { m: REV_MONTHS[d.getUTCMonth()] + ' ' + d.getUTCDate(), y: String(d.getUTCFullYear()) };
+  }
   function renderRevisions() {
     var host = document.getElementById('revision-history');
     if (!host) return;
     var reports = ((dept.salary && dept.salary.reports) || []).slice();
     if (!reports.length) { host.innerHTML = ''; return; }
     reports.sort(function (a, b) { return Date.parse(b.submittedAt) - Date.parse(a.submittedAt); });
-    var currentVal = summary.entry;
-    host.innerHTML = '<h2>Revision history</h2>' +
-      '<p class="muted">Every submission is preserved. Contributor identities are shown by type only.</p>' +
+    host.innerHTML =
+      '<p class="dept-section-intro" style="margin-top:0">Every submission is preserved. Contributor identities are shown by type only.</p>' +
+      '<div class="history-timeline">' +
       reports.map(function (r, i) {
         var isCurrent = i === 0;
         var type = r.departmentMaintained ? 'Department representative' : 'Community contributor';
-        return '<div class="revision' + (isCurrent ? '' : ' superseded') + '">' +
-          '<div class="rev-head"><strong>' + UI.esc(r.submittedAt) + '</strong>' +
-            '<span class="pill">' + type + '</span>' +
-            (r.hasSource ? '<span class="pill">' + payPlanLink('Pay plan ↗', 'Source on file') + '</span>' : '') +
-            '<span class="chip ' + (isCurrent ? 'current' : 'needed') + '"><span class="chip-icon">' + (isCurrent ? '◉' : '○') + '</span>' + (isCurrent ? 'Current' : 'Superseded') + '</span>' +
+        var when = revDate(r.submittedAt);
+        return '<div class="history-card">' +
+          '<div class="history-date"><strong>' + when.m + '</strong><span>' + when.y + '</span></div>' +
+          '<div class="history-line"><i aria-hidden="true"></i></div>' +
+          '<div class="history-details' + (isCurrent ? '' : ' superseded') + '">' +
+            '<div class="history-title"><div><strong>' + (isCurrent ? 'Current reported pay plan' : 'Prior reported pay plan') + '</strong><span>' + type + '</span></div>' +
+              '<span class="' + (isCurrent ? 'history-current-pill' : 'history-superseded-pill') + '">' + (isCurrent ? 'Current' : 'Superseded') + '</span>' +
+            '</div>' +
+            '<div class="history-values">' +
+              '<span><small>Entry firefighter</small>' + UI.money(r.entry) + '</span>' +
+              (r.top != null ? '<span><small>Top firefighter</small>' + UI.money(r.top) + '</span>' : '') +
+              (r.hasSource ? payPlanLink('Source PDF ↗', '') : '') +
+            '</div>' +
           '</div>' +
-          '<div class="rev-diff">Reported entry firefighter pay: <span class="new">' + UI.money(r.entry) + '</span>' + (r.top != null ? ' · top ' + UI.money(r.top) : '') + '</div>' +
         '</div>';
-      }).join('');
+      }).join('') +
+      '</div>';
   }
 
   // ---- Actions ----

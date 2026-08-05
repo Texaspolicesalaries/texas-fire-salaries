@@ -71,7 +71,7 @@
           '<a href="' + navHref('/disclaimer') + '">Copyright &amp; removal</a>' +
         '</div>' +
       '</div></div>' +
-      '<div class="footer-disclaimer" style="background:transparent;border-top:1px solid var(--border);border-bottom:0"><div class="wrap"><small class="faint">' + FOOTER_DISCLAIMER + '</small></div></div>' +
+      '<div class="footer-disclaimer" style="background:transparent;border-top:1px solid #2a3550;border-bottom:0"><div class="wrap"><small class="faint">' + FOOTER_DISCLAIMER + '</small></div></div>' +
       '<div class="wrap"><div class="footer-bottom">© ' + new Date().getFullYear() + ' Texas Fire Salaries · Community reported, not official.</div></div>' +
     '</footer>';
   }
