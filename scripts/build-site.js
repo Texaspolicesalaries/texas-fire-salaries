@@ -142,13 +142,6 @@ function departmentPage(dept) {
             <p class="dept-hero-empty">No salary information submitted yet — be the first to add it.</p>
           </div>`;
 
-  const sectionLinks = [
-    s.hasSalary ? '<a href="#salary" class="selected">Salary</a>' : '',
-    s.hasSalary ? '<a href="#earnings">Career earnings</a>' : '',
-    '<a href="#history">History</a>',
-    '<a href="#details">Department</a>'
-  ].filter(Boolean).join('');
-
   return HEAD(title, desc, canonical, `<link rel="stylesheet" href="/css/dept-20260805.css">${jsonLd}`) + `
 <body data-page="departments">
   <div id="site-header"></div>
@@ -174,8 +167,6 @@ ${heroStat}
         </div>
       </div>
     </section>
-
-    <nav class="dept-section-nav" aria-label="On this page"><div>${sectionLinks}</div></nav>
 
     <div class="dept-grid">
       <div class="dept-main-column">
