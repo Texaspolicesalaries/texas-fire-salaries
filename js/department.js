@@ -98,8 +98,13 @@
     var F = db.sdk.firestore;
     var email = (A.user && A.user.email) || '';
     var domain = email.indexOf('@') !== -1 ? email.split('@')[1] : '';
+    // The full email is what an admin actually needs to judge a claim (does
+    // this look like an official department address, do they recognize the
+    // person) — emailDomain alone ("gmail.com") tells them nothing. This is
+    // never shown publicly: firestore.rules only lets an admin or the
+    // claimant themselves read a pending claim doc.
     await F.addDoc(F.collection(db.db, 'department_claims'), {
-      userId: A.user.uid, departmentSlug: dept.slug, emailDomain: domain, status: 'pending', createdAt: F.serverTimestamp()
+      userId: A.user.uid, departmentSlug: dept.slug, email: email, emailDomain: domain, status: 'pending', createdAt: F.serverTimestamp()
     });
   }
 

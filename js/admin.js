@@ -87,7 +87,10 @@
         var deptLink = d.departmentSlug
           ? '<a href="/departments/' + UI.esc(d.departmentSlug) + '/" target="_blank" rel="noopener">' + UI.esc(d.departmentSlug) + '</a>'
           : 'unknown department';
-        rows.push('<div class="feed-item"><span>' + deptLink + ' — claimed from ' + UI.esc(d.emailDomain || 'unknown domain') + '</span>' +
+        // Older claims (written before email was captured) only have
+        // emailDomain — fall back to that rather than showing nothing.
+        var who = d.email || (d.emailDomain ? ('someone @' + d.emailDomain) : 'unknown email');
+        rows.push('<div class="feed-item"><span>' + deptLink + ' — claimed by ' + UI.esc(who) + '</span>' +
           '<span class="feed-when">' +
           '<button class="btn btn-secondary btn-sm" data-claim-id="' + UI.esc(doc.id) + '" data-claim-action="approve" data-claim-user="' + UI.esc(d.userId || '') + '">Approve</button> ' +
           '<button class="btn btn-outline btn-sm" data-claim-id="' + UI.esc(doc.id) + '" data-claim-action="reject">Reject</button>' +
