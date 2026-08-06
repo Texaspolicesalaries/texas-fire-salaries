@@ -202,6 +202,20 @@ function describeRevisionChanges(newer, older) {
     if (from != null && from === to) return;      // carried forward unchanged — not a change
     out.push({ label: f[1], from: from, to: to, kind: 'money' });
   });
+  // Working conditions, which are changes in their own right. A department's
+  // shift schedule is one of the things contributors most often correct, and
+  // leaving it out of the diff meant such a revision showed "No figures
+  // changed" — indistinguishable from a submission that did nothing.
+  var nSched = newer.schedule || null;
+  if (nSched) {
+    var oSched = (older && older.schedule) || null;
+    if (oSched !== nSched) out.push({ label: 'Shift schedule', from: oSched, to: nSched, kind: 'text' });
+  }
+  var nHours = parseNumber(newer.hoursAnnual);
+  if (nHours != null) {
+    var oHours = older ? parseNumber(older.hoursAnnual) : null;
+    if (oHours !== nHours) out.push({ label: 'Scheduled annual hours', from: oHours, to: nHours, kind: 'count' });
+  }
   var nSupp = ((newer.supplemental) || []).length;
   var oSupp = older ? ((older.supplemental) || []).length : 0;
   if (nSupp && nSupp !== oSupp) {

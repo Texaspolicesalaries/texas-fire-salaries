@@ -126,6 +126,10 @@
 .history-values span { font-family: var(--font-mono); font-size: 16px; font-weight: 650; }
 .history-values small { display: block; color: var(--text-faint); font-family: var(--font-body); font-size: 11px; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 6px; }
 .history-values a { color: var(--red); font-size: 12px; font-weight: 750; margin-left: auto; }
+/* A schedule change carries free text, not a figure — mono at 16px suits
+   "$76,529" but not "Modified 24-hour Schedule (24 on, 72 off; 48 on, 72 off)".
+   Given its own line so a long rotation can't squeeze the money chips beside it. */
+.history-values .chg-text { flex: 1 1 100%; font-family: var(--font-body); font-size: 13px; font-weight: 600; line-height: 1.4; overflow-wrap: anywhere; }
 
 /* Department detail grid */
 .detail-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }

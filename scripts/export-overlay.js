@@ -92,7 +92,18 @@ function toReport(fields) {
   // to a department that already has its base pay on file — so it must not
   // be dropped just because none of the six base/reported figures are set.
   const supplemental = decodeValue(pv.supplemental) || undefined;
-  if (entry == null && top == null && midpoint == null && recruit == null && reportedEntry == null && reportedTop == null && reportedMidpoint == null && !(supplemental && supplemental.length)) return null;
+  // Working conditions travel with the report so the history timeline can say
+  // what a revision actually changed. Without them a contributor who corrected
+  // a department's shift schedule saw their submission publish and appear
+  // nowhere — the figures were identical, so the card listed no changes at all.
+  const plan = decodeValue(fields.plan) || {};
+  const schedule = plan.schedule || fv(pv.schedule) || undefined;
+  const hoursRaw = plan.hoursAnnual != null ? plan.hoursAnnual : fv(pv.hoursAnnual);
+  const hoursAnnual = hoursRaw == null || hoursRaw === '' ? undefined : Number(hoursRaw);
+  // A submission that changes ONLY working conditions is still a real
+  // contribution; returning null here dropped it entirely.
+  if (entry == null && top == null && midpoint == null && recruit == null && reportedEntry == null && reportedTop == null && reportedMidpoint == null
+      && !(supplemental && supplemental.length) && !schedule && !(hoursAnnual > 0)) return null;
   return {
     contributorId: fv(fields.contributorId) || null,
     submittedAt: isoDay(fields.submittedAt && fields.submittedAt.timestampValue) || isoDay(Date.now()),
@@ -104,6 +115,8 @@ function toReport(fields) {
     reportedTop,
     reportedMidpoint,
     supplemental,
+    schedule,
+    hoursAnnual,
     // The LINK itself, not just the fact that one exists. Keeping only the
     // boolean meant a contributor could paste their department's official pay
     // page and the site would still render "Source supplied: No" — the evidence

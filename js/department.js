@@ -364,12 +364,22 @@
   // shows old → new so the movement is readable at a glance.
   function changeChips(changes) {
     if (!changes.length) return '<span class="muted" style="font-size:var(--fs-sm)">No figures changed</span>';
+    // Formats by kind: money gets currency, counts stay bare, and text (a shift
+    // schedule) is escaped — it's contributor-supplied free text now that
+    // modified rotations can be described in their own words.
+    var fmt = function (v, kind) {
+      if (v == null) return '';
+      if (kind === 'money') return UI.money(v);
+      if (kind === 'text') return UI.esc(v);
+      return String(v);
+    };
     return changes.map(function (c) {
-      var to = c.kind === 'count' ? c.to : UI.money(c.to);
-      var body = (c.from == null)
-        ? to
-        : '<span class="rv-old">' + (c.kind === 'count' ? c.from : UI.money(c.from)) + '</span> → ' + to;
-      return '<span><small>' + UI.esc(c.label) + '</small>' + body + '</span>';
+      var to = fmt(c.to, c.kind);
+      var body = (c.from == null) ? to
+        : '<span class="rv-old">' + fmt(c.from, c.kind) + '</span> → ' + to;
+      // A long schedule string would blow out the inline chip row.
+      var cls = c.kind === 'text' ? ' class="chg-text"' : '';
+      return '<span' + cls + '><small>' + UI.esc(c.label) + '</small>' + body + '</span>';
     }).join('');
   }
 

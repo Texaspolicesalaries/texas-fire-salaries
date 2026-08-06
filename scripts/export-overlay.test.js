@@ -180,8 +180,13 @@ test('toReport keeps reportedEntry/reportedTop ("total comp") separate from entr
   assert.strictEqual(r.top, null);
 });
 
-test('toReport returns null when a submission carries none of entry/top/reportedEntry/reportedTop', () => {
-  const r = M.toReport({ contributorId: s('u2'), proposedValues: mapVal({ schedule: s('24/48') }) });
+// This used a schedule as its example of "carries nothing useful", which was
+// only true while schedule changes were being discarded. Now that a working-
+// conditions correction is a real contribution, the case needs a payload that
+// genuinely says nothing — see the schedule-only test above for the new
+// behaviour, and "drops a submission carrying nothing at all" for the guard.
+test('toReport returns null when a submission carries no reportable field', () => {
+  const r = M.toReport({ contributorId: s('u2'), proposedValues: mapVal({ payPeriod: s('annual') }) });
   assert.strictEqual(r, null);
 });
 
@@ -209,6 +214,36 @@ test('toReport keeps a Recruit/academy pay submission separate from entry/top/mi
 test('toReport is not dropped for a recruit-pay-only submission (no entry/top/midpoint set)', () => {
   const r = M.toReport({ contributorId: s('u8'), proposedValues: mapVal({ recruit: num(48000) }) });
   assert.ok(r);
+});
+
+// A correction to working conditions alone was discarded outright: no pay
+// figure, no supplemental, so toReport returned null and the submission never
+// reached the site or the history timeline.
+test('toReport keeps a submission that changes only the shift schedule', () => {
+  const r = M.toReport({
+    contributorId: s('u9'),
+    proposedValues: mapVal({ schedule: s('Modified 24-hour Schedule (24 on, 72 off; 48 on, 72 off)') })
+  });
+  assert.ok(r, 'a schedule-only correction is a real contribution');
+  assert.strictEqual(r.schedule, 'Modified 24-hour Schedule (24 on, 72 off; 48 on, 72 off)');
+  assert.strictEqual(r.entry, null);
+});
+
+test('toReport keeps an hours-only submission and reads plan-mode schedules too', () => {
+  const hoursOnly = M.toReport({ contributorId: s('u10'), proposedValues: mapVal({ hoursAnnual: intVal(2920) }) });
+  assert.ok(hoursOnly);
+  assert.strictEqual(hoursOnly.hoursAnnual, 2920);
+  const planMode = M.toReport({
+    contributorId: s('u11'), mode: s('plan'),
+    proposedValues: mapVal({ entry: num(60000) }),
+    plan: mapVal({ schedule: s('24/72'), hoursAnnual: intVal(2184) })
+  });
+  assert.strictEqual(planMode.schedule, '24/72');
+  assert.strictEqual(planMode.hoursAnnual, 2184);
+});
+
+test('toReport still drops a submission carrying nothing at all', () => {
+  assert.strictEqual(M.toReport({ contributorId: s('u12'), proposedValues: mapVal({ basis: s('base') }) }), null);
 });
 
 test('toReport keeps a submission that carries only supplemental pay items, not just base figures', () => {

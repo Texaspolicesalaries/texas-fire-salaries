@@ -225,6 +225,33 @@ test('describeRevisionChanges returns nothing when a revision changed no figure'
   assert.deepStrictEqual(L.describeRevisionChanges(same, { entry: 60000, top: 78000 }), []);
 });
 
+// A shift-schedule correction is one of the commonest updates, and it used to
+// render as "No figures changed" — indistinguishable from a submission that did
+// nothing, which is exactly what a contributor checks History to rule out.
+test('describeRevisionChanges reports a shift-schedule change', () => {
+  const out = L.describeRevisionChanges(
+    { entry: 60000, schedule: 'Modified 24-hour Schedule (24 on, 72 off; 48 on, 72 off)' },
+    { entry: 60000, schedule: '24/48' }
+  );
+  assert.deepStrictEqual(out, [{
+    label: 'Shift schedule', from: '24/48',
+    to: 'Modified 24-hour Schedule (24 on, 72 off; 48 on, 72 off)', kind: 'text'
+  }]);
+});
+
+test('describeRevisionChanges reports scheduled hours, and stays quiet when unchanged', () => {
+  const changed = L.describeRevisionChanges({ hoursAnnual: 2920 }, { hoursAnnual: 2912 });
+  assert.deepStrictEqual(changed, [{ label: 'Scheduled annual hours', from: 2912, to: 2920, kind: 'count' }]);
+  assert.deepStrictEqual(L.describeRevisionChanges({ hoursAnnual: 2912 }, { hoursAnnual: 2912 }), []);
+});
+
+test('describeRevisionChanges treats a first-time schedule as added, not changed', () => {
+  const out = L.describeRevisionChanges({ schedule: '48/96' }, null);
+  assert.strictEqual(out.length, 1);
+  assert.strictEqual(out[0].from, null);
+  assert.strictEqual(out[0].to, '48/96');
+});
+
 test('describeRevisionChanges counts supplemental items as their own change', () => {
   const out = L.describeRevisionChanges(
     { entry: 60000, supplemental: [1, 2, 3] },
