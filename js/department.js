@@ -373,6 +373,16 @@
     }).join('');
   }
 
+  // A link to the evidence THIS revision was submitted with. An uploaded file
+  // and a pasted URL are labelled differently so a reader knows whether they're
+  // opening a document the contributor attached or a page they cited.
+  function revisionSourceLink(r) {
+    var href = Lib.safeUrl(r.sourceUrl || r.sourceFile);
+    if (!href) return '';
+    var label = r.sourceFile && !r.sourceUrl ? 'Attached document ↗' : 'Source ↗';
+    return '<a href="' + UI.esc(href) + '" target="_blank" rel="nofollow noopener">' + label + '</a>';
+  }
+
   function renderRevisions() {
     var host = document.getElementById('revision-history');
     if (!host) return;
@@ -403,7 +413,10 @@
             '</div>' +
             '<div class="history-values">' +
               changeChips(changes) +
-              (r.hasSource ? payPlanLink('Source PDF ↗', '') : '') +
+              // This revision's OWN source, not the step plan's — payPlanLink
+              // reads summary.sourceUrl, so every card used to link the same
+              // document regardless of which submission it came from.
+              revisionSourceLink(r) +
               (isCurrent && hasStepPlan ? '<a href="#step-plan">Full ' + summary.steps.length + '-step pay plan ↑</a>' : '') +
             '</div>' +
           '</div>' +

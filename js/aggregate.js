@@ -109,6 +109,7 @@
     if (stepPlan.effectiveDate) salary.effectiveDate = stepPlan.effectiveDate;
     if (stepPlan.sourceType) salary.sourceType = stepPlan.sourceType;
     if (stepPlan.sourceUrl) salary.sourceUrl = stepPlan.sourceUrl;
+    if (stepPlan.notes) salary.planNotes = stepPlan.notes;
     d.salary = salary;
     d.dataStatus = 'current';
     return d;

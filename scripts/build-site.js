@@ -279,6 +279,14 @@ function supplementalSection(s, dept) {
   </section>`;
 }
 
+// Context the contributor typed alongside the plan ("steps from the 2026
+// approved pay scale"). The form asks for it, so it has to reach the reader —
+// it is often the only thing explaining which document a table came from.
+function planNotes(s) {
+  if (!s.planNotes) return '';
+  return `<p class="field-hint" style="margin-top:.75rem"><strong>Contributor note:</strong> ${esc(s.planNotes)}</p>`;
+}
+
 function compExplanation(s, slug) {
   const warn = s.includesScheduledOvertime
     ? `<div class="notice warn" style="margin-top:1rem"><span class="notice-icon" aria-hidden="true">⚠</span><div>This department's reported annual compensation may include <strong>scheduled overtime</strong>. Compare base salary and annual hours before comparing it with departments that report base pay only.</div></div>`
@@ -328,7 +336,7 @@ function payStepTable(s) {
     <div class="dept-section-heading"><div><span class="section-kicker">Pay-step plan</span><h2>Full pay schedule</h2></div></div>
     <p class="dept-section-intro">Reported step schedule${s.classification ? ` for the ${esc(s.classification)} classification` : ''}. Only submitted columns are shown.</p>
     ${disputeNotice}
-    <div class="table-scroll"><table class="data"><caption class="visually-hidden">Pay steps</caption><thead><tr>${head}</tr></thead><tbody>${rows}</tbody></table></div>${flag}</section>`;
+    <div class="table-scroll"><table class="data"><caption class="visually-hidden">Pay steps</caption><thead><tr>${head}</tr></thead><tbody>${rows}</tbody></table></div>${planNotes(s)}${flag}</section>`;
 }
 function monthsLabel(m) { if (m === 0) return 'Start'; const y = Math.floor(m / 12); const mo = m % 12; return (y ? `${y} yr` : '') + (mo ? ` ${mo} mo` : '') || `${m} mo`; }
 

@@ -131,11 +131,28 @@
     }
     // effectiveHourlyEntry / effectiveHourlyTop are set below, after the displayed
     // entry and top figures are chosen (which may be community-overridden).
-    out.includesScheduledOvertime = !!s.includesScheduledOvertime;
+    // Seed data can declare this, and so can a community submission tagged
+    // "Base + scheduled overtime" — either way the page must warn that the
+    // figure is not comparable with a pure base-pay one.
+    out.includesScheduledOvertime = !!s.includesScheduledOvertime ||
+      (s.reports || []).concat(extraReports || []).some(function (r) { return r && r.includesScheduledOvertime; });
+    out.planNotes = s.planNotes || null;
     out.includesFlsaOvertime = !!s.includesFlsaOvertime;
     out.effectiveDate = s.effectiveDate || null;
     out.sourceType = s.sourceType || null;
     out.sourceUrl = s.sourceUrl || null;
+    // Fall back to the newest report that carries a link. Must come AFTER the
+    // assignment above, which would otherwise clobber it back to null: a
+    // department whose figures came from ordinary submissions has no
+    // seed/step-plan source of its own, and reporting "Source supplied: No"
+    // when the contributor pasted their department's official pay page is worse
+    // than saying nothing.
+    if (!out.sourceUrl) {
+      var sourced = (s.reports || []).concat(extraReports || [])
+        .filter(function (r) { return r && (r.sourceUrl || r.sourceFile); })
+        .sort(function (a, b) { return (toMs(b.submittedAt) || 0) - (toMs(a.submittedAt) || 0); })[0];
+      if (sourced) out.sourceUrl = sourced.sourceUrl || sourced.sourceFile;
+    }
     out.classification = s.classification || null;
     // Lets the page target a "flag this pay-step plan" dispute at the exact live
     // submission currently showing — null for seed-only data, which has no

@@ -104,7 +104,22 @@ function toReport(fields) {
     reportedTop,
     reportedMidpoint,
     supplemental,
-    hasSource: !!(fv(fields.sourceUrl) || fv(fields.sourceFile)),
+    // The LINK itself, not just the fact that one exists. Keeping only the
+    // boolean meant a contributor could paste their department's official pay
+    // page and the site would still render "Source supplied: No" — the evidence
+    // that makes a figure trustworthy was collected, stored in Firestore, and
+    // then dropped one hop before display. safeUrl gates it because these become
+    // live hrefs; a rejected scheme leaves hasSource false rather than
+    // advertising a source nobody can open.
+    sourceUrl: safeUrl(fv(fields.sourceUrl)) || undefined,
+    sourceFile: safeUrl(fv(fields.sourceFile)) || undefined,
+    sourceType: fv(fields.sourceType) || undefined,
+    // base-ot means the figure already has scheduled overtime folded in. Without
+    // this the amount lands in `entry` indistinguishable from pure base pay —
+    // exactly the blending this project refuses to do elsewhere.
+    includesScheduledOvertime: fv((fields.proposedValues && fields.proposedValues.mapValue
+      && fields.proposedValues.mapValue.fields || {}).basis) === 'base-ot' || undefined,
+    hasSource: !!(safeUrl(fv(fields.sourceUrl)) || safeUrl(fv(fields.sourceFile))),
     departmentMaintained: fv(fields.contributorType) === 'department'
   };
 }
@@ -222,6 +237,9 @@ function stepPlanFromDoc(doc) {
     })),
     classification: plan.classification || undefined,
     effectiveDate: plan.effectiveDate || undefined,
+    // Free-text context the contributor typed ("steps from the 2026 approved
+    // pay scale"). The form asks for it, so it has to survive to the page.
+    notes: plan.notes || undefined,
     sourceType: fv(f.sourceType) || undefined,
     sourceUrl: safeUrl(fv(f.sourceUrl)) || undefined,
     contributorId: fv(f.contributorId) || null
