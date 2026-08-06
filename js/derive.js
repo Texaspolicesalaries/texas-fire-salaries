@@ -255,6 +255,12 @@
       out.hasSalary = true;
     }
 
+    // Supplemental pay rides on the raw report objects, not on any single
+    // clustered field, so it's read straight off salary.reports rather than the
+    // per-field pools above (those are filtered to reports carrying that one
+    // figure, and a supplemental-only submission carries none of them).
+    out.supplemental = Lib.consolidateSupplemental((s.reports || []).concat(extraReports || []));
+
     var allReports = entryReports.concat(topReports, midpointReports, reportedEntryReports, reportedTopReports, reportedMidpointReports);
     out.contributors = uniqueContributorCount(allReports);
     var newest = allReports.reduce(function (m, r) { return Math.max(m, r.submittedAt || 0); }, 0) || toMs(s.effectiveDate);

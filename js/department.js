@@ -347,6 +347,32 @@
     var d = new Date(t);
     return { m: REV_MONTHS[d.getUTCMonth()] + ' ' + d.getUTCDate(), y: String(d.getUTCFullYear()) };
   }
+  // Names the revision by what it did. "Reported pay plan" on every card told a
+  // contributor nothing about whether their own submission had landed, which is
+  // the main reason anyone opens this section.
+  function revisionHeadline(changes, isFirst) {
+    if (!changes.length) return isFirst ? 'First reported figures' : 'Confirmed existing figures';
+    var added = changes.filter(function (c) { return c.from == null; }).length;
+    var edited = changes.length - added;
+    if (isFirst) return 'First reported figures';
+    if (added && !edited) return added === 1 ? 'Added ' + changes[0].label.toLowerCase() : 'Added ' + added + ' figures';
+    if (edited && !added) return edited === 1 ? 'Updated ' + changes[0].label.toLowerCase() : 'Updated ' + edited + ' figures';
+    return 'Updated ' + edited + ' and added ' + added;
+  }
+
+  // One chip per change: an added value shows just the new figure; a changed one
+  // shows old → new so the movement is readable at a glance.
+  function changeChips(changes) {
+    if (!changes.length) return '<span class="muted" style="font-size:var(--fs-sm)">No figures changed</span>';
+    return changes.map(function (c) {
+      var to = c.kind === 'count' ? c.to : UI.money(c.to);
+      var body = (c.from == null)
+        ? to
+        : '<span class="rv-old">' + (c.kind === 'count' ? c.from : UI.money(c.from)) + '</span> → ' + to;
+      return '<span><small>' + UI.esc(c.label) + '</small>' + body + '</span>';
+    }).join('');
+  }
+
   function renderRevisions() {
     var host = document.getElementById('revision-history');
     if (!host) return;
@@ -358,22 +384,25 @@
     // makes sense on the current entry, not on superseded ones below.
     var hasStepPlan = !!(summary.steps && summary.steps.length >= 3);
     host.innerHTML =
-      '<p class="dept-section-intro" style="margin-top:0">Every submission is preserved. Contributor identities are shown by type only.</p>' +
+      '<p class="dept-section-intro" style="margin-top:0">Every submission is preserved, with what each one changed. Contributor identities are shown by type only.</p>' +
       '<div class="history-timeline">' +
       reports.map(function (r, i) {
         var isCurrent = i === 0;
         var type = r.adminCorrection ? 'Admin correction' : r.departmentMaintained ? 'Department representative' : 'Community contributor';
         var when = revDate(r.submittedAt);
+        // Diffed against the NEXT entry, which is the one before it in time
+        // (the list is newest-first). The oldest revision has no predecessor,
+        // so everything it carries reads as added.
+        var changes = Lib.describeRevisionChanges(r, reports[i + 1] || null);
         return '<div class="history-card">' +
           '<div class="history-date"><strong>' + when.m + '</strong><span>' + when.y + '</span></div>' +
           '<div class="history-line"><i aria-hidden="true"></i></div>' +
           '<div class="history-details' + (isCurrent ? '' : ' superseded') + '">' +
-            '<div class="history-title"><div><strong>' + (isCurrent ? 'Current reported pay plan' : 'Prior reported pay plan') + '</strong><span>' + type + '</span></div>' +
+            '<div class="history-title"><div><strong>' + revisionHeadline(changes, i === reports.length - 1) + '</strong><span>' + type + '</span></div>' +
               '<span class="' + (isCurrent ? 'history-current-pill' : 'history-superseded-pill') + '">' + (isCurrent ? 'Current' : 'Superseded') + '</span>' +
             '</div>' +
             '<div class="history-values">' +
-              '<span><small>Entry firefighter</small>' + UI.money(r.entry) + '</span>' +
-              (r.top != null ? '<span><small>Top firefighter</small>' + UI.money(r.top) + '</span>' : '') +
+              changeChips(changes) +
               (r.hasSource ? payPlanLink('Source PDF ↗', '') : '') +
               (isCurrent && hasStepPlan ? '<a href="#step-plan">Full ' + summary.steps.length + '-step pay plan ↑</a>' : '') +
             '</div>' +

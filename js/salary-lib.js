@@ -86,6 +86,110 @@ function fmtMoney(n, opts) {
   });
 }
 
+// ── Supplemental pay ────────────────────────────────────────────────────────
+// Add-ons on top of base salary (certification tiers, education tiers, medic
+// incentive, longevity...). Contributors have always been able to submit these
+// and the amounts were stored faithfully, but nothing ever rendered them — they
+// only became the boolean filter flags in js/aggregate.js. So a department could
+// hold "$500/mo paramedic incentive" and the page would show, at most, a
+// checkbox saying such pay exists. These live here (not js/submit.js, which is
+// browser-only) so the Node build can label them identically.
+var SUPPLEMENTAL_LABELS = {
+  emt: 'EMT certification',
+  'paramedic-incentive': 'Paramedic incentive',
+  'tcfp-basic': 'TCFP Basic', 'tcfp-intermediate': 'TCFP Intermediate',
+  'tcfp-advanced': 'TCFP Advanced', 'tcfp-master': 'TCFP Master',
+  'edu-hs': 'Education — HS diploma', 'edu-associate': 'Education — Associate',
+  'edu-bachelor': 'Education — Bachelor’s', 'edu-master': 'Education — Master’s',
+  bilingual: 'Bilingual pay', longevity: 'Longevity pay',
+  'driver-engineer': 'Driver/Engineer pay', rank: 'Officer / rank pay',
+  assignment: 'Assignment / specialty pay', holiday: 'Holiday pay',
+  certification: 'Certification pay (other)', stipend: 'Stipend',
+  bonus: 'Hiring / retention bonus', other: 'Other'
+};
+// Display order: grouped by kind so the table reads like a pay schedule rather
+// than submission order.
+var SUPPLEMENTAL_ORDER = ['paramedic-incentive', 'emt', 'tcfp-basic', 'tcfp-intermediate',
+  'tcfp-advanced', 'tcfp-master', 'edu-hs', 'edu-associate', 'edu-bachelor', 'edu-master',
+  'longevity', 'bilingual', 'driver-engineer', 'rank', 'assignment', 'holiday',
+  'certification', 'stipend', 'bonus', 'other'];
+
+function supplementalLabel(t) { return SUPPLEMENTAL_LABELS[t] || String(t || ''); }
+
+// One row per pay TYPE across every report, newest submission winning — the same
+// most-recent-wins rule the department-level facts use. Without the dedupe a
+// department with three submissions would list "Paramedic incentive" three times,
+// including superseded amounts, with no way to tell which is current.
+function consolidateSupplemental(reports) {
+  var best = {};
+  (reports || []).forEach(function (r) {
+    var when = r && r.submittedAt ? Date.parse(r.submittedAt) : NaN;
+    var at = isFinite(when) ? when : 0;
+    ((r && r.supplemental) || []).forEach(function (s) {
+      if (!s || !s.type) return;
+      var amount = parseMoney(s.amount);
+      if (amount == null) return;
+      var cur = best[s.type];
+      if (!cur || at >= cur.at) best[s.type] = { type: s.type, amount: amount, unit: s.unit || 'yr', at: at };
+    });
+  });
+  return Object.keys(best)
+    .sort(function (a, b) {
+      var ia = SUPPLEMENTAL_ORDER.indexOf(a), ib = SUPPLEMENTAL_ORDER.indexOf(b);
+      return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib);
+    })
+    .map(function (k) { return { type: k, amount: best[k].amount, unit: best[k].unit }; });
+}
+
+// Annualized value of one supplemental item, or null when it can't be expressed
+// as a yearly figure. A percentage depends on the base it applies to, which
+// varies by step, so it is deliberately NOT converted — showing "2% of base" as
+// a dollar amount would invent precision that isn't there.
+function supplementalAnnual(item) {
+  if (!item) return null;
+  var a = parseMoney(item.amount);
+  if (a == null) return null;
+  if (item.unit === 'yr') return a;
+  if (item.unit === 'mo') return a * 12;
+  if (item.unit === 'hr') return null;   // needs scheduled hours; caller has them, not us
+  return null;                            // 'pct' and anything unrecognized
+}
+
+// ── Revision diffing ────────────────────────────────────────────────────────
+// What one revision actually changed, versus the revision before it. The history
+// timeline used to print entry and top on every card regardless of content, so a
+// submission that added recruit pay or eight supplemental items looked identical
+// to one that changed nothing — and a contributor checking whether their
+// submission landed had no way to tell. `older` is null for the earliest
+// revision, where every figure it carries is genuinely new.
+//
+// Returns [{ label, from, to, kind }] — `from` null means added; `kind` is
+// 'money' | 'count' so the caller can format without re-deriving intent.
+var REVISION_FIELDS = [
+  ['entry', 'Entry pay'], ['midpoint', 'Midpoint pay'], ['top', 'Top pay'],
+  ['recruit', 'Recruit / academy pay'],
+  ['reportedEntry', 'Reported total (entry)'], ['reportedMidpoint', 'Reported total (midpoint)'],
+  ['reportedTop', 'Reported total (top)']
+];
+
+function describeRevisionChanges(newer, older) {
+  var out = [];
+  if (!newer) return out;
+  REVISION_FIELDS.forEach(function (f) {
+    var to = parseMoney(newer[f[0]]);
+    if (to == null) return;                       // this revision says nothing about the field
+    var from = older ? parseMoney(older[f[0]]) : null;
+    if (from != null && from === to) return;      // carried forward unchanged — not a change
+    out.push({ label: f[1], from: from, to: to, kind: 'money' });
+  });
+  var nSupp = ((newer.supplemental) || []).length;
+  var oSupp = older ? ((older.supplemental) || []).length : 0;
+  if (nSupp && nSupp !== oSupp) {
+    out.push({ label: 'Supplemental pay items', from: older ? oSupp : null, to: nSupp, kind: 'count' });
+  }
+  return out;
+}
+
 // ── Effective hourly ────────────────────────────────────────────────────────
 // Firefighters commonly work long shift schedules (e.g. 2,912 scheduled hours/yr
 // on a 24/48), so a raw annual figure is not comparable to a 2,080-hour desk job.
@@ -264,6 +368,11 @@ var FireSalaryLib = {
   formatMoneyInput: formatMoneyInput,
   safeUrl: safeUrl,
   parseNumber: parseNumber,
+  SUPPLEMENTAL_LABELS: SUPPLEMENTAL_LABELS,
+  supplementalLabel: supplementalLabel,
+  consolidateSupplemental: consolidateSupplemental,
+  supplementalAnnual: supplementalAnnual,
+  describeRevisionChanges: describeRevisionChanges,
   fmtMoney: fmtMoney,
   effectiveHourly: effectiveHourly,
   scheduleHours: scheduleHours,

@@ -192,6 +192,7 @@ ${heroStat}
           ${compExplain}
         </section>` : `<section id="salary"></section>`}
         ${stepTable}
+        ${supplementalSection(s, dept)}
 
         <section id="earnings"></section>
         <section id="history" class="dept-section${s.hasSalary ? '' : ' first'}">
@@ -240,6 +241,42 @@ function salaryCards(s) {
     ${card('Reported annual hours', s.annualHours ? s.annualHours.toLocaleString() : null, s.scheduleType || '')}
     ${card('Effective hourly (entry)', hourly(s.effectiveHourlyEntry), 'Base ÷ scheduled hours')}
   </div>`;
+}
+
+// Add-on pay, shown as its own section rather than folded into the salary cards.
+// Keeping it visually separate is the same principle the whole site runs on:
+// base pay and everything stacked on top of it never get blended into one
+// number. The annualized column is what makes these figures legible — "$500/mo
+// paramedic incentive" is $6,000/yr, which is the difference between two
+// departments whose base pay looks identical.
+function supplementalSection(s, dept) {
+  const items = s.supplemental || [];
+  if (!items.length) return '';
+  const hours = s.annualHours || null;
+  const rows = items.map(it => {
+    let annual = Lib.supplementalAnnual(it);
+    // Hourly add-ons only annualize if we know the schedule; percentages never
+    // do, since the base they apply to changes with each step.
+    if (annual == null && it.unit === 'hr' && hours) annual = it.amount * hours;
+    const shown = it.unit === 'pct'
+      ? `${it.amount}% of base`
+      : `${money(it.amount)}/${it.unit === 'mo' ? 'mo' : it.unit === 'hr' ? 'hr' : 'yr'}`;
+    return `<tr><td>${esc(Lib.supplementalLabel(it.type))}</td><td class="num">${shown}</td><td class="num">${annual != null ? money(Math.round(annual)) : '—'}</td></tr>`;
+  }).join('');
+  return `<section id="supplemental" class="dept-section">
+    <div class="dept-section-heading">
+      <div><span class="section-kicker">Add-on pay</span><h2>Supplemental pay</h2></div>
+      <a href="/submit.html?dept=${esc(dept.slug)}&mode=update">Add or correct <span aria-hidden="true">↗</span></a>
+    </div>
+    <p class="dept-section-intro">Community-reported pay <strong>on top of</strong> base salary — certifications, education, incentives. Eligibility varies by person, so these are never added into the base figures above.</p>
+    <div class="table-scroll">
+      <table class="pay-table">
+        <thead><tr><th scope="col">Pay item</th><th class="num" scope="col">Reported amount</th><th class="num" scope="col">Per year</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+    <p class="field-hint" style="margin-top:.6rem">Annual figures are the reported amount converted to a yearly rate${hours ? ` (hourly items use ${hours.toLocaleString()} scheduled hours)` : ''}. A percentage of base is left as-is, since the base it applies to changes with each step.</p>
+  </section>`;
 }
 
 function compExplanation(s, slug) {

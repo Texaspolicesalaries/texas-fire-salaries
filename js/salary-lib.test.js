@@ -112,6 +112,80 @@ test('safeUrl ignores control characters hiding a scheme', () => {
   assert.strictEqual(L.safeUrl('\u0000javascript:alert(1)'), null);
 });
 
+// Supplemental pay was collected from contributors and stored faithfully, but
+// nothing rendered it — it only ever became a boolean filter flag. These cover
+// the consolidation that makes it displayable.
+test('consolidateSupplemental keeps the most recent amount per pay type', () => {
+  const out = L.consolidateSupplemental([
+    { submittedAt: '2026-01-01', supplemental: [{ type: 'paramedic-incentive', amount: 400, unit: 'mo' }] },
+    { submittedAt: '2026-08-06', supplemental: [{ type: 'paramedic-incentive', amount: 500, unit: 'mo' }] }
+  ]);
+  assert.strictEqual(out.length, 1, 'one row per type, not one per submission');
+  assert.strictEqual(out[0].amount, 500);
+});
+
+test('consolidateSupplemental merges across reports and orders by kind', () => {
+  const out = L.consolidateSupplemental([
+    { submittedAt: '2026-01-01', supplemental: [{ type: 'edu-bachelor', amount: 240, unit: 'mo' }] },
+    { submittedAt: '2026-02-01', supplemental: [{ type: 'paramedic-incentive', amount: 500, unit: 'mo' }] }
+  ]);
+  assert.deepStrictEqual(out.map(x => x.type), ['paramedic-incentive', 'edu-bachelor']);
+});
+
+test('consolidateSupplemental drops entries with no usable amount', () => {
+  const out = L.consolidateSupplemental([
+    { submittedAt: '2026-01-01', supplemental: [{ type: 'longevity' }, { type: '', amount: 5 }, { type: 'bilingual', amount: 200, unit: 'mo' }] }
+  ]);
+  assert.deepStrictEqual(out.map(x => x.type), ['bilingual']);
+});
+
+test('consolidateSupplemental is safe on empty/missing input', () => {
+  assert.deepStrictEqual(L.consolidateSupplemental([]), []);
+  assert.deepStrictEqual(L.consolidateSupplemental(null), []);
+  assert.deepStrictEqual(L.consolidateSupplemental([{ submittedAt: '2026-01-01' }]), []);
+});
+
+test('supplementalAnnual converts monthly and yearly, refuses percentages', () => {
+  assert.strictEqual(L.supplementalAnnual({ amount: 500, unit: 'mo' }), 6000);
+  assert.strictEqual(L.supplementalAnnual({ amount: 1000, unit: 'yr' }), 1000);
+  // A percentage depends on which step's base it applies to — converting it
+  // would invent precision, so callers must render it as a percentage.
+  assert.strictEqual(L.supplementalAnnual({ amount: 2, unit: 'pct' }), null);
+  assert.strictEqual(L.supplementalAnnual({ amount: 3, unit: 'hr' }), null);
+  assert.strictEqual(L.supplementalAnnual(null), null);
+});
+
+// The history timeline printed entry/top on every card regardless of content, so
+// a revision that added recruit pay looked identical to one that changed nothing.
+test('describeRevisionChanges reports only what actually moved', () => {
+  const out = L.describeRevisionChanges(
+    { entry: 76529, top: 79000, recruit: 65045 },
+    { entry: 76529, top: 76208 }
+  );
+  assert.deepStrictEqual(out.map(c => c.label), ['Top pay', 'Recruit / academy pay']);
+  assert.strictEqual(out[0].from, 76208);      // changed
+  assert.strictEqual(out[1].from, null);       // added
+});
+
+test('describeRevisionChanges treats the earliest revision as all-added', () => {
+  const out = L.describeRevisionChanges({ entry: 60000, top: 78000 }, null);
+  assert.strictEqual(out.length, 2);
+  assert.ok(out.every(c => c.from === null));
+});
+
+test('describeRevisionChanges returns nothing when a revision changed no figure', () => {
+  const same = { entry: 60000, top: 78000 };
+  assert.deepStrictEqual(L.describeRevisionChanges(same, { entry: 60000, top: 78000 }), []);
+});
+
+test('describeRevisionChanges counts supplemental items as their own change', () => {
+  const out = L.describeRevisionChanges(
+    { entry: 60000, supplemental: [1, 2, 3] },
+    { entry: 60000 }
+  );
+  assert.deepStrictEqual(out, [{ label: 'Supplemental pay items', from: 0, to: 3, kind: 'count' }]);
+});
+
 test('fmtMoney formats and guards', () => {
   assert.strictEqual(L.fmtMoney(74356), '$74,356');
   assert.strictEqual(L.fmtMoney(null), '—');
