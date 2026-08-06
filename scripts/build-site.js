@@ -36,6 +36,15 @@ const CONF_CLASS = { department_maintained: 'dept', strong: 'strong', reported: 
 const FRESH_CLASS = { current: 'current', update_recommended: 'update', possibly_outdated: 'outdated', upcoming: 'upcoming', none: 'needed' };
 
 function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+
+// Cloudflare Pages serves every "/foo.html" as "/foo" and 308-redirects the
+// .html form to it, so the extensionless URL is the one that actually answers
+// 200. Canonical tags and sitemap entries must name THAT url: pointing them at
+// "/foo.html" makes a page whose canonical redirects (and, since the redirect
+// lands back on the page declaring it, a pointless round trip for every
+// crawler). Internal nav links already use the clean form; this keeps the
+// machine-readable URLs consistent with them.
+function cleanUrl(u) { return String(u == null ? '' : u).replace(/\.html$/, ''); }
 function money(v) { return Lib.fmtMoney(v); }
 function hourly(v) { return v == null ? '—' : '$' + (Math.round(v * 100) / 100).toFixed(2) + '/hr'; }
 function slugify(s) { return String(s).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''); }
@@ -52,7 +61,7 @@ const HEAD = (title, desc, canonical, extra = '') => `<!DOCTYPE html>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>${esc(title)}</title>
   <meta name="description" content="${esc(desc)}">
-  <link rel="canonical" href="${esc(canonical)}">
+  <link rel="canonical" href="${esc(cleanUrl(canonical))}">
   <meta property="og:title" content="${esc(title)}">
   <meta property="og:description" content="${esc(desc)}">
   <meta property="og:type" content="website">
@@ -534,7 +543,7 @@ function writeMergeRedirects(mergedRedirects) {
 
 function sitemap(urls) {
   const today = new Date().toISOString().slice(0, 10);
-  const body = [...new Set(urls)].map(u => `  <url><loc>${SITE}${u}</loc><lastmod>${today}</lastmod></url>`).join('\n');
+  const body = [...new Set(urls.map(cleanUrl))].map(u => `  <url><loc>${SITE}${u}</loc><lastmod>${today}</lastmod></url>`).join('\n');
   return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${body}\n</urlset>\n`;
 }
 function groupBy(arr, fn) { const o = {}; arr.forEach(x => { const k = fn(x); if (!k) return; (o[k] = o[k] || []).push(x); }); return o; }
