@@ -105,7 +105,6 @@
       out.steps = steps;
       out.entryBase = Lib.parseMoney(first.baseAnnualSalary);
       out.topBase = Lib.parseMoney(last.baseAnnualSalary);
-      out.recruit = Lib.parseMoney(first.baseAnnualSalary);
       out.reportedTop = Lib.parseMoney(last.reportedAnnualCompensation);
       out.reportedEntry = Lib.parseMoney(first.reportedAnnualCompensation);
       // Midpoint: the middle step of a 3+-step plan (entry / midpoint / top is a
@@ -124,7 +123,7 @@
       // label it plainly instead of presenting it as a real step plan.
       out.singleRatePlan = steps.length <= 1;
     } else {
-      out.entryBase = null; out.topBase = null; out.recruit = null;
+      out.entryBase = null; out.topBase = null;
       out.reportedTop = null; out.reportedEntry = null;
       out.midpoint = null; out.reportedMidpoint = null;
       out.medicPay = null; out.yearsToTop = null;
@@ -190,6 +189,21 @@
       if (midCurrent) { out.midpoint = midCurrent.value; out.midpointDisputeCount = clusterDisputeCount(midCurrent); }
     }
     out.effectiveHourlyMidpoint = Lib.effectiveHourly(out.midpoint, annualHours);
+
+    // ── Recruit/academy pay consensus — same clustering pattern as midpoint,
+    // but deliberately never derived from steps[] (which model progression
+    // AFTER graduating to Firefighter). Falls back to the seed's standalone
+    // salary.recruitPay; a community "Recruit / academy pay" submission (Single
+    // mode's Position: Recruit, or Plan mode's optional field) overrides it,
+    // clustering across contributors exactly like entry/top/midpoint do. See
+    // data/schema.md and js/submit.js.
+    out.recruit = Lib.parseMoney(s.recruitPay);
+    var recruitReports = reportsForField(s, extraReports, 'recruit');
+    out.recruitDisputeCount = 0;
+    if (recruitReports.length) {
+      var recruitCurrent = C.selectCurrentCluster(C.clusterValues(recruitReports, { now: now }), { now: now });
+      if (recruitCurrent) { out.recruit = recruitCurrent.value; out.recruitDisputeCount = clusterDisputeCount(recruitCurrent); }
+    }
 
     // ── Reported total compensation consensus — kept on its own track, never
     // merged into entry/topBase/midpoint. A submission tagged "Reported total

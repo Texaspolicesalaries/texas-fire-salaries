@@ -131,6 +131,19 @@ test('toReport keeps a Midpoint-career-point submission separate from entry/top'
   assert.strictEqual(r.top, null);
 });
 
+test('toReport keeps a Recruit/academy pay submission separate from entry/top/midpoint', () => {
+  const r = M.toReport({ contributorId: s('u7'), proposedValues: mapVal({ recruit: num(52000) }) });
+  assert.strictEqual(r.recruit, 52000);
+  assert.strictEqual(r.entry, null);
+  assert.strictEqual(r.top, null);
+  assert.strictEqual(r.midpoint, null);
+});
+
+test('toReport is not dropped for a recruit-pay-only submission (no entry/top/midpoint set)', () => {
+  const r = M.toReport({ contributorId: s('u8'), proposedValues: mapVal({ recruit: num(48000) }) });
+  assert.ok(r);
+});
+
 test('toReport keeps a submission that carries only supplemental pay items, not just base figures', () => {
   const supp = arrVal([mapVal({ type: s('longevity'), amount: num(500), unit: s('yr') })]);
   const r = M.toReport({ contributorId: s('u5'), proposedValues: mapVal({ supplemental: supp }) });
@@ -350,6 +363,13 @@ test('applyValueDisputes suppresses only the disputed field once it hits the thr
   const out = M.applyValueDisputes(reports, 'addison-fd', counts);
   assert.strictEqual(out[0].entry, null);   // suppressed
   assert.strictEqual(out[0].top, 78000);    // top was never disputed — untouched
+});
+
+test('applyValueDisputes suppresses a disputed recruit-pay value the same as entry/top/midpoint', () => {
+  const reports = [{ contributorId: 'u1', recruit: 52000 }];
+  const counts = new Map([['addison-fd|recruit|52000', 3]]);
+  const out = M.applyValueDisputes(reports, 'addison-fd', counts);
+  assert.strictEqual(out[0].recruit, null);
 });
 
 test('applyValueDisputes respects a custom threshold', () => {

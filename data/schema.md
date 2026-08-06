@@ -60,6 +60,9 @@ export, match it to this shape (CSV/Sheet is fine — we map columns to these ke
   "sourceType": "official-pay-plan | collective-bargaining | meet-and-confer | community | other",
   "sourceUrl": "https://...",
   "classification": "Firefighter | Firefighter-Paramedic | ...",
+  "recruitPay": 52000,   // optional — pay during the academy, BEFORE graduating to
+                          // Firefighter. Independent of steps[] below; never used
+                          // for entry/top/years-to-top or any ranking/comparison.
   "steps": [
     {
       "stepName": "Firefighter",
@@ -86,6 +89,12 @@ export, match it to this shape (CSV/Sheet is fine — we map columns to these ke
 - **Never mix base and total comp.** `baseAnnualSalary` is base only; scheduled OT,
   paramedic pay, etc. are separate columns; `reportedAnnualCompensation` is the sum the
   submitter reported. The UI always shows which is which.
+- **`recruitPay` is never the first step.** `steps[0]` should always be the first
+  Firefighter step (what drives "entry pay," rankings, and career-earnings math). A
+  department's academy/recruit stipend — often lower, temporary, and not part of the
+  Firefighter pay scale — belongs in the standalone `recruitPay` field instead, so it
+  can be shown for context (the "Recruit pay" card) without skewing entry pay or
+  comparisons against departments that only report the post-graduation rate.
 - **Steps ordered by `minimumMonths`.** The step in effect at the start of a service
   year is used for that year's earnings (documented on the page).
 - **`maximumMonths: null`** marks the open-ended top step (career-earnings carry-forward

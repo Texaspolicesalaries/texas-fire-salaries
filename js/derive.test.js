@@ -87,6 +87,54 @@ test('a community midpoint submission can supply one for a plan that never had o
   assert.strictEqual(s.midpoint, 65000);
 });
 
+test('recruit pay comes only from salary.recruitPay, never from steps[0]', () => {
+  const withRecruit = deptFixture();
+  withRecruit.salary.recruitPay = 52000;
+  const s = Derive.deriveSummary(withRecruit, [], NOW);
+  assert.strictEqual(s.recruit, 52000);
+  assert.strictEqual(s.entryBase, 60000); // the Firefighter step, unaffected
+  assert.strictEqual(s.entry, 60000);
+});
+
+test('recruit pay is null when no recruitPay is set, even though steps[0] exists', () => {
+  const s = Derive.deriveSummary(deptFixture(), [], NOW);
+  assert.strictEqual(s.recruit, null);
+  assert.strictEqual(s.entryBase, 60000);
+});
+
+test('recruit pay works even for a department with no step plan at all', () => {
+  const dept = { slug: 'no-steps-fd', name: 'No Steps FD', flags: {}, salary: { recruitPay: 48000 } };
+  const s = Derive.deriveSummary(dept, [], NOW);
+  assert.strictEqual(s.recruit, 48000);
+  assert.strictEqual(s.entryBase, null);
+});
+
+test('a community "Recruit / academy pay" submission overrides the seed recruitPay without touching entry/top', () => {
+  const dept = deptFixture();
+  dept.salary.recruitPay = 50000;
+  const extra = [{ contributorId: 'u9', submittedAt: iso(1), recruit: 53000 }];
+  const s = Derive.deriveSummary(dept, extra, NOW);
+  assert.strictEqual(s.recruit, 53000);
+  assert.strictEqual(s.entry, 60000);
+  assert.strictEqual(s.topBase, 72000);
+});
+
+test('a community recruit-pay submission can supply one even when the seed never had recruitPay at all', () => {
+  const extra = [{ contributorId: 'u10', submittedAt: iso(1), recruit: 51000 }];
+  const s = Derive.deriveSummary(deptFixture(), extra, NOW);
+  assert.strictEqual(s.recruit, 51000);
+});
+
+test('multiple agreeing recruit-pay reports cluster together like entry/top/midpoint do', () => {
+  const extra = [
+    { contributorId: 'u11', submittedAt: iso(1), recruit: 52000 },
+    { contributorId: 'u12', submittedAt: iso(2), recruit: 52000 }
+  ];
+  const s = Derive.deriveSummary(deptFixture(), extra, NOW);
+  assert.strictEqual(s.recruit, 52000);
+  assert.strictEqual(s.recruitDisputeCount, 0);
+});
+
 test('an admin field override wins over the seed value with no community reports at all', () => {
   const dept = deptFixture();
   dept.fieldOverrides = { entry: { value: 61234, locked: true, note: 'Verified against city payroll PDF' } };

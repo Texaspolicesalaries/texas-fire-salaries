@@ -70,6 +70,11 @@ function toReport(fields) {
   let entry = money(fv(pv.entry));
   let top = money(fv(pv.top));
   const midpoint = money(fv(pv.midpoint));
+  // Recruit/academy pay — a flat, pre-graduation figure kept on its own track,
+  // same idea as midpoint: never merged into entry/top so a department's
+  // academy stipend can't get mistaken for its Firefighter entry pay. See
+  // js/submit.js's Position: Recruit routing and data/schema.md.
+  const recruit = money(fv(pv.recruit));
   const reportedEntry = money(fv(pv.reportedEntry));
   const reportedTop = money(fv(pv.reportedTop));
   const reportedMidpoint = money(fv(pv.reportedMidpoint));
@@ -81,13 +86,14 @@ function toReport(fields) {
   // to a department that already has its base pay on file — so it must not
   // be dropped just because none of the six base/reported figures are set.
   const supplemental = decodeValue(pv.supplemental) || undefined;
-  if (entry == null && top == null && midpoint == null && reportedEntry == null && reportedTop == null && reportedMidpoint == null && !(supplemental && supplemental.length)) return null;
+  if (entry == null && top == null && midpoint == null && recruit == null && reportedEntry == null && reportedTop == null && reportedMidpoint == null && !(supplemental && supplemental.length)) return null;
   return {
     contributorId: fv(fields.contributorId) || null,
     submittedAt: isoDay(fields.submittedAt && fields.submittedAt.timestampValue) || isoDay(Date.now()),
     entry,
     top,
     midpoint,
+    recruit,
     reportedEntry,
     reportedTop,
     reportedMidpoint,
@@ -128,7 +134,7 @@ function applyValueDisputes(reports, slug, disputeCounts, threshold) {
   threshold = threshold == null ? DISPUTE_REVERT_THRESHOLD : threshold;
   return reports.map(r => {
     const out = Object.assign({}, r);
-    ['entry', 'midpoint', 'top'].forEach(field => {
+    ['entry', 'midpoint', 'top', 'recruit'].forEach(field => {
       if (out[field] == null) return;
       const count = disputeCounts.get(`${slug}|${field}|${out[field]}`) || 0;
       if (count >= threshold) out[field] = null;
@@ -299,7 +305,7 @@ async function countValueDisputes(baseUrl) {
         compositeFilter: {
           op: 'AND',
           filters: [
-            { fieldFilter: { field: { fieldPath: 'field' }, op: 'IN', value: { arrayValue: { values: [{ stringValue: 'entry' }, { stringValue: 'midpoint' }, { stringValue: 'top' }] } } } },
+            { fieldFilter: { field: { fieldPath: 'field' }, op: 'IN', value: { arrayValue: { values: [{ stringValue: 'entry' }, { stringValue: 'midpoint' }, { stringValue: 'top' }, { stringValue: 'recruit' }] } } } },
             { fieldFilter: { field: { fieldPath: 'status' }, op: 'EQUAL', value: { stringValue: 'open' } } }
           ]
         }
@@ -547,7 +553,7 @@ function computeTrustedContributors(subRows, disputeCounts, opts) {
     const rep = toReport(f);
     if (!rep) return;
     const entry = byContributor.get(contributorId) || { depts: new Set(), reports: 0, disqualified: false };
-    ['entry', 'top', 'midpoint'].forEach(field => {
+    ['entry', 'top', 'midpoint', 'recruit'].forEach(field => {
       if (rep[field] == null) return;
       if ((disputeCounts.get(`${slug}|${field}|${rep[field]}`) || 0) >= threshold) entry.disqualified = true;
     });

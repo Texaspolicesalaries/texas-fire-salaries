@@ -231,7 +231,7 @@
   // same figure, distinct from only knowing (not lacking) one point of a scale.
   function singleFields() {
     return '' +
-      field('Position', selP('c-flat-position', POSITIONS, 'Select position…'), null, 'c-flat-position') +
+      field('Position', selP('c-flat-position', POSITIONS, 'Select position…'), 'Recruit pay is captured as a flat academy figure, kept separate from Firefighter entry/top — submit both separately if the department has each.', 'c-flat-position') +
       '<div class="grid cols-2">' +
         field('Pay amount', money('c-flat-amount', '$'), 'One flat rate — no raise by tenure. Sets both entry and top pay to this figure.', 'c-flat-amount') +
         field('Pay period', sel('c-flat-period', PERIODS, 'annual'), null, 'c-flat-period') +
@@ -249,7 +249,10 @@
   // not "same as the others".
   function rangeFields() {
     return '' +
-      field('Position', selP('c-position', POSITIONS, 'Select position…'), null, 'c-position') +
+      // Firefighter only — recruit/academy pay is a flat rate with no graduated
+      // entry/midpoint/top scale, so it belongs in "Single pay figure" with
+      // Position: Recruit instead (see singleFields()).
+      field('Position', sel('c-position', ['Firefighter'], 'Firefighter'), 'For recruit/academy pay, use “Single pay figure” with Position: Recruit — it’s a flat rate, not a graduated scale.', 'c-position') +
       '<div class="grid cols-3">' +
         field('Entry pay', money('c-entry', '$'), null, 'c-entry') +
         field('Midpoint pay', money('c-midpoint', '$'), 'Optional — leave blank if there isn’t one.', 'c-midpoint') +
@@ -278,6 +281,7 @@
         field('Shift schedule', sel('p-sched', SCHEDULES, ''), null, 'p-sched') +
         field('Scheduled annual hours', numI('p-hours', '2912'), null, 'p-hours') +
       '</div>' +
+      field('Recruit / academy pay (optional)', money('p-recruit', '$'), 'Pay during the academy, before graduating to Firefighter — kept separate from the step plan below. The steps below should still start at the first Firefighter step, not the academy rate.', 'p-recruit') +
       field('Plan notes (optional)', '<textarea id="p-notes" placeholder="e.g. steps from the 2026 approved pay scale"></textarea>', null, 'p-notes') +
       '<div class="divider-label">Pay steps</div>' +
       '<p class="field-hint">Base pay is the required, scheduled step amount. Sched OT is an optional add-on kept separate from base. Use the <strong>Top</strong> column to mark whichever step is the top/max pay rate.</p>' +
@@ -417,10 +421,12 @@
       rows.push(kv('Number of steps', (pv.steps || []).length));
       rows.push(arrow('Entry pay', cur.entry != null ? UI.money(cur.entry) : null, pv.entry != null ? UI.money(pv.entry) : '—'));
       rows.push(arrow('Top pay', cur.topBase != null ? UI.money(cur.topBase) : null, pv.top != null ? UI.money(pv.top) : '—'));
+      if (pv.recruit != null) rows.push(arrow('Recruit / academy pay', cur.recruit != null ? UI.money(cur.recruit) : null, UI.money(pv.recruit)));
       if (pl.yearsToTop != null) rows.push(kv('Years to top', pl.yearsToTop + ' yr'));
-    } else if (pv.entry != null || pv.midpoint != null || pv.top != null || pv.reportedEntry != null || pv.reportedMidpoint != null || pv.reportedTop != null) {
+    } else if (pv.entry != null || pv.midpoint != null || pv.top != null || pv.reportedEntry != null || pv.reportedMidpoint != null || pv.reportedTop != null || pv.recruit != null) {
       var isTotal = pv.basis === 'total';
       var posLabel = (pv.position || 'Pay') + ' — ' + periodLabel(pv.payPeriod);
+      if (pv.recruit != null) rows.push(arrow('Recruit / academy pay', cur.recruit != null ? UI.money(cur.recruit) : null, UI.money(pv.recruit) + ' — ' + periodLabel(pv.payPeriod)));
       // Entry/midpoint/top each get their own row, compared against the matching
       // career point AND the matching kind of figure — a midpoint amount is never
       // diffed against entry or top, and a "reported total compensation" amount is
@@ -484,8 +490,9 @@
       };
     });
 
-    // top-level money fields (single + range modes; plan-level none)
+    // top-level money fields (single + range modes; plan-level recruit pay)
     document.querySelectorAll('#mode-single input.money, #mode-range input.money').forEach(function (el) { el.addEventListener('input', function () { commaFmt(el); }); });
+    var pr = document.getElementById('p-recruit'); if (pr) pr.addEventListener('input', function () { commaFmt(pr); });
 
     // dept search
     var ds = document.getElementById('f-dept-search');
@@ -622,6 +629,8 @@
     if (st.type === 'update' && !meaningful.length && !supp.length) return fail('Add at least one pay step.');
     if (!meaningful.length) return true; // add flow with no comp — allowed
     if (!v('p-eff')) return fail('Add an effective date for this pay plan.');
+    var recruitAmt = Lib.parseMoney(v('p-recruit'));
+    if (recruitAmt != null && recruitAmt < 0) return fail('Recruit/academy pay can’t be negative.');
     var months = [];
     for (var i = 0; i < steps.length; i++) {
       var s = steps[i], n = i + 1;
@@ -693,6 +702,9 @@
       var sum = Lib.planSummary(steps.map(function (s) { return { startMonths: s.startMonths, basePay: s.basePay, isTopStep: s.isTopStep }; }));
       var toAnn = function (x) { return x == null ? undefined : (period === 'hourly' ? Math.round(x * (hours || 2912)) : x); };
       pv.entry = toAnn(sum.entry); pv.top = toAnn(sum.top);
+      // Recruit/academy pay — independent of the step table (never fed into
+      // entry/top/years-to-top), same period-aware annualizing as the steps.
+      pv.recruit = toAnn(Lib.parseMoney(v('p-recruit')));
       base.plan.yearsToTop = sum.yearsToTop != null ? sum.yearsToTop : undefined;
       base.effectiveDate = base.plan.effectiveDate;
     } else if (st.mode === 'range') {
@@ -719,17 +731,21 @@
     } else {
       // Single flat rate — one number, no raise by tenure. Sets BOTH entry and top
       // to the same figure (this is a distinct claim from "I only know entry of a
-      // graduated scale", which is what the range tab is for).
+      // graduated scale", which is what the range tab is for). Position: Recruit
+      // is a flat rate too, but routes to its own field — never entry/top — so an
+      // academy stipend can't get mistaken for the Firefighter classification's pay.
       var fBasis = v('c-flat-basis'), fPeriod = v('c-flat-period'), fHours = Lib.parseNumber(v('c-flat-hours'));
+      var fPosition = v('c-flat-position');
       var flatAmt = toAnnual(Lib.parseMoney(v('c-flat-amount')), fPeriod, fHours);
       Object.assign(pv, {
-        position: v('c-flat-position') || undefined, payPeriod: fPeriod || undefined,
+        position: fPosition || undefined, payPeriod: fPeriod || undefined,
         basis: fBasis || undefined, effectiveDate: v('c-flat-eff') || undefined,
         schedule: v('c-flat-sched') || undefined, hoursAnnual: fHours || undefined,
         flatRate: true
       });
       if (flatAmt != null) {
-        if (fBasis === 'total') { pv.reportedEntry = flatAmt; pv.reportedTop = flatAmt; }
+        if (fPosition === 'Recruit') pv.recruit = flatAmt;
+        else if (fBasis === 'total') { pv.reportedEntry = flatAmt; pv.reportedTop = flatAmt; }
         else { pv.entry = flatAmt; pv.top = flatAmt; }
       }
       base.effectiveDate = pv.effectiveDate;
@@ -759,6 +775,7 @@
     var cur = (dept && dept.summary) || {};
     var pairs = [
       ['Entry pay', 'entry', 'entry'], ['Midpoint pay', 'midpoint', 'midpoint'], ['Top pay', 'top', 'topBase'],
+      ['Recruit / academy pay', 'recruit', 'recruit'],
       ['Reported entry', 'reportedEntry', 'reportedEntry'], ['Reported midpoint', 'reportedMidpoint', 'reportedMidpoint'], ['Reported top', 'reportedTop', 'reportedTop']
     ];
     var flags = [];
@@ -776,7 +793,7 @@
     if (fileC && !fileC.checked) { status.innerHTML = notice('warn', 'Please confirm you can share the attached file.'); return; }
     var payload = gather();
     var pv = payload.proposedValues || {};
-    var hasAmount = pv.entry != null || pv.midpoint != null || pv.top != null || pv.reportedEntry != null || pv.reportedMidpoint != null || pv.reportedTop != null;
+    var hasAmount = pv.entry != null || pv.midpoint != null || pv.top != null || pv.recruit != null || pv.reportedEntry != null || pv.reportedMidpoint != null || pv.reportedTop != null;
     var hasChange = hasAmount || (pv.steps && pv.steps.length) || (pv.supplemental && pv.supplemental.length) || pv.schedule || pv.effectiveDate || base_effective(payload) || st.type === 'add';
     if (!hasChange) { status.innerHTML = notice('warn', 'No changes to submit — go back and add at least one figure.'); return; }
     payload.automatedFlags = computeAutomatedFlags(pv);
