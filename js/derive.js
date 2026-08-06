@@ -85,10 +85,17 @@
     now = now || Date.now();
     var s = dept.salary || {};
     var hasSteps = Array.isArray(s.steps) && s.steps.length > 0;
-    var annualHours = Lib.parseNumber(dept.annualScheduledHours) || Lib.scheduleHours(dept.scheduleType) || 2912;
+    // 2912 is a last-resort assumption (a 24/48 cycle), not a reported figure.
+    // A department on a modified rotation that didn't supply its hours would
+    // otherwise show "Reported annual hours 2,912" — a number nobody reported —
+    // and an effective hourly derived from it. Track which it is so the page can
+    // say so instead of asserting a fact.
+    var knownHours = Lib.parseNumber(dept.annualScheduledHours) || Lib.scheduleHours(dept.scheduleType);
+    var annualHours = knownHours || 2912;
     var out = {
       hasSalary: false,
       annualHours: annualHours,
+      annualHoursKnown: knownHours != null,
       scheduleType: dept.scheduleType || null,
       departmentMaintained: !!dept.departmentMaintained,
       confidence: C.CONFIDENCE.needed,

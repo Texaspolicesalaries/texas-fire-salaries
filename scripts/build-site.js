@@ -293,8 +293,11 @@ function salaryCards(s) {
     ${card('Midpoint pay', s.midpoint != null ? money(s.midpoint) : null, lockedSub('Base salary', s.midpointLocked))}
     ${card('Top firefighter pay', money(s.topBase), lockedSub('Base salary', s.topLocked))}
     ${card('Years to top pay', s.yearsToTop != null ? `${s.yearsToTop} <em>yr</em>` : null, s.singleRatePlan ? 'Single-rate plan reported' : 'Reported')}
-    ${card('Reported annual hours', s.annualHours ? s.annualHours.toLocaleString() : null, s.scheduleType || '')}
-    ${card('Effective hourly (entry)', hourly(s.effectiveHourlyEntry), 'Base ÷ scheduled hours')}
+    ${card(s.annualHoursKnown ? 'Reported annual hours' : 'Assumed annual hours',
+           s.annualHours ? s.annualHours.toLocaleString() : null,
+           s.annualHoursKnown ? (s.scheduleType || '') : `${s.scheduleType ? esc(s.scheduleType) + ' — ' : ''}hours not reported`)}
+    ${card('Effective hourly (entry)', hourly(s.effectiveHourlyEntry),
+           s.annualHoursKnown ? 'Base ÷ scheduled hours' : 'Base ÷ assumed hours')}
   </div>`;
 }
 
