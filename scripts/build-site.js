@@ -316,7 +316,7 @@ function supplementalSection(s, dept) {
     const shown = it.unit === 'pct'
       ? `${it.amount}% of base`
       : `${money(it.amount)}/${it.unit === 'mo' ? 'mo' : it.unit === 'hr' ? 'hr' : 'yr'}`;
-    return `<tr><td>${esc(Lib.supplementalLabel(it.type))}</td><td class="num">${shown}</td><td class="num">${annual != null ? money(Math.round(annual)) : '—'}</td></tr>`;
+    return `<tr><td>${esc(Lib.supplementalLabel(it.type, it.label))}</td><td class="num">${shown}</td><td class="num">${annual != null ? money(Math.round(annual)) : '—'}</td></tr>`;
   }).join('');
   return `<section id="supplemental" class="dept-section">
     <div class="dept-section-heading">

@@ -31,7 +31,14 @@
   var PLAN_PERIODS = [['annual', 'Per year'], ['hourly', 'Per hour']];
   var BASIS = [['base', 'Base pay only'], ['base-ot', 'Base + scheduled overtime'], ['total', 'Reported total compensation']];
   var UNITS = [['yr', '$/yr'], ['mo', '$/mo'], ['hr', '$/hr'], ['pct', '% of base']];
-  var SCHEDULES = [['', '—'], '24/48', '48/96', '24/72', '40-hour'];
+  // Real departments run cycles this list can't name — "Modified 24-hour
+  // (24 on/72 off; 48 on/72 off)" is a live example. schema.md already allows a
+  // custom string for scheduleType, so the form just needs somewhere to type it.
+  // Picking 'other' reveals a free-text box AND matters for the maths: an
+  // unrecognized schedule makes Lib.scheduleHours return null, and js/derive.js
+  // then falls back to 2,912 — a 24/48 assumption that would publish a wrong
+  // effective hourly for anyone on a shorter cycle. Hence the hours prompt.
+  var SCHEDULES = [['', '—'], '24/48', '48/96', '24/72', '40-hour', ['other', 'Other / modified — describe']];
   var SUPP_TYPES = [
     ['emt', 'EMT certification'], ['paramedic-incentive', 'Paramedic incentive (on top of base)'],
     ['tcfp-basic', 'TCFP Basic'], ['tcfp-intermediate', 'TCFP Intermediate'], ['tcfp-advanced', 'TCFP Advanced'], ['tcfp-master', 'TCFP Master'],
@@ -103,6 +110,33 @@
       opts.map(function (o) { var val = Array.isArray(o) ? o[0] : o, l = Array.isArray(o) ? o[1] : o; return '<option value="' + UI.esc(val) + '">' + UI.esc(l) + '</option>'; }).join('') + '</select>';
   }
   function v(id) { var el = document.getElementById(id); return el ? String(el.value).trim() : ''; }
+
+  // Free-text box that appears when a schedule dropdown is set to "Other".
+  function customSchedInput(id) {
+    return '<input type="text" id="' + id + '-custom" class="sched-custom" hidden maxlength="80" ' +
+      'placeholder="Describe it — e.g. Modified 24-hour (24 on/72 off; 48 on/72 off)" ' +
+      'aria-label="Describe the shift schedule">';
+  }
+  // The schedule as it should be PUBLISHED: the typed description when "Other"
+  // is selected, otherwise the picked value. Never the literal token 'other',
+  // which would show up on the page as a schedule named "other".
+  function schedVal(id) {
+    var picked = v(id);
+    if (picked !== 'other') return picked;
+    return v(id + '-custom');
+  }
+  // Reveals/hides the companion box and keeps stale text from being published
+  // if the contributor changes their mind back to a listed schedule.
+  function wireSchedule(id) {
+    var sel = document.getElementById(id), box = document.getElementById(id + '-custom');
+    if (!sel || !box) return;
+    var sync = function () {
+      box.hidden = sel.value !== 'other';
+      if (box.hidden) box.value = '';
+    };
+    sel.addEventListener('change', sync);
+    sync();
+  }
   // Reformats on every keystroke; Lib.formatMoneyInput is what keeps a
   // part-typed decimal ("25.", "25.50") intact instead of collapsing it into
   // 2,550. Caret is restored to the end only when the value actually changed,
@@ -273,7 +307,7 @@
       '<div class="grid cols-3">' +
         field('Amount represents', sel('c-flat-basis', BASIS, 'base'), null, 'c-flat-basis') +
         field('Effective date', dateI('c-flat-eff'), null, 'c-flat-eff') +
-        field('Shift schedule', sel('c-flat-sched', SCHEDULES, ''), null, 'c-flat-sched') +
+        field('Shift schedule', sel('c-flat-sched', SCHEDULES, '') + customSchedInput('c-flat-sched'), null, 'c-flat-sched') +
       '</div>' +
       field('Scheduled annual hours', numI('c-flat-hours', '2912'), null, 'c-flat-hours') +
       field('Recruit / academy pay (optional)', money('c-flat-recruit', '$'), 'Pay during the academy, before graduating to Firefighter — kept separate from the figure above. Leave blank if not applicable.', 'c-flat-recruit');
@@ -296,7 +330,7 @@
         field('Effective date', dateI('c-eff'), null, 'c-eff') +
       '</div>' +
       '<div class="grid cols-2">' +
-        field('Shift schedule', sel('c-sched', SCHEDULES, ''), null, 'c-sched') +
+        field('Shift schedule', sel('c-sched', SCHEDULES, '') + customSchedInput('c-sched'), null, 'c-sched') +
         field('Scheduled annual hours', numI('c-hours', '2912'), null, 'c-hours') +
       '</div>' +
       field('Recruit / academy pay (optional)', money('c-recruit', '$'), 'Pay during the academy, before graduating to Firefighter — kept separate from the Firefighter scale above. Leave blank if not applicable.', 'c-recruit');
@@ -309,7 +343,7 @@
         field('Pay period', sel('p-period', PLAN_PERIODS, 'annual'), 'Sets the unit for every dollar figure in the steps below — switch to “Per hour” if you’re entering hourly rates, not annual salaries.', 'p-period') +
       '</div>' +
       '<div class="grid cols-2">' +
-        field('Shift schedule', sel('p-sched', SCHEDULES, ''), null, 'p-sched') +
+        field('Shift schedule', sel('p-sched', SCHEDULES, '') + customSchedInput('p-sched'), null, 'p-sched') +
         field('Scheduled annual hours', numI('p-hours', '2912'), null, 'p-hours') +
       '</div>' +
       field('Recruit / academy pay (optional)', money('p-recruit', '$'), 'Pay during the academy, before graduating to Firefighter — kept separate from the step plan below. The steps below should still start at the first Firefighter step, not the academy rate.', 'p-recruit') +
@@ -338,6 +372,10 @@
       '<input type="text" inputmode="decimal" class="money s-amt" placeholder="Amount" aria-label="Amount">' +
       sel('', UNITS, 'yr').replace('<select id=""', '<select class="s-unit" aria-label="Unit"') +
       '<button type="button" class="btn btn-ghost btn-sm s-rm" aria-label="Remove pay item">✕</button>' +
+      // Departments carry pay the fixed list can't name (hazmat stipend, dive
+      // team, tiller pay...). Without somewhere to say what it is, "Other" would
+      // publish as an unexplained amount, which is worse than not collecting it.
+      '<input type="text" class="s-label" hidden placeholder="Name this pay item — e.g. Hazmat team stipend" aria-label="Name of the other pay item">' +
     '</div>';
   }
 
@@ -487,7 +525,7 @@
     // A percentage is not a dollar amount — "$10/% base" was nonsense.
     (pv.supplemental || []).forEach(function (s) {
       var shown = s.unit === 'pct' ? (s.amount + '% of base') : (UI.money(s.amount) + '/' + unitLabel(s.unit));
-      rows.push(kv(suppLabel(s.type), shown));
+      rows.push(kv(UI.esc(Lib.supplementalLabel(s.type, s.label)), shown));
     });
     // readSupp() silently drops a row missing either half, so a contributor who
     // picked "Longevity pay" and forgot the amount would see it simply not
@@ -542,6 +580,7 @@
     // top-level money fields (single + range modes; plan-level recruit pay)
     document.querySelectorAll('#mode-single input.money, #mode-range input.money').forEach(function (el) { el.addEventListener('input', function () { commaFmt(el); }); });
     var pr = document.getElementById('p-recruit'); if (pr) pr.addEventListener('input', function () { commaFmt(pr); });
+    ['c-flat-sched', 'c-sched', 'p-sched'].forEach(wireSchedule);
 
     // dept search
     var ds = document.getElementById('f-dept-search');
@@ -567,7 +606,7 @@
 
     // supplemental
     var addSupp = document.getElementById('add-supp');
-    if (addSupp) { var supp = document.getElementById('supp-rows'); addSupp.onclick = function () { supp.insertAdjacentHTML('beforeend', suppRow()); rewireMoney(supp); rewireSuppRemove(supp); }; }
+    if (addSupp) { var supp = document.getElementById('supp-rows'); addSupp.onclick = function () { supp.insertAdjacentHTML('beforeend', suppRow()); rewireMoney(supp); rewireSuppRemove(supp); rewireSuppType(supp); }; }
 
     // file upload
     var file = document.getElementById('src-file');
@@ -663,6 +702,20 @@
 
   function rewireMoney(scope) { scope.querySelectorAll('input.money').forEach(function (el) { if (el._wired) return; el._wired = true; el.addEventListener('input', function () { commaFmt(el); }); }); }
   function rewireSuppRemove(scope) { scope.querySelectorAll('.s-rm').forEach(function (b) { b.onclick = function () { b.closest('.supp-row').remove(); }; }); }
+  // The free-text name only appears for "Other" — every other type already has
+  // a label, and an always-visible box would read as a required field.
+  function rewireSuppType(scope) {
+    scope.querySelectorAll('.s-type').forEach(function (sel) {
+      if (sel._wired) return;
+      sel._wired = true;
+      sel.addEventListener('change', function () {
+        var row = sel.closest('.supp-row'); if (!row) return;
+        var lab = row.querySelector('.s-label'); if (!lab) return;
+        lab.hidden = sel.value !== 'other';
+        if (lab.hidden) lab.value = '';
+      });
+    });
+  }
   function renderCurrent() { var host = document.getElementById('current-values'); if (!host) return; var d = st.dept ? D.get(st.dept) : null; host.innerHTML = d ? currentValuesCard(d) : ''; }
   function matchDept(text) {
     text = String(text || '').toLowerCase().trim(); if (!text) return null;
@@ -722,6 +775,7 @@
       // change anything", same as a schedule or an effective date.
       var civilAnswered = !!v('c-civil');
       if (supp.find(function (s) { return s.amount < 0; })) return fail('Supplemental pay can’t be negative.');
+      if (unnamedOtherSupp(supp)) return fail('Name the “Other” pay item so people know what it is — e.g. “Hazmat team stipend”.');
       // Plan mode keeps its own blocking checks first — a half-filled step table
       // is a hard error, not something to warn past.
       if (st.mode === 'plan') return validatePlan(fail, warnOk, supp);
@@ -735,10 +789,12 @@
           if (!v('c-basis')) return fail('Choose what these amounts represent (base, base+OT, or total).');
           if (!v('c-eff')) return fail('Add an effective date for these pay amounts.');
         }
+        var rSched = scheduleProblems('c-sched', 'c-hours', fail);
+        if (rSched.blocked !== undefined) return rSched.blocked;
         // Annualized before the plausibility check — a $25.50 hourly rate is
         // perfectly normal and must not trip the "unusually low" warning.
         var rAnn = function (x) { return toAnnual(x, v('c-period'), Lib.parseNumber(v('c-hours'))); };
-        return warnOk(noPayWarnings(anyAmt, supp).concat(figureWarnings([
+        return warnOk(rSched.warns.concat(noPayWarnings(anyAmt, supp)).concat(figureWarnings([
           ['entry', rAnn(entryAmt)], ['midpoint', rAnn(midAmt)], ['top', rAnn(topAmt)]
         ])));
       }
@@ -751,7 +807,10 @@
         if (!v('c-flat-basis')) return fail('Choose what the amount represents (base, base+OT, or total).');
         if (!v('c-flat-eff')) return fail('Add an effective date for the pay amount.');
       }
-      return warnOk(noPayWarnings(flatAmt != null || flatRecruitAmt != null, supp)
+      var fSched = scheduleProblems('c-flat-sched', 'c-flat-hours', fail);
+      if (fSched.blocked !== undefined) return fSched.blocked;
+      return warnOk(fSched.warns
+        .concat(noPayWarnings(flatAmt != null || flatRecruitAmt != null, supp))
         .concat(figureWarnings([['flat rate', toAnnual(flatAmt, v('c-flat-period'), Lib.parseNumber(v('c-flat-hours')))]])));
     }
     return true;
@@ -796,6 +855,25 @@
   // leaving base pay blank is the strongest signal of that mistake: nobody means
   // to report a longevity differential for a salary they never gave. One more
   // click still proceeds either way.
+  // "Other" selected but nothing typed publishes a department with no usable
+  // schedule at all, so this blocks. The missing-hours case only warns: a
+  // contributor may genuinely not know the annual hours, and a described
+  // schedule with no hours is still worth having.
+  function scheduleProblems(schedId, hoursId, fail) {
+    if (v(schedId) === 'other' && !v(schedId + '-custom')) {
+      return { blocked: fail('Describe the shift schedule, or pick one from the list.') };
+    }
+    var warns = [];
+    // scheduleHours() only knows the listed cycles; anything else leaves
+    // js/derive.js assuming 2,912 hours, which would misstate effective hourly
+    // for a department on a shorter or longer rotation.
+    var sched = schedVal(schedId);
+    if (sched && !Lib.scheduleHours(sched) && !Lib.parseNumber(v(hoursId))) {
+      warns.push('this schedule isn’t one of the standard cycles, so scheduled annual hours are needed to work out effective hourly pay — without them the site assumes 2,912.');
+    }
+    return { warns: warns };
+  }
+
   function noPayWarnings(anyBaseFigure, supp) {
     if (anyBaseFigure) return [];
     if (supp.length) return ['you entered supplemental pay but no base salary. Supplemental amounts alone can’t be displayed as a salary, so this will still publish reading “Salary information needed”.'];
@@ -831,7 +909,10 @@
     var warns = [];
     for (var w = 1; w < steps.length; w++) { if (steps[w].basePay < steps[w - 1].basePay) { warns.push('base pay decreases at Step ' + (w + 1) + '.'); break; } }
     if (!tops.length) warns.push('no step is marked as the top step (the last step will be used).');
-    if (v('p-sched') && !Lib.parseNumber(v('p-hours'))) warns.push('a shift schedule was set without scheduled annual hours.');
+    var pSched = scheduleProblems('p-sched', 'p-hours', fail);
+    if (pSched.blocked !== undefined) return pSched.blocked;
+    warns = warns.concat(pSched.warns);
+    if (v('p-sched') && v('p-sched') !== 'other' && !Lib.parseNumber(v('p-hours'))) warns.push('a shift schedule was set without scheduled annual hours.');
     var sm = Lib.planSummary(steps.filter(function (s) { return s.basePay != null; }).map(function (s) { return { startMonths: Number(s.startMonths) || 0, basePay: s.basePay, isTopStep: !!s.top }; }));
     if (sm.top != null && (sm.top > 400000 || (sm.entry != null && sm.entry < 15000))) warns.push('some figures look unusually high or low — double-check them.');
     return warnOk(warns);
@@ -843,9 +924,21 @@
     document.querySelectorAll('#supp-rows .supp-row').forEach(function (r) {
       var type = (r.querySelector('.s-type') || {}).value, amount = Lib.parseMoney((r.querySelector('.s-amt') || {}).value);
       if (!type || amount == null) return;
-      out.push({ type: type, amount: amount, unit: (r.querySelector('.s-unit') || {}).value || 'yr' });
+      var item = { type: type, amount: amount, unit: (r.querySelector('.s-unit') || {}).value || 'yr' };
+      // Only meaningful for "Other" — carried so the page can name the item
+      // instead of printing an unexplained "Other".
+      var label = ((r.querySelector('.s-label') || {}).value || '').trim();
+      if (type === 'other' && label) item.label = label.slice(0, 60);
+      out.push(item);
     });
     return out;
+  }
+
+  // An unnamed "Other" is an amount with no meaning attached — blocking is
+  // right here, unlike the softer warnings elsewhere, because there is nothing
+  // a reader could do with it and nothing an admin could recover.
+  function unnamedOtherSupp(supp) {
+    return supp.some(function (s) { return s.type === 'other' && !s.label; });
   }
 
   // Rows where exactly one of {type, amount} is filled — readSupp() drops these,
@@ -893,7 +986,7 @@
       var period = v('p-period');
       var hours = Lib.parseNumber(v('p-hours'));
       base.plan = { effectiveDate: v('p-eff') || undefined,
-        payPeriod: period || undefined, schedule: v('p-sched') || undefined, hoursAnnual: hours || undefined, notes: v('p-notes') || undefined };
+        payPeriod: period || undefined, schedule: schedVal('p-sched') || undefined, hoursAnnual: hours || undefined, notes: v('p-notes') || undefined };
       pv.steps = steps;
       // Derive entry/top for the consensus engine — convert hourly to annual if needed.
       var sum = Lib.planSummary(steps.map(function (s) { return { startMonths: s.startMonths, basePay: s.basePay, isTopStep: s.isTopStep }; }));
@@ -913,7 +1006,7 @@
       Object.assign(pv, {
         payPeriod: rPeriod || undefined,
         basis: rBasis || undefined, effectiveDate: v('c-eff') || undefined,
-        schedule: v('c-sched') || undefined, hoursAnnual: rHours || undefined
+        schedule: schedVal('c-sched') || undefined, hoursAnnual: rHours || undefined
       });
       // Entry/midpoint/top are independent fields, all submitted together — none
       // get mixed with each other. "Reported total compensation" is kept out of
@@ -939,7 +1032,7 @@
       Object.assign(pv, {
         payPeriod: fPeriod || undefined,
         basis: fBasis || undefined, effectiveDate: v('c-flat-eff') || undefined,
-        schedule: v('c-flat-sched') || undefined, hoursAnnual: fHours || undefined,
+        schedule: schedVal('c-flat-sched') || undefined, hoursAnnual: fHours || undefined,
         flatRate: true
       });
       if (flatAmt != null) {

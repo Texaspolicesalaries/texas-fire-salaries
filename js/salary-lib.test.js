@@ -145,6 +145,53 @@ test('consolidateSupplemental is safe on empty/missing input', () => {
   assert.deepStrictEqual(L.consolidateSupplemental([{ submittedAt: '2026-01-01' }]), []);
 });
 
+// "Other" exists because the fixed list can't name every department's pay. Two
+// differently-named Other items must both survive — keying on type alone would
+// silently drop one and show the survivor's amount under the wrong name.
+test('consolidateSupplemental keeps distinct named Other items apart', () => {
+  const out = L.consolidateSupplemental([{
+    submittedAt: '2026-01-01',
+    supplemental: [
+      { type: 'other', label: 'Hazmat team stipend', amount: 150, unit: 'mo' },
+      { type: 'other', label: 'Dive team pay', amount: 100, unit: 'mo' }
+    ]
+  }]);
+  assert.strictEqual(out.length, 2, 'both Other items must survive');
+  const byName = {};
+  out.forEach(o => { byName[L.supplementalLabel(o.type, o.label)] = o.amount; });
+  assert.strictEqual(byName['Hazmat team stipend'], 150);
+  assert.strictEqual(byName['Dive team pay'], 100);
+});
+
+test('consolidateSupplemental still dedupes the SAME Other, newest winning, ignoring case', () => {
+  const out = L.consolidateSupplemental([
+    { submittedAt: '2026-01-01', supplemental: [{ type: 'other', label: 'Hazmat team stipend', amount: 100, unit: 'mo' }] },
+    { submittedAt: '2026-08-01', supplemental: [{ type: 'other', label: 'Hazmat Team Stipend', amount: 175, unit: 'mo' }] }
+  ]);
+  assert.strictEqual(out.length, 1);
+  assert.strictEqual(out[0].amount, 175);
+});
+
+test('supplementalLabel prefers a contributor-supplied name', () => {
+  assert.strictEqual(L.supplementalLabel('other', 'Tiller pay'), 'Tiller pay');
+  assert.strictEqual(L.supplementalLabel('other'), 'Other');
+  assert.strictEqual(L.supplementalLabel('paramedic-incentive'), 'Paramedic incentive');
+});
+
+test('supplementalKey separates named Others but leaves known types alone', () => {
+  assert.notStrictEqual(L.supplementalKey('other', 'A'), L.supplementalKey('other', 'B'));
+  assert.strictEqual(L.supplementalKey('other', 'A'), L.supplementalKey('other', ' a '));
+  assert.strictEqual(L.supplementalKey('longevity'), 'longevity');
+});
+
+// An unrecognized schedule makes scheduleHours return null, and derive.js then
+// assumes 2,912 hours — so a modified cycle needs its hours supplied or the
+// effective-hourly figure is quietly wrong.
+test('scheduleHours returns null for a modified schedule, which is what triggers the prompt', () => {
+  assert.strictEqual(L.scheduleHours('Modified 24-hour (24 on/72 off; 48 on/72 off)'), null);
+  assert.strictEqual(L.scheduleHours('24/48'), 2912);
+});
+
 test('supplementalAnnual converts monthly and yearly, refuses percentages', () => {
   assert.strictEqual(L.supplementalAnnual({ amount: 500, unit: 'mo' }), 6000);
   assert.strictEqual(L.supplementalAnnual({ amount: 1000, unit: 'yr' }), 1000);

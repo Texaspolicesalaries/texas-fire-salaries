@@ -114,7 +114,22 @@ var SUPPLEMENTAL_ORDER = ['paramedic-incentive', 'emt', 'tcfp-basic', 'tcfp-inte
   'longevity', 'bilingual', 'driver-engineer', 'rank', 'assignment', 'holiday',
   'certification', 'stipend', 'bonus', 'other'];
 
-function supplementalLabel(t) { return SUPPLEMENTAL_LABELS[t] || String(t || ''); }
+// A contributor-supplied name wins for "other", which is the whole point of
+// that option — the fixed list can't cover hazmat stipends, dive-team pay,
+// tiller pay and the rest.
+function supplementalLabel(t, label) {
+  if (label) return String(label);
+  return SUPPLEMENTAL_LABELS[t] || String(t || '');
+}
+
+// "Paramedic incentive" can only mean one thing, so newest-wins per type is
+// right for it. "Other" cannot: a department may report a hazmat stipend AND
+// dive-team pay, both typed 'other'. Keying those by type alone would silently
+// drop one and show the other's amount under a name that isn't its own — so
+// the custom name joins the key.
+function supplementalKey(type, label) {
+  return type === 'other' && label ? 'other:' + String(label).trim().toLowerCase() : String(type);
+}
 
 // One row per pay TYPE across every report, newest submission winning — the same
 // most-recent-wins rule the department-level facts use. Without the dedupe a
@@ -129,16 +144,21 @@ function consolidateSupplemental(reports) {
       if (!s || !s.type) return;
       var amount = parseMoney(s.amount);
       if (amount == null) return;
-      var cur = best[s.type];
-      if (!cur || at >= cur.at) best[s.type] = { type: s.type, amount: amount, unit: s.unit || 'yr', at: at };
+      var key = supplementalKey(s.type, s.label);
+      var cur = best[key];
+      if (!cur || at >= cur.at) best[key] = { type: s.type, label: s.label || undefined, amount: amount, unit: s.unit || 'yr', at: at };
     });
   });
   return Object.keys(best)
     .sort(function (a, b) {
-      var ia = SUPPLEMENTAL_ORDER.indexOf(a), ib = SUPPLEMENTAL_ORDER.indexOf(b);
-      return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib);
+      var ia = SUPPLEMENTAL_ORDER.indexOf(best[a].type), ib = SUPPLEMENTAL_ORDER.indexOf(best[b].type);
+      var da = (ia === -1 ? 999 : ia), db = (ib === -1 ? 999 : ib);
+      if (da !== db) return da - db;
+      // Several 'other' items share a rank; order them by their own names so the
+      // table is stable across rebuilds rather than following object key order.
+      return supplementalLabel(best[a].type, best[a].label).localeCompare(supplementalLabel(best[b].type, best[b].label));
     })
-    .map(function (k) { return { type: k, amount: best[k].amount, unit: best[k].unit }; });
+    .map(function (k) { return { type: best[k].type, label: best[k].label, amount: best[k].amount, unit: best[k].unit }; });
 }
 
 // Annualized value of one supplemental item, or null when it can't be expressed
@@ -370,6 +390,7 @@ var FireSalaryLib = {
   parseNumber: parseNumber,
   SUPPLEMENTAL_LABELS: SUPPLEMENTAL_LABELS,
   supplementalLabel: supplementalLabel,
+  supplementalKey: supplementalKey,
   consolidateSupplemental: consolidateSupplemental,
   supplementalAnnual: supplementalAnnual,
   describeRevisionChanges: describeRevisionChanges,
