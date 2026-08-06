@@ -111,6 +111,39 @@
   }
   function v(id) { var el = document.getElementById(id); return el ? String(el.value).trim() : ''; }
 
+  // ── Prefill + dirty tracking ────────────────────────────────────────────────
+  // Update forms start pre-populated with the department's current values, so a
+  // contributor can see what they're changing instead of guessing which of the
+  // blanks differ. But a prefilled value must never be SUBMITTED unless it was
+  // actually edited: every figure in a submission joins a consensus cluster and
+  // counts toward "Strong community agreement" and trusted-contributor
+  // promotion, so carrying untouched values along would manufacture agreement
+  // nobody expressed — and would make the history diff claim changes that never
+  // happened. Hence: prefill for the eye, submit only what the hand touched.
+  var _dirty = {};
+  // The step editor holds state rather than DOM values, so it needs its own
+  // pair: whether it was seeded from the current plan, and whether the
+  // contributor has since touched it. A seeded-but-untouched plan must not be
+  // republished as if it were freshly reported.
+  var _stepsPrefilled = false;
+  var _stepsDirty = false;
+  // Only fields showing a CURRENT value are tracked. Effective date and source
+  // describe this submission rather than the department, so they stay blank and
+  // are read normally — prefilling the old effective date would let a new figure
+  // inherit a stale date while still satisfying the "date required" check.
+  function markDirty(id) { if (id) _dirty[id] = true; }
+  function isDirty(id) { return !!_dirty[id]; }
+  // The submitted value of a prefilled field: empty unless the contributor
+  // changed it, so gather() and validateStep() see only real edits.
+  function dv(id) { return isDirty(id) ? v(id) : ''; }
+  // Sets a field's displayed value WITHOUT marking it dirty.
+  function preset(id, val) {
+    var el = document.getElementById(id);
+    if (!el || val == null || val === '') return;
+    el.value = String(val);
+    el.classList.add('prefilled');
+  }
+
   // Free-text box that appears when a schedule dropdown is set to "Other".
   function customSchedInput(id) {
     return '<input type="text" id="' + id + '-custom" class="sched-custom" hidden maxlength="80" ' +
@@ -121,6 +154,10 @@
   // is selected, otherwise the picked value. Never the literal token 'other',
   // which would show up on the page as a schedule named "other".
   function schedVal(id) {
+    // Dirty-aware: a prefilled schedule the contributor never touched is not a
+    // change, and republishing it would show up in history as one.
+    var touched = isDirty(id) || isDirty(id + '-custom');
+    if (!touched) return '';
     var picked = v(id);
     if (picked !== 'other') return picked;
     return v(id + '-custom');
@@ -270,7 +307,8 @@
   function step2() {
     var intro = st.type === 'add'
       ? '<h2>Compensation (optional)</h2><p class="muted">Add starting pay for ' + UI.esc(deptName()) + ' now, or skip and let the community fill it in.</p>'
-      : '<h2>What are you changing?</h2><p class="muted">For ' + UI.esc(deptName()) + '.</p>';
+      : '<h2>What are you changing?</h2><p class="muted">Showing what ' + UI.esc(deptName()) +
+        ' currently has on file — <strong>edit only what’s different</strong>. Anything you leave as-is isn’t submitted, so it won’t be recorded as a change or counted as a fresh report.</p>';
     var modeSeg =
       '<div class="seg" id="mode-seg" role="group" aria-label="Compensation mode">' +
         '<button type="button" data-mode="single" class="' + (st.mode === 'single' ? 'active' : '') + '">Single pay figure</button>' +
@@ -423,7 +461,7 @@
     if (!steps.length) { host.innerHTML = ''; return; }
     var sum = Lib.planSummary(steps);
     var period = v('p-period') || 'annual';
-    var hours = Lib.parseNumber(v('p-hours'));
+    var hours = Lib.parseNumber(dv('p-hours'));
     var cell = function (val, lab) { return '<div class="dv"><span class="dv-v">' + val + '</span><span class="dv-l">' + lab + '</span></div>'; };
     var entryOut, topOut, extraCell;
     if (period === 'hourly') {
@@ -612,6 +650,92 @@
     var file = document.getElementById('src-file');
     if (file) file.addEventListener('change', function () { acceptFile(file.files && file.files[0]); });
     wireDropZone(file);
+
+    // One delegated listener rather than per-field wiring: the step-2 panel is
+    // re-rendered and re-populated in several places, and anything that misses a
+    // field would make a real edit look untouched and silently drop it.
+    var form = document.getElementById('the-form');
+    if (form && !form._dirtyWired) {
+      form._dirtyWired = true;
+      ['input', 'change'].forEach(function (ev) {
+        form.addEventListener(ev, function (e) {
+          var el = e.target;
+          if (!el || !el.id) return;
+          markDirty(el.id);
+          el.classList.remove('prefilled');
+        });
+      });
+    }
+    prefillCurrentValues();
+  }
+
+  // Populates step 2 with what the department currently shows. Update flow only:
+  // there is nothing to compare against when adding a department, and a
+  // prefilled figure there would be pure invention.
+  function prefillCurrentValues() {
+    if (st.type !== 'update' || !st.dept) return;
+    var d = D.get(st.dept);
+    if (!d) return;
+    var s = d.summary || {};
+    var money = function (n) { return n == null ? '' : Lib.formatMoneyInput(String(n)); };
+
+    // Single mode shows one flat rate; entry is the honest starting point since
+    // that is the figure a flat rate would replace.
+    preset('c-flat-amount', money(s.entry));
+    preset('c-flat-recruit', money(s.recruit));
+    preset('c-entry', money(s.entry));
+    preset('c-midpoint', money(s.midpoint));
+    preset('c-top', money(s.topBase));
+    preset('c-recruit', money(s.recruit));
+    preset('p-recruit', money(s.recruit));
+
+    ['c-flat-hours', 'c-hours', 'p-hours'].forEach(function (id) {
+      // Only a genuinely known figure — never the 2,912 assumption, which would
+      // turn a guess into a reported value the moment anything else was edited.
+      if (s.annualHoursKnown) preset(id, d.annualScheduledHours || s.annualHours);
+    });
+    ['c-flat-sched', 'c-sched', 'p-sched'].forEach(function (id) { presetSchedule(id, d.scheduleType); });
+    if (d.civilService === true) preset('c-civil', 'yes');
+    else if (d.civilService === false) preset('c-civil', 'no');
+
+    prefillSteps(s);
+  }
+
+  // A schedule may be one of the listed cycles or free text, so it has to land
+  // in whichever control can hold it.
+  function presetSchedule(id, schedule) {
+    if (!schedule) return;
+    var sel = document.getElementById(id);
+    if (!sel) return;
+    var listed = Array.prototype.some.call(sel.options, function (o) { return o.value === schedule; });
+    if (listed) { preset(id, schedule); return; }
+    preset(id, 'other');
+    var box = document.getElementById(id + '-custom');
+    if (box) { box.hidden = false; preset(id + '-custom', schedule); }
+  }
+
+  // The step editor is where "what's different?" bites hardest — retyping a
+  // whole pay scale to correct one step is what makes people give up. Seeded
+  // from the current plan; planSteps() still only publishes it if edited.
+  function prefillSteps(s) {
+    if (!(s.steps && s.steps.length)) return;
+    // The editor seeds an empty "Entry" row before this runs, so testing
+    // st.steps.length would always bail. What matters is whether the
+    // contributor has actually put a figure in — that placeholder row is
+    // exactly what the current plan should replace.
+    if (_stepsDirty || st.steps.some(function (x) { return x.basePay != null; })) return;
+    st.steps = s.steps.map(function (step, i) {
+      return {
+        id: 'k' + (_sid++),
+        label: step.stepName || ('Step ' + (i + 1)),
+        startMonths: step.minimumMonths != null ? step.minimumMonths : null,
+        basePay: Lib.parseMoney(step.baseAnnualSalary),
+        sot: Lib.parseMoney(step.scheduledOvertime),
+        top: i === s.steps.length - 1
+      };
+    });
+    _stepsPrefilled = true;
+    renderEditor();
   }
 
   var MAX_FILE_BYTES = 10 * 1024 * 1024;
@@ -670,6 +794,7 @@
 
   function onEditorInput(e) {
     var el = e.target, row = el.closest && el.closest('.plan-row'); if (!row) return;
+    _stepsDirty = true;
     var i = parseInt(row.getAttribute('data-i'), 10), f = el.getAttribute('data-f'); if (!(i >= 0) || !f) return;
     var s = st.steps[i]; if (!s) return;
     if (f === 'top') {
@@ -684,6 +809,7 @@
 
   function onEditorClick(e) {
     var b = e.target.closest && e.target.closest('[data-act]'); if (!b) return;
+    _stepsDirty = true;
     var row = b.closest('.plan-row'), i = parseInt(row.getAttribute('data-i'), 10), act = b.getAttribute('data-act');
     if (act === 'remove') st.steps.splice(i, 1);
     else if (act === 'up' && i > 0) { var t = st.steps[i - 1]; st.steps[i - 1] = st.steps[i]; st.steps[i] = t; }
@@ -694,6 +820,7 @@
   }
 
   function planControl(act) {
+    _stepsDirty = true;
     if (act === 'add') st.steps.push(blankStep(nextMonths(), autoLabel()));
     else if (act === 'add5') { for (var k = 0; k < 5; k++) st.steps.push(blankStep(nextMonths(), autoLabel())); }
     else if (act === 'dup-last') { var last = st.steps[st.steps.length - 1]; if (last) st.steps.push(Object.assign({}, last, { id: 'k' + (_sid++), startMonths: (Number(last.startMonths) || 0) + 12, top: false })); }
@@ -773,17 +900,19 @@
       // Civil service is a real, publishable change — extractCivilService reads
       // it and it drives a directory filter — so it counts toward "did you
       // change anything", same as a schedule or an effective date.
-      var civilAnswered = !!v('c-civil');
+      var civilAnswered = !!dv('c-civil');
       if (supp.find(function (s) { return s.amount < 0; })) return fail('Supplemental pay can’t be negative.');
       if (unnamedOtherSupp(supp)) return fail('Name the “Other” pay item so people know what it is — e.g. “Hazmat team stipend”.');
       // Plan mode keeps its own blocking checks first — a half-filled step table
       // is a hard error, not something to warn past.
       if (st.mode === 'plan') return validatePlan(fail, warnOk, supp);
       if (st.mode === 'range') {
-        var entryAmt = Lib.parseMoney(v('c-entry')), midAmt = Lib.parseMoney(v('c-midpoint')), topAmt = Lib.parseMoney(v('c-top'));
-        var rRecruitAmt = Lib.parseMoney(v('c-recruit'));
+        var entryAmt = Lib.parseMoney(dv('c-entry')), midAmt = Lib.parseMoney(dv('c-midpoint')), topAmt = Lib.parseMoney(dv('c-top'));
+        var rRecruitAmt = Lib.parseMoney(dv('c-recruit'));
         var anyAmt = entryAmt != null || midAmt != null || topAmt != null || rRecruitAmt != null;
-        if (st.type === 'update' && !anyAmt && !supp.length && !civilAnswered && !v('c-sched') && !v('c-eff')) return fail('Add at least one change — a pay amount, schedule, effective date, or supplemental pay item.');
+        // schedVal() is dirty-aware; plain v() would read the PREFILLED schedule and
+        // treat an untouched form as though something had been changed.
+        if (st.type === 'update' && !anyAmt && !supp.length && !civilAnswered && !schedVal('c-sched') && !v('c-eff')) return fail('Nothing changed yet — edit whichever figures are different, then continue.');
         if (anyAmt) {
           if ((entryAmt != null && entryAmt < 0) || (midAmt != null && midAmt < 0) || (topAmt != null && topAmt < 0) || (rRecruitAmt != null && rRecruitAmt < 0)) return fail('Pay amounts can’t be negative.');
           if (!v('c-basis')) return fail('Choose what these amounts represent (base, base+OT, or total).');
@@ -793,15 +922,15 @@
         if (rSched.blocked !== undefined) return rSched.blocked;
         // Annualized before the plausibility check — a $25.50 hourly rate is
         // perfectly normal and must not trip the "unusually low" warning.
-        var rAnn = function (x) { return toAnnual(x, v('c-period'), Lib.parseNumber(v('c-hours'))); };
+        var rAnn = function (x) { return toAnnual(x, v('c-period'), Lib.parseNumber(dv('c-hours'))); };
         return warnOk(rSched.warns.concat(noPayWarnings(anyAmt, supp)).concat(figureWarnings([
           ['entry', rAnn(entryAmt)], ['midpoint', rAnn(midAmt)], ['top', rAnn(topAmt)]
         ])));
       }
       // single (flat rate) mode
-      var flatAmt = Lib.parseMoney(v('c-flat-amount'));
-      var flatRecruitAmt = Lib.parseMoney(v('c-flat-recruit'));
-      if (st.type === 'update' && flatAmt == null && flatRecruitAmt == null && !supp.length && !civilAnswered && !v('c-flat-sched') && !v('c-flat-eff')) return fail('Add at least one change — a pay amount, schedule, effective date, or supplemental pay item.');
+      var flatAmt = Lib.parseMoney(dv('c-flat-amount'));
+      var flatRecruitAmt = Lib.parseMoney(dv('c-flat-recruit'));
+      if (st.type === 'update' && flatAmt == null && flatRecruitAmt == null && !supp.length && !civilAnswered && !schedVal('c-flat-sched') && !v('c-flat-eff')) return fail('Nothing changed yet — edit whichever figures are different, then continue.');
       if (flatAmt != null || flatRecruitAmt != null) {
         if ((flatAmt != null && flatAmt < 0) || (flatRecruitAmt != null && flatRecruitAmt < 0)) return fail('Pay amounts can’t be negative.');
         if (!v('c-flat-basis')) return fail('Choose what the amount represents (base, base+OT, or total).');
@@ -811,7 +940,7 @@
       if (fSched.blocked !== undefined) return fSched.blocked;
       return warnOk(fSched.warns
         .concat(noPayWarnings(flatAmt != null || flatRecruitAmt != null, supp))
-        .concat(figureWarnings([['flat rate', toAnnual(flatAmt, v('c-flat-period'), Lib.parseNumber(v('c-flat-hours')))]])));
+        .concat(figureWarnings([['flat rate', toAnnual(flatAmt, v('c-flat-period'), Lib.parseNumber(dv('c-flat-hours')))]])));
     }
     return true;
   }
@@ -884,11 +1013,20 @@
   function validatePlan(fail, warnOk, supp) {
     var steps = st.steps;
     var meaningful = steps.filter(function (s) { return s.basePay != null || (s.label && s.label.trim()) || s.startMonths != null; });
-    if (st.type === 'update' && !meaningful.length && !supp.length && !v('c-civil')) return fail('Add at least one pay step.');
+    // A prefilled plan makes `meaningful` truthy before the contributor has
+    // done anything, so an untouched editor has to count as no steps here —
+    // otherwise the form advances and only fails at the very end, after they've
+    // filled in a source and ticked the attestation.
+    var editedSteps = !(_stepsPrefilled && !_stepsDirty) && meaningful.length > 0;
+    if (st.type === 'update' && !editedSteps && !supp.length && !dv('c-civil') && !schedVal('p-sched') && !dv('p-recruit')) {
+      return fail(_stepsPrefilled
+        ? 'Nothing changed yet — edit whichever pay steps are different, then continue.'
+        : 'Add at least one pay step.');
+    }
     // Add flow with no comp is allowed — but say so rather than passing silently.
-    if (!meaningful.length) return warnOk(noPayWarnings(Lib.parseMoney(v('p-recruit')) != null, supp));
+    if (!meaningful.length) return warnOk(noPayWarnings(Lib.parseMoney(dv('p-recruit')) != null, supp));
     if (!v('p-eff')) return fail('Add an effective date for this pay plan.');
-    var recruitAmt = Lib.parseMoney(v('p-recruit'));
+    var recruitAmt = Lib.parseMoney(dv('p-recruit'));
     if (recruitAmt != null && recruitAmt < 0) return fail('Recruit/academy pay can’t be negative.');
     var months = [];
     for (var i = 0; i < steps.length; i++) {
@@ -912,7 +1050,7 @@
     var pSched = scheduleProblems('p-sched', 'p-hours', fail);
     if (pSched.blocked !== undefined) return pSched.blocked;
     warns = warns.concat(pSched.warns);
-    if (v('p-sched') && v('p-sched') !== 'other' && !Lib.parseNumber(v('p-hours'))) warns.push('a shift schedule was set without scheduled annual hours.');
+    if (v('p-sched') && v('p-sched') !== 'other' && !Lib.parseNumber(dv('p-hours'))) warns.push('a shift schedule was set without scheduled annual hours.');
     var sm = Lib.planSummary(steps.filter(function (s) { return s.basePay != null; }).map(function (s) { return { startMonths: Number(s.startMonths) || 0, basePay: s.basePay, isTopStep: !!s.top }; }));
     if (sm.top != null && (sm.top > 400000 || (sm.entry != null && sm.entry < 15000))) warns.push('some figures look unusually high or low — double-check them.');
     return warnOk(warns);
@@ -954,6 +1092,9 @@
   }
 
   function planSteps() {
+    // Seeded from the department's current plan and left alone — publishing it
+    // would re-report existing steps as a fresh claim.
+    if (_stepsPrefilled && !_stepsDirty) return [];
     return st.steps.filter(function (s) { return s.basePay != null && s.label && s.label.trim(); }).map(function (s) {
       return { label: s.label.trim(), startMonths: Number(s.startMonths) || 0, basePay: s.basePay,
         scheduledOvertime: s.sot != null ? s.sot : null, isTopStep: !!s.top };
@@ -971,7 +1112,7 @@
     base.sourceUrl = Lib.safeUrl(v('src-url'));
     base.sourceStatus = ((prov && SOURCED_PROVENANCE[prov]) || base.sourceUrl) ? 'sourced' : 'provisional';
     base.hasFile = hasFile();
-    var civil = v('c-civil');
+    var civil = dv('c-civil');
     if (civil === 'yes') base.civilService = true;
     else if (civil === 'no') base.civilService = false;
     if (st.type === 'add') {
@@ -984,7 +1125,7 @@
     if (st.mode === 'plan') {
       var steps = planSteps();
       var period = v('p-period');
-      var hours = Lib.parseNumber(v('p-hours'));
+      var hours = Lib.parseNumber(dv('p-hours'));
       base.plan = { effectiveDate: v('p-eff') || undefined,
         payPeriod: period || undefined, schedule: schedVal('p-sched') || undefined, hoursAnnual: hours || undefined, notes: v('p-notes') || undefined };
       pv.steps = steps;
@@ -994,15 +1135,15 @@
       pv.entry = toAnn(sum.entry); pv.top = toAnn(sum.top);
       // Recruit/academy pay — independent of the step table (never fed into
       // entry/top/years-to-top), same period-aware annualizing as the steps.
-      pv.recruit = toAnn(Lib.parseMoney(v('p-recruit')));
+      pv.recruit = toAnn(Lib.parseMoney(dv('p-recruit')));
       base.plan.yearsToTop = sum.yearsToTop != null ? sum.yearsToTop : undefined;
       base.effectiveDate = base.plan.effectiveDate;
     } else if (st.mode === 'range') {
-      var rBasis = v('c-basis'), rPeriod = v('c-period'), rHours = Lib.parseNumber(v('c-hours'));
+      var rBasis = v('c-basis'), rPeriod = v('c-period'), rHours = Lib.parseNumber(dv('c-hours'));
       var rToAnn = function (x) { return toAnnual(x, rPeriod, rHours); };
-      var entryAmt = rToAnn(Lib.parseMoney(v('c-entry')));
-      var midAmt = rToAnn(Lib.parseMoney(v('c-midpoint')));
-      var topAmt = rToAnn(Lib.parseMoney(v('c-top')));
+      var entryAmt = rToAnn(Lib.parseMoney(dv('c-entry')));
+      var midAmt = rToAnn(Lib.parseMoney(dv('c-midpoint')));
+      var topAmt = rToAnn(Lib.parseMoney(dv('c-top')));
       Object.assign(pv, {
         payPeriod: rPeriod || undefined,
         basis: rBasis || undefined, effectiveDate: v('c-eff') || undefined,
@@ -1020,15 +1161,15 @@
       // Recruit/academy pay — a bonus field alongside the Firefighter scale
       // above, not an alternative to it, so both can publish in one submission.
       // Always a flat base figure, independent of the basis dropdown above.
-      var rRecruitPub = rToAnn(Lib.parseMoney(v('c-recruit')));
+      var rRecruitPub = rToAnn(Lib.parseMoney(dv('c-recruit')));
       if (rRecruitPub != null) pv.recruit = rRecruitPub;
       base.effectiveDate = pv.effectiveDate;
     } else {
       // Single flat rate — one number, no raise by tenure. Sets BOTH entry and top
       // to the same figure (this is a distinct claim from "I only know entry of a
       // graduated scale", which is what the range tab is for).
-      var fBasis = v('c-flat-basis'), fPeriod = v('c-flat-period'), fHours = Lib.parseNumber(v('c-flat-hours'));
-      var flatAmt = toAnnual(Lib.parseMoney(v('c-flat-amount')), fPeriod, fHours);
+      var fBasis = v('c-flat-basis'), fPeriod = v('c-flat-period'), fHours = Lib.parseNumber(dv('c-flat-hours'));
+      var flatAmt = toAnnual(Lib.parseMoney(dv('c-flat-amount')), fPeriod, fHours);
       Object.assign(pv, {
         payPeriod: fPeriod || undefined,
         basis: fBasis || undefined, effectiveDate: v('c-flat-eff') || undefined,
@@ -1042,7 +1183,7 @@
       // Recruit/academy pay — a bonus field alongside the flat rate above, not
       // an alternative to it, so both can publish in one submission. Always a
       // flat base figure, independent of the basis dropdown above.
-      var fRecruitPub = toAnnual(Lib.parseMoney(v('c-flat-recruit')), fPeriod, fHours);
+      var fRecruitPub = toAnnual(Lib.parseMoney(dv('c-flat-recruit')), fPeriod, fHours);
       if (fRecruitPub != null) pv.recruit = fRecruitPub;
       base.effectiveDate = pv.effectiveDate;
     }

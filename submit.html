@@ -52,6 +52,11 @@
        four-column rhythm survives and the box has room for a real description. */
     .supp-row .s-label { grid-column:1 / -1; }
     .sched-custom { margin-top:.4rem; }
+    /* A prefilled value is the department's existing figure, not something this
+       contributor is asserting — muted so the eye can tell at a glance which
+       fields they've actually changed. Reverts to normal on first edit. */
+    .prefilled { color:var(--text-soft); font-style:italic; }
+    .prefilled:focus { color:var(--text); font-style:normal; }
     @media (max-width:560px){ .supp-row{ grid-template-columns:1fr 1fr; } .supp-row .s-rm{ grid-column:2; justify-self:end; } }
     .step-card { border:1px solid var(--border); border-radius:var(--r-md); padding:1rem; margin-bottom:.75rem; background:var(--bg-raised); }
     .step-card .sc-head { display:flex; justify-content:space-between; align-items:center; font-weight:700; margin-bottom:.5rem; }
@@ -120,7 +125,7 @@
 
   <div id="site-footer"></div>
 
-  <script src="/js/salary-lib.js?v=9f49ee13"></script>
+  <script src="/js/salary-lib.js?v=e16ebc1a"></script>
   <script src="/js/consensus.js?v=ad54e74d"></script>
   <script src="/js/derive.js?v=a6cea0c0"></script>
   <script src="/js/aggregate.js?v=25ada732"></script>
@@ -130,6 +135,6 @@
   <script src="/js/data.js?v=783b80a7"></script>
   <script src="/js/ui.js?v=9209fa74"></script>
   <script src="/js/nav-20260729.js?v=9d1e6c8c"></script>
-  <script src="/js/submit.js?v=71662a96"></script>
+  <script src="/js/submit.js?v=ce02d079"></script>
 </body>
 </html>
