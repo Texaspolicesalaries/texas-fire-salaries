@@ -422,3 +422,10 @@
     margin-top: var(--sp-4);
   }
 }
+
+@media (max-width: 480px) {
+  /* "Community pay atlas · Texas fire service" wrapped onto two lines at
+     phone widths, which reads as a broken heading above the h1. The tail is
+     descriptive only — the h1 right below already says "Texas Firefighter". */
+  .home-hero .eyebrow-tail { display: none; }
+}

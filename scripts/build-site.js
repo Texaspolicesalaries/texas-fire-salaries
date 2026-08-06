@@ -441,16 +441,26 @@ function main() {
     'Fire departments by region', 'Browse Texas fire departments grouped by region.', `${SITE}/regions/`, regionLinks));
   urls.push('/regions/');
 
+  // A ranked list is only ever "highest" among departments actually in the
+  // database, so the scope is stated in the intro rather than implying a
+  // statewide superlative. Derived from the real data (same idea as the
+  // homepage coverage note) so it stops naming one region automatically once
+  // a second region has departments.
+  const rankedRegions = Object.keys(byRegion);
+  const COVERAGE_PHRASE = rankedRegions.length === 1
+    ? `among the ${liveDepts.length} departments currently listed in ${regionName(rankedRegions[0])}`
+    : `among the ${liveDepts.length} departments currently listed`;
+
   // Rankings — only when enough comparable data exists (>= 3 departments).
   const withEntry = liveDepts.map(d => ({ d, s: Derive.deriveSummary(d, null, NOW) })).filter(x => x.s.hasSalary && x.s.entry != null);
   const rankings = [];
   if (withEntry.length >= 3) {
     const top = withEntry.slice().sort((a, b) => b.s.entry - a.s.entry).map(x => x.d);
     write('rankings/highest-entry-pay.html', listPage(
-      'Highest Reported Entry Firefighter Salaries in Texas | Texas Fire Salaries',
-      'Texas fire departments with the highest community-reported entry firefighter pay.',
+      'Highest Reported Entry Firefighter Salaries | Texas Fire Salaries',
+      'Listed Texas fire departments with the highest community-reported entry firefighter pay.',
       `${SITE}/rankings/highest-entry-pay.html`, 'Highest reported entry firefighter salaries',
-      'Ranked by community-reported base entry pay. Base salary only — schedules and incentives vary, so compare carefully.', top));
+      `Ranked by community-reported base entry pay ${COVERAGE_PHRASE}. Base salary only — schedules and incentives vary, so compare carefully.`, top));
     urls.push('/rankings/highest-entry-pay.html');
     rankings.push({ href: '/rankings/highest-entry-pay.html', label: 'Highest entry pay', sub: 'By base entry salary' });
   }
@@ -460,7 +470,7 @@ function main() {
       'Texas Fire Departments Currently Hiring | Texas Fire Salaries',
       'Texas fire departments reported to be currently hiring firefighters.',
       `${SITE}/rankings/currently-hiring.html`, 'Departments currently hiring',
-      'Community-reported hiring status — confirm openings directly with each department.', hiring));
+      `Community-reported hiring status ${COVERAGE_PHRASE} — confirm openings directly with each department.`, hiring));
     urls.push('/rankings/currently-hiring.html');
     rankings.push({ href: '/rankings/currently-hiring.html', label: 'Currently hiring', sub: `${hiring.length} departments` });
   }
@@ -471,7 +481,7 @@ function main() {
       'Recently Updated Texas Firefighter Salaries | Texas Fire Salaries',
       'Texas fire departments whose firefighter pay was most recently updated by the community.',
       `${SITE}/rankings/recently-updated.html`, 'Recently updated departments',
-      'Departments with the freshest community reports in the last 12 months.', recent));
+      `Departments with the freshest community reports in the last 12 months, ${COVERAGE_PHRASE}.`, recent));
     urls.push('/rankings/recently-updated.html');
     rankings.push({ href: '/rankings/recently-updated.html', label: 'Recently updated', sub: 'Last 12 months' });
   }
@@ -484,11 +494,11 @@ function main() {
       `Texas Fire Departments on a ${sch} Schedule | Texas Fire Salaries`,
       `Texas fire departments reported to work a ${sch} shift schedule.`,
       `${SITE}/rankings/${sslug}.html`, `Departments with ${sch} schedules`,
-      `Community-reported fire departments working a ${sch} shift cycle.`, list));
+      `Community-reported fire departments working a ${sch} shift cycle, ${COVERAGE_PHRASE}.`, list));
     urls.push(`/rankings/${sslug}.html`);
     rankings.push({ href: `/rankings/${sslug}.html`, label: `${sch} schedule`, sub: `${list.length} departments` });
   });
-  if (rankings.length) { write('rankings/index.html', hubPage('Texas Firefighter Salary Rankings | Texas Fire Salaries', 'Salary rankings & lists', 'Ranked lists are published only when enough comparable data exists.', `${SITE}/rankings/`, rankings)); urls.push('/rankings/'); }
+  if (rankings.length) { write('rankings/index.html', hubPage('Texas Firefighter Salary Rankings | Texas Fire Salaries', 'Salary rankings & lists', `Ranked lists are published only when enough comparable data exists, and cover only departments already in the database (${rankedRegions.length === 1 ? regionName(rankedRegions[0]) : rankedRegions.length + ' regions'} so far).`, `${SITE}/rankings/`, rankings)); urls.push('/rankings/'); }
 
   // Sitemap
   write('sitemap.xml', sitemap(urls));

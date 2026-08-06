@@ -179,9 +179,18 @@
 .compare-card-link strong { font-size: 13px; color: var(--text); }
 
 @media (max-width: 960px) {
-  .dept-hero-grid { grid-template-columns: 1fr; gap: var(--sp-6); }
-  .dept-hero-stat { border-left: 0; border-top: 1px solid #39455b; padding: 1.6rem 0 0; }
+  /* Once this stacks, every gap that read as generous side-by-side becomes
+     stacked vertical height — the hero was filling ~75% of a phone screen
+     before the salary figure appeared. Tightened so the number people came
+     for is comfortably above the fold even on a small phone. */
+  .dept-hero-grid { grid-template-columns: 1fr; gap: 1.25rem; }
+  .dept-hero-stat { border-left: 0; border-top: 1px solid #39455b; padding: 1.1rem 0 0; }
   .dept-hero-stat-note { text-align: left; }
+  .dept-hero-inner { padding-bottom: 1.25rem; }
+  .dept-breadcrumb { margin-bottom: .6rem; }
+  .dept-status-row { margin-top: .75rem; }
+  .dept-hero-buttons { margin-top: 1rem; }
+  .dept-hero-stat-value { margin: 10px 0 .7rem; }
   /* minmax(0, 1fr), not 1fr — a bare `1fr` track floors at min-content, and
      the pay-step table's `min-width: 520px` (components CSS) then forces the
      whole single-column grid to 520px+ on a 390px screen, scrolling the
@@ -190,8 +199,12 @@
   .dept-side-column { position: relative; top: auto; padding-top: 2rem; order: -1; }
 }
 @media (max-width: 500px) {
-  .dept-hero-buttons { flex-direction: column; }
-  .dept-hero-buttons .btn { width: 100%; }
+  /* Side-by-side rather than two stacked full-width buttons: halves this
+     block's height (104px -> 46px) and pulls the salary figure that much
+     further up the first screen. Both labels fit at 390px; flex-wrap keeps a
+     third button (a department with a careers URL) from overflowing. */
+  .dept-hero-buttons { flex-direction: row; flex-wrap: wrap; gap: 10px; }
+  .dept-hero-buttons .btn { flex: 1 1 auto; min-width: 0; padding-inline: 10px; }
   .dept-claim-panel { flex-direction: column; align-items: flex-start; }
   .history-card { grid-template-columns: 51px 14px 1fr; gap: 7px; }
 }

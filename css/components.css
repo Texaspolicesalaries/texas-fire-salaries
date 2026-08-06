@@ -203,7 +203,7 @@
    leaves the accessibility tree and its filter controls stop being tabbable —
    otherwise keyboard users tab into an invisible full-screen panel. Delayed
    so the slide-out transition still plays before it disappears. */
-.filter-drawer { position: fixed; inset: 0; z-index: 300; background: var(--bg); transform: translateX(-100%); visibility: hidden; transition: transform .22s ease, visibility 0s linear .22s; display: flex; flex-direction: column; }
+.filter-drawer { position: fixed; inset: 0; z-index: 1200; background: var(--bg); transform: translateX(-100%); visibility: hidden; transition: transform .22s ease, visibility 0s linear .22s; display: flex; flex-direction: column; }
 .filter-drawer.open { transform: translateX(0); visibility: visible; transition: transform .22s ease, visibility 0s; }
 .filter-drawer-head { display: flex; align-items: center; justify-content: space-between; padding: var(--sp-4); border-bottom: 1px solid var(--border); }
 .filter-drawer-body { overflow-y: auto; padding: var(--sp-4); flex: 1; }

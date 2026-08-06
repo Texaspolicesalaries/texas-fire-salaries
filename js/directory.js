@@ -7,6 +7,10 @@
   'use strict';
   var UI = window.FireUI, F = window.FireFilters, FU = window.FireFiltersUI, CS = window.FireCompareStore;
   var state, allDepts = [];
+  // How many results are rendered at once. Reset to one page on any change to
+  // the result set (filter, search, sort) so a fresh query starts at the top.
+  var PAGE_SIZE = 24;
+  var shown = PAGE_SIZE;
   // Card grid vs. compact list — remembered across visits.
   var layout = 'cards';
   try { layout = localStorage.getItem('fireDirLayout') || 'cards'; } catch (e) {}
@@ -138,7 +142,7 @@
       '<th scope="col">Data</th><th aria-label="Compare"></th></tr></thead><tbody>' + rows + '</tbody></table></div>';
   }
 
-  function onChange() { F.syncURL(state); refresh(); }
+  function onChange() { shown = PAGE_SIZE; F.syncURL(state); refresh(); }
 
   function refresh() {
     var origin = F.resolveOrigin(state, allDepts);
@@ -166,14 +170,39 @@
       var r = document.getElementById('reset3'); if (r) r.onclick = function () { state = F.defaults(); var host = document.getElementById('filter-panel'); if (host) { FU.render(host, state); FU.wire(host, state, onChange); } resetSearchInput(); buildSortUI(); onChange(); };
       return;
     }
+    // Render a page at a time. At 54 departments the full list is already a
+    // ~4,200px scroll on a phone, and it grows with every region added — so
+    // cap the initial render and let the reader ask for more. `shown` resets
+    // whenever the result set changes (see onChange) so a new search always
+    // starts from the top of its own list.
+    var slice = list.slice(0, shown);
+    var remaining = list.length - slice.length;
+
     if (layout === 'list') {
       grid.className = '';
-      grid.innerHTML = renderList(list, origin);
+      grid.innerHTML = renderList(slice, origin);
     } else {
       grid.className = 'grid cols-2';
-      grid.innerHTML = list.map(function (d) {
+      grid.innerHTML = slice.map(function (d) {
         return UI.deptCard(d, { compareBtn: true, distanceMi: origin ? F.distanceFor(d, origin) : null });
       }).join('');
+    }
+
+    var more = document.getElementById('load-more-wrap');
+    if (more) {
+      more.innerHTML = remaining > 0
+        ? '<button class="btn btn-outline" id="load-more">Show ' + Math.min(PAGE_SIZE, remaining) +
+          ' more <span class="faint">(' + remaining + ' remaining)</span></button>'
+        : '';
+      var btn = document.getElementById('load-more');
+      if (btn) btn.onclick = function () {
+        shown += PAGE_SIZE;
+        refresh();
+        // Keep the reader where they were rather than jumping; focus the new
+        // button so keyboard users don't lose their place in the list.
+        var next = document.getElementById('load-more');
+        if (next) next.focus();
+      };
     }
   }
 

@@ -206,7 +206,7 @@
    directory page promotes this same element to a static desktop rail via its
    own min-width:901px rule, which overrides `position` — visibility is
    re-asserted there too. */
-.filter-drawer { position: fixed; inset: 0; z-index: 300; background: var(--bg); transform: translateX(-100%); visibility: hidden; transition: transform .22s ease, visibility 0s linear .22s; display: flex; flex-direction: column; }
+.filter-drawer { position: fixed; inset: 0; z-index: 1200; background: var(--bg); transform: translateX(-100%); visibility: hidden; transition: transform .22s ease, visibility 0s linear .22s; display: flex; flex-direction: column; }
 .filter-drawer.open { transform: translateX(0); visibility: visible; transition: transform .22s ease, visibility 0s; }
 .filter-drawer-head { display: flex; align-items: center; justify-content: space-between; padding: var(--sp-4); border-bottom: 1px solid var(--border); }
 .filter-drawer-body { overflow-y: auto; padding: var(--sp-4); flex: 1; }
@@ -295,13 +295,31 @@ table.data tr.top-step td { font-weight: 700; }
 .spinner { width: 22px; height: 22px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.7s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
-/* ---------------- Compare tray (floating pill) ----------------
-   Positioning/colour live as inline styles on #compare-tray in the page HTML;
-   these rules cover the parts that were missing. The count text wrapped to two
-   lines ("4" / "selected") in the narrow mobile pill, and nothing reserved
-   space for the tray, so it permanently covered the last row of results. */
-#compare-tray > span { white-space: nowrap; }
+/* ---------------- Compare tray ----------------
+   Floating centred pill on desktop; on phones it docks flush above the mobile
+   bar as a full-width bar instead. As a floating pill it sat on top of result
+   cards the whole way down the page, which read as a rendering bug rather than
+   a control. z-index stays under .filter-drawer so an open drawer covers it,
+   and above Leaflet's control panes (~1000) so it isn't buried on the map. */
+.compare-tray {
+  position: fixed; bottom: 76px; left: 50%; transform: translateX(-50%); z-index: 1100;
+  background: var(--ink-900); color: #fff; border-radius: var(--r-pill);
+  padding: .5rem 1rem; align-items: center; gap: .75rem; box-shadow: var(--shadow-lg);
+}
+.compare-tray > span { white-space: nowrap; }
 body.has-compare-tray { padding-bottom: 136px; }
+
+@media (max-width: 640px) {
+  .compare-tray {
+    left: 0; right: 0; bottom: 57px; transform: none;
+    border-radius: 0; justify-content: center;
+    padding: .6rem var(--sp-4);
+    box-shadow: 0 -4px 14px rgba(16, 24, 39, .18);
+  }
+  /* The docked bar sits directly on the mobile bar, so only its own height
+     needs reserving on top of the existing .has-mobile-bar padding. */
+  body.has-compare-tray { padding-bottom: 124px; }
+}
 
 /* ---------------- Horizontal-scroll affordance ----------------
    A wide table inside .table-scroll scrolls on its own, but on a phone there
