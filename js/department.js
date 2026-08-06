@@ -25,8 +25,11 @@
 
   // Link to the department's pay-plan source when we have a real URL, else plain text.
   function payPlanLink(linkLabel, fallbackLabel) {
-    return (summary && summary.sourceUrl)
-      ? '<a href="' + UI.esc(summary.sourceUrl) + '" target="_blank" rel="nofollow noopener">' + linkLabel + '</a>'
+    // esc() alone would let a javascript: URL through untouched — it contains
+    // no markup characters. Lib.safeUrl is what actually gates the href.
+    var href = Lib.safeUrl(summary && summary.sourceUrl);
+    return href
+      ? '<a href="' + UI.esc(href) + '" target="_blank" rel="nofollow noopener">' + linkLabel + '</a>'
       : (fallbackLabel || '');
   }
 

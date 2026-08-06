@@ -137,6 +137,29 @@ test('applyStepPlan is a no-op when there is no plan or it has no steps', () => 
   assert.strictEqual(Agg.applyStepPlan(dept, { steps: [] }), dept);
 });
 
+test('applyDeptFacts sets schedule and hours at the top level', () => {
+  const dept = deptFixture();
+  const merged = Agg.applyDeptFacts(dept, { scheduleType: '48/96', annualScheduledHours: 2912 });
+  assert.strictEqual(merged.scheduleType, '48/96');
+  assert.strictEqual(merged.annualScheduledHours, 2912);
+  assert.strictEqual(dept.scheduleType, '24/48'); // original untouched
+});
+
+test('applyDeptFacts applies only what was supplied', () => {
+  const dept = deptFixture();
+  dept.annualScheduledHours = 2184;
+  const merged = Agg.applyDeptFacts(dept, { scheduleType: '48/96' });
+  assert.strictEqual(merged.scheduleType, '48/96');
+  assert.strictEqual(merged.annualScheduledHours, 2184); // not erased
+});
+
+test('applyDeptFacts is a no-op for empty or missing facts', () => {
+  const dept = deptFixture();
+  assert.strictEqual(Agg.applyDeptFacts(dept, null), dept);
+  assert.strictEqual(Agg.applyDeptFacts(dept, {}), dept);
+  assert.strictEqual(Agg.applyDeptFacts(dept, { annualScheduledHours: 0 }), dept);
+});
+
 test('applyClaim marks a department maintained without touching anything else', () => {
   const dept = deptFixture();
   const merged = Agg.applyClaim(dept, true);

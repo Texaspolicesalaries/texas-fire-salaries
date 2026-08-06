@@ -267,6 +267,67 @@ function planRow(slug, steps, submittedAt, extra, docName) {
   }, extra), submittedAt, docName);
 }
 
+// Schedule and scheduled hours were collected by the form and then dropped —
+// toReport() only ever extracted pay figures, so a schedule-only correction
+// published and changed nothing.
+test('extractDeptFacts recovers schedule and hours from a non-plan submission', () => {
+  const rows = [row({
+    departmentSlug: s('addison-fd'),
+    proposedValues: mapVal({ schedule: s('48/96'), hoursAnnual: intVal(2912) })
+  }, '2026-01-01T00:00:00Z')];
+  const facts = M.extractDeptFacts(rows);
+  assert.strictEqual(facts['addison-fd'].scheduleType, '48/96');
+  assert.strictEqual(facts['addison-fd'].annualScheduledHours, 2912);
+});
+
+test('extractDeptFacts reads a plan-mode submission off the plan object', () => {
+  const rows = [row({
+    departmentSlug: s('addison-fd'), mode: s('plan'),
+    plan: mapVal({ schedule: s('24/48'), hoursAnnual: intVal(2912) })
+  }, '2026-01-01T00:00:00Z')];
+  assert.strictEqual(M.extractDeptFacts(rows)['addison-fd'].scheduleType, '24/48');
+});
+
+test('extractDeptFacts keeps the most recent answer per department', () => {
+  const rows = [
+    row({ departmentSlug: s('addison-fd'), proposedValues: mapVal({ schedule: s('24/48') }) }, '2026-01-01T00:00:00Z'),
+    row({ departmentSlug: s('addison-fd'), proposedValues: mapVal({ schedule: s('48/96') }) }, '2026-06-01T00:00:00Z')
+  ];
+  assert.strictEqual(M.extractDeptFacts(rows)['addison-fd'].scheduleType, '48/96');
+});
+
+test('extractDeptFacts merges rather than replaces, so a schedule-only update keeps known hours', () => {
+  const rows = [
+    row({ departmentSlug: s('addison-fd'), proposedValues: mapVal({ schedule: s('24/48'), hoursAnnual: intVal(2912) }) }, '2026-01-01T00:00:00Z'),
+    row({ departmentSlug: s('addison-fd'), proposedValues: mapVal({ schedule: s('48/96') }) }, '2026-06-01T00:00:00Z')
+  ];
+  const f = M.extractDeptFacts(rows)['addison-fd'];
+  assert.strictEqual(f.scheduleType, '48/96');    // updated
+  assert.strictEqual(f.annualScheduledHours, 2912); // preserved, not erased
+});
+
+test('extractDeptFacts ignores submissions carrying neither field', () => {
+  const rows = [row({ departmentSlug: s('addison-fd'), proposedValues: mapVal({ entry: num(60000) }) }, '2026-01-01T00:00:00Z')];
+  assert.deepStrictEqual(M.extractDeptFacts(rows), {});
+});
+
+test('toReport drops a javascript: sourceUrl instead of marking it sourced', () => {
+  const plan = row({
+    mode: s('plan'), departmentSlug: s('addison-fd'), sourceUrl: s('javascript:alert(1)'),
+    proposedValues: mapVal({ steps: arrVal([stepVal({ label: 'Entry', startMonths: 0, basePay: 60000 })]) }),
+    plan: mapVal({ effectiveDate: s('2026-01-01') })
+  }, '2026-01-01T00:00:00Z');
+  assert.strictEqual(M.extractStepPlans([plan])['addison-fd'].sourceUrl, undefined);
+});
+
+test('promoteDepartments refuses a javascript: website', () => {
+  const rows = [row({
+    name: s('Evil Fire Department'), city: s('Frisco'), county: s('Collin'), zip: s('75001'),
+    website: s('javascript:alert(document.cookie)')
+  }, '2026-01-01T00:00:00Z')];
+  assert.strictEqual(M.promoteDepartments(rows, SEED_DEPTS, ZIPS).departments[0].website, '');
+});
+
 test('decodeValue unwraps scalars, arrays, and nested maps', () => {
   assert.strictEqual(M.decodeValue(s('hi')), 'hi');
   assert.strictEqual(M.decodeValue(intVal(12)), 12);

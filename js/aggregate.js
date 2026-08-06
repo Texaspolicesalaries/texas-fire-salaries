@@ -126,6 +126,23 @@
     return d;
   }
 
+  // Working-condition facts from the same submissions — see
+  // scripts/export-overlay.js's extractDeptFacts. Both live at the TOP level of
+  // the department object (matching schema.md and what js/filters.js and the
+  // effective-hourly math already read), not under salary. Each field is
+  // applied only when actually supplied, so a schedule-only correction leaves a
+  // known hours figure alone.
+  function applyDeptFacts(dept, facts) {
+    if (!facts) return dept;
+    var hasSchedule = !!facts.scheduleType;
+    var hasHours = facts.annualScheduledHours > 0;
+    if (!hasSchedule && !hasHours) return dept;
+    var d = Object.assign({}, dept);
+    if (hasSchedule) d.scheduleType = facts.scheduleType;
+    if (hasHours) d.annualScheduledHours = facts.annualScheduledHours;
+    return d;
+  }
+
   // Supplemental pay ITEMS a contributor attaches to a submission (certification
   // tiers, education tiers, longevity, paramedic incentive — see
   // js/submit.js's SUPP_TYPES) are the real, live source for the "Has
@@ -245,7 +262,7 @@
     };
   }
 
-  var FireAggregate = { submissionToReport: submissionToReport, applyOverlay: applyOverlay, applyStepPlan: applyStepPlan, applyClaim: applyClaim, applyCivilService: applyCivilService, applySupplementalFlags: applySupplementalFlags, applyDeptOverride: applyDeptOverride, applyFieldOverrides: applyFieldOverrides, applySuspensions: applySuspensions, summarize: summarize, toMs: toMs, money: money };
+  var FireAggregate = { submissionToReport: submissionToReport, applyOverlay: applyOverlay, applyStepPlan: applyStepPlan, applyClaim: applyClaim, applyCivilService: applyCivilService, applyDeptFacts: applyDeptFacts, applySupplementalFlags: applySupplementalFlags, applyDeptOverride: applyDeptOverride, applyFieldOverrides: applyFieldOverrides, applySuspensions: applySuspensions, summarize: summarize, toMs: toMs, money: money };
   if (typeof window !== 'undefined') window.FireAggregate = FireAggregate;
   if (typeof module !== 'undefined' && module.exports) module.exports = FireAggregate;
 })();

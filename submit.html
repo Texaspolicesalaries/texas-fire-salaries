@@ -23,6 +23,11 @@
     .wiz-step.active { color:var(--text); }
     .wiz-step.active .dot { background:var(--accent); color:#fff; }
     .wiz-step.done .dot { background:var(--accent-2); color:#fff; }
+    /* Completed steps render as <button> so they can be clicked (and tabbed) to
+       navigate back; strip the UA button chrome so they still read as chips. */
+    button.wiz-step { background:none; border:0; padding:0; font:inherit; cursor:pointer; }
+    button.wiz-step:hover .lab { color:var(--text); text-decoration:underline; }
+    button.wiz-step:focus-visible { outline:2px solid var(--accent); outline-offset:3px; border-radius:var(--r-sm); }
     .wiz-sep { flex:1; height:1px; background:var(--border); min-width:10px; max-width:36px; }
     @media (max-width:560px){ .wiz-step .lab{ display:none; } .wiz-sep{ max-width:none; } }
     .wiz-nav { display:flex; justify-content:space-between; align-items:center; gap:1rem; margin-top:1.5rem; }
@@ -47,7 +52,8 @@
     .step-card { border:1px solid var(--border); border-radius:var(--r-md); padding:1rem; margin-bottom:.75rem; background:var(--bg-raised); }
     .step-card .sc-head { display:flex; justify-content:space-between; align-items:center; font-weight:700; margin-bottom:.5rem; }
     .upload-area { display:flex; align-items:center; gap:.75rem; border:2px dashed var(--border-strong); border-radius:var(--r-md); padding:1.1rem; cursor:pointer; transition:border-color .15s, background .15s; }
-    .upload-area:hover { border-color:var(--accent-2); background:var(--bg-sunken); }
+    .upload-area:hover, .upload-area.is-dragover { border-color:var(--accent-2); background:var(--bg-sunken); }
+    .upload-area.is-dragover { border-style:solid; }
     .upload-area .up-icon { font-size:1.6rem; }
     .upload-area .up-file { margin-left:auto; font-size:var(--fs-sm); color:var(--accent-2); font-weight:650; }
     /* Full step-plan editor */
@@ -82,7 +88,13 @@
       .plan-row { display:block; padding:.75rem; border-top:6px solid var(--bg-inset); }
       .plan-row .pc { display:flex; align-items:center; gap:.5rem; margin-bottom:.45rem; }
       .plan-row .cl { display:block; flex:0 0 42%; font-size:var(--fs-sm); color:var(--text-soft); font-weight:600; }
-      .plan-row .pc input:not([type=radio]) { flex:1; width:auto; }
+      /* min-width:0 is load-bearing: a flex item's floor is its min-content
+         width, which for a text input is its `size` attribute default (~20
+         chars), not zero. Without it the input keeps that intrinsic width no
+         matter how little room is left beside the 42% label, and overflows the
+         card — measured 382px against a 351px card edge on a 375px screen,
+         clipping whatever was typed. */
+      .plan-row .pc input:not([type=radio]) { flex:1 1 0; min-width:0; width:auto; }
       .plan-row .pc-top { justify-content:flex-start; }
       .plan-row .top-word { display:none; }
       .pc-act { justify-content:flex-start; margin-top:.3rem; }

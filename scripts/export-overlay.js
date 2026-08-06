@@ -16,6 +16,12 @@
 const fs = require('fs');
 const path = require('path');
 
+// safeUrl is the last chokepoint before a community-submitted link becomes a
+// live href on the static site. submit.js validates too, but this runs over
+// every document including ones written before that validation existed, and
+// Firestore rules don't constrain URL shape at all.
+const { safeUrl } = require('../js/salary-lib.js');
+
 const ROOT = path.resolve(__dirname, '..');
 const OUT = path.join(ROOT, 'data', 'overlay.json');
 const INIT = path.join(ROOT, 'js', 'firebase-init.js');
@@ -217,7 +223,7 @@ function stepPlanFromDoc(doc) {
     classification: plan.classification || undefined,
     effectiveDate: plan.effectiveDate || undefined,
     sourceType: fv(f.sourceType) || undefined,
-    sourceUrl: fv(f.sourceUrl) || undefined,
+    sourceUrl: safeUrl(fv(f.sourceUrl)) || undefined,
     contributorId: fv(f.contributorId) || null
   };
 }
@@ -265,6 +271,45 @@ function extractCivilService(rows) {
     const submittedAt = isoDay(f.submittedAt && f.submittedAt.timestampValue) || isoDay(Date.now());
     const cur = bySlug[slug];
     if (!cur || submittedAt >= cur.submittedAt) bySlug[slug] = { value: raw, submittedAt };
+  });
+  const out = {};
+  Object.keys(bySlug).forEach(slug => { out[slug] = bySlug[slug].value; });
+  return out;
+}
+
+// Shift schedule and scheduled annual hours, same most-recent-wins treatment as
+// extractCivilService. These are department-level working conditions, not pay
+// figures, so they don't cluster — but they were previously collected by the
+// form and then dropped on the floor: toReport() only ever extracted pay, so a
+// contributor who corrected only a department's schedule watched their
+// submission publish and change nothing. Hours also feed effective-hourly math,
+// which is the whole point of comparing a 2,912-hour shift job to a 2,080-hour
+// one, so silently discarding them skewed a headline number.
+//
+// A plan-mode submission carries these on `plan`, the other modes on
+// `proposedValues`; both are read so the source mode doesn't matter.
+function extractDeptFacts(rows) {
+  const bySlug = {};
+  rows.forEach(r => {
+    if (!r.document || !r.document.fields) return;
+    const f = r.document.fields;
+    const slug = fv(f.departmentSlug);
+    if (!slug) return;
+    const pv = decodeValue(f.proposedValues) || {};
+    const plan = decodeValue(f.plan) || {};
+    const schedule = plan.schedule || pv.schedule || null;
+    const hoursRaw = plan.hoursAnnual != null ? plan.hoursAnnual : pv.hoursAnnual;
+    const hours = hoursRaw == null ? null : Number(hoursRaw);
+    if (!schedule && !(hours > 0)) return;
+    const submittedAt = isoDay(f.submittedAt && f.submittedAt.timestampValue) || isoDay(Date.now());
+    const cur = bySlug[slug];
+    if (cur && submittedAt < cur.submittedAt) return;
+    // Merge rather than replace: a submission that set only a schedule must not
+    // erase a more complete earlier one's hours.
+    const next = Object.assign({}, cur && cur.value);
+    if (schedule) next.scheduleType = String(schedule);
+    if (hours > 0) next.annualScheduledHours = hours;
+    bySlug[slug] = { value: next, submittedAt };
   });
   const out = {};
   Object.keys(bySlug).forEach(slug => { out[slug] = bySlug[slug].value; });
@@ -692,7 +737,7 @@ function promoteDepartments(rows, seedDepts, zips) {
       region: inferRegion(county, centroid[0], centroid[1]),
       zip, lat: centroid[0], lng: centroid[1],
       departmentType: fv(f.departmentType) || 'other',
-      website: fv(f.website) || '', careersUrl: '', phone: '',
+      website: safeUrl(fv(f.website)) || '', careersUrl: '', phone: '',
       hiringStatus: 'unknown', transportStatus: 'unknown',
       scheduleType: '', annualScheduledHours: null,
       flags: { paramedicIncentive: false, certPay: false, educationPay: false, longevity: false, lateralsAccepted: false, emtRequired: false, paramedicRequired: false },
@@ -803,6 +848,7 @@ async function main() {
   }
   const stepPlans = extractStepPlans(subRows, stepPlanDisputeCounts);
   const civilService = extractCivilService(subRows);
+  const deptFacts = extractDeptFacts(subRows);
 
   // Admin tools (js/admin.js) — name/coordinate corrections, duplicate-merge
   // redirects, standing field locks, one-time value corrections, and
@@ -889,6 +935,7 @@ async function main() {
     departments,
     stepPlans,
     civilService,
+    deptFacts,
     claimedSlugs: Array.from(claimedSlugs),
     departmentOverrides,
     fieldLocks,
@@ -916,7 +963,7 @@ if (require.main === module) {
 } else {
   module.exports = {
     slugify, normName, isDuplicate, makeRegionResolver, promoteDepartments, readZipCentroids, toReport, decodeValue,
-    extractStepPlans, stepPlanFromDoc, extractCivilService, docId, DISPUTE_REVERT_THRESHOLD, confirmationToReport, applyValueDisputes,
+    extractStepPlans, stepPlanFromDoc, extractCivilService, extractDeptFacts, docId, DISPUTE_REVERT_THRESHOLD, confirmationToReport, applyValueDisputes,
     dedupeConfirmations, computeActiveClaimants, CLAIM_EXPIRY_MONTHS,
     extractDeptOverrides, computeMergedRedirects, extractFieldLocks, adminCorrectionToReport,
     extractSuspendedContributors, computeTrustedContributors, MIN_TRUSTED_REPORTS, MIN_TRUSTED_DEPARTMENTS

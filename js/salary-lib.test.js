@@ -52,6 +52,66 @@ test('parseMoney handles strings, numbers, junk', () => {
   assert.strictEqual(L.parseMoney('n/a'), null);
 });
 
+// The money inputs reformat on every keystroke, so this function sees
+// half-finished input constantly. Typing is simulated character by character
+// because that is the only way the original bug showed up: each pass fed its
+// own output back in, and "25." losing its dot turned $25.50/hr into $2,550/hr.
+function typeInto(str) {
+  var buf = '';
+  String(str).split('').forEach(function (ch) { buf = L.formatMoneyInput(buf + ch); });
+  return buf;
+}
+
+test('formatMoneyInput survives typing a decimal one character at a time', () => {
+  assert.strictEqual(typeInto('25.50'), '25.50');
+  assert.strictEqual(L.parseMoney(typeInto('25.50')), 25.5);
+  assert.strictEqual(typeInto('7.5'), '7.5');
+  assert.strictEqual(L.parseMoney(typeInto('7.5')), 7.5);
+});
+
+test('formatMoneyInput groups thousands while typing', () => {
+  assert.strictEqual(typeInto('61500'), '61,500');
+  assert.strictEqual(L.parseMoney(typeInto('61500')), 61500);
+  assert.strictEqual(typeInto('1234567'), '1,234,567');
+});
+
+test('formatMoneyInput keeps a trailing dot so the next keystroke lands correctly', () => {
+  assert.strictEqual(L.formatMoneyInput('25.'), '25.');
+  assert.strictEqual(L.formatMoneyInput('25.5'), '25.5');
+  assert.strictEqual(L.formatMoneyInput('25.50'), '25.50'); // trailing zero preserved
+});
+
+test('formatMoneyInput drops junk, extra dots, and caps at two decimals', () => {
+  assert.strictEqual(L.formatMoneyInput('abc'), '');
+  assert.strictEqual(L.formatMoneyInput('1.2.3'), '1.23');
+  assert.strictEqual(L.formatMoneyInput('1234.567'), '1,234.56');
+  assert.strictEqual(L.formatMoneyInput('$1,000'), '1,000');
+  assert.strictEqual(L.formatMoneyInput('.5'), '0.5');
+  assert.strictEqual(L.formatMoneyInput(''), '');
+  assert.strictEqual(L.formatMoneyInput(null), '');
+});
+
+test('safeUrl passes http/https and rejects script-bearing schemes', () => {
+  assert.strictEqual(L.safeUrl('https://example.com/plan.pdf'), 'https://example.com/plan.pdf');
+  assert.strictEqual(L.safeUrl('http://example.com'), 'http://example.com');
+  assert.strictEqual(L.safeUrl('HTTPS://EXAMPLE.COM/p'), 'HTTPS://EXAMPLE.COM/p');
+  assert.strictEqual(L.safeUrl('javascript:alert(1)'), null);
+  assert.strictEqual(L.safeUrl('JavaScript:alert(1)'), null);
+  assert.strictEqual(L.safeUrl('  javascript:alert(1)  '), null);
+  assert.strictEqual(L.safeUrl('data:text/html,<script>x</script>'), null);
+  assert.strictEqual(L.safeUrl('vbscript:msgbox'), null);
+  assert.strictEqual(L.safeUrl('//evil.example.com'), null); // protocol-relative
+  assert.strictEqual(L.safeUrl('asdf'), null);               // not a URL at all
+  assert.strictEqual(L.safeUrl(''), null);
+  assert.strictEqual(L.safeUrl(null), null);
+});
+
+test('safeUrl ignores control characters hiding a scheme', () => {
+  assert.strictEqual(L.safeUrl('java\tscript:alert(1)'), null);
+  assert.strictEqual(L.safeUrl('java\nscript:alert(1)'), null);
+  assert.strictEqual(L.safeUrl('\u0000javascript:alert(1)'), null);
+});
+
 test('fmtMoney formats and guards', () => {
   assert.strictEqual(L.fmtMoney(74356), '$74,356');
   assert.strictEqual(L.fmtMoney(null), '—');

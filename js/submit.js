@@ -103,14 +103,32 @@
       opts.map(function (o) { var val = Array.isArray(o) ? o[0] : o, l = Array.isArray(o) ? o[1] : o; return '<option value="' + UI.esc(val) + '">' + UI.esc(l) + '</option>'; }).join('') + '</select>';
   }
   function v(id) { var el = document.getElementById(id); return el ? String(el.value).trim() : ''; }
-  function commaFmt(el) { var d = el.value.replace(/[^\d.]/g, ''); var n = parseFloat(d); el.value = isFinite(n) ? n.toLocaleString('en-US') : (d ? el.value.replace(/[^\d.]/g, '') : ''); }
+  // Reformats on every keystroke; Lib.formatMoneyInput is what keeps a
+  // part-typed decimal ("25.", "25.50") intact instead of collapsing it into
+  // 2,550. Caret is restored to the end only when the value actually changed,
+  // so arrowing back into the middle of a number to edit it still works.
+  function commaFmt(el) {
+    var before = el.value;
+    var after = Lib.formatMoneyInput(before);
+    if (after === before) return;
+    var atEnd = el.selectionStart === before.length;
+    el.value = after;
+    if (atEnd && el.setSelectionRange) { try { el.setSelectionRange(after.length, after.length); } catch (e) {} }
+  }
 
   // ── Wizard shell ──────────────────────────────────────────────────────────────
   var STEP_LABELS = ['Department', 'Compensation', 'Source', 'Review'];
+  // Steps already completed are real buttons — going back is always safe (state
+  // survives) and reaching step 1 from review otherwise took three Back clicks.
+  // Steps not yet reached stay inert, since jumping forward would skip validation.
   function indicator() {
     return '<div class="wiz-steps">' + STEP_LABELS.map(function (lab, i) {
-      var n = i + 1, cls = n === st.step ? 'active' : (n < st.step ? 'done' : '');
-      return '<div class="wiz-step ' + cls + '"' + (n === st.step ? ' aria-current="step"' : '') + '><span class="dot">' + (n < st.step ? '✓' : n) + '</span><span class="lab">' + lab + '</span></div>';
+      var n = i + 1, done = n < st.step, cls = n === st.step ? 'active' : (done ? 'done' : '');
+      var inner = '<span class="dot">' + (done ? '✓' : n) + '</span><span class="lab">' + lab + '</span>';
+      if (done) {
+        return '<button type="button" class="wiz-step ' + cls + '" data-goto="' + n + '" title="Back to ' + lab + '">' + inner + '</button>';
+      }
+      return '<div class="wiz-step ' + cls + '"' + (n === st.step ? ' aria-current="step"' : '') + '>' + inner + '</div>';
     }).join('<span class="wiz-sep"></span>') + '</div>';
   }
 
@@ -132,7 +150,13 @@
   }
 
   function updateChrome() {
-    var ind = document.getElementById('wiz-indicator'); if (ind) ind.innerHTML = indicator();
+    var ind = document.getElementById('wiz-indicator');
+    if (ind) {
+      ind.innerHTML = indicator();
+      ind.querySelectorAll('[data-goto]').forEach(function (b) {
+        b.onclick = function () { goStep(parseInt(b.getAttribute('data-goto'), 10)); };
+      });
+    }
     var navc = document.getElementById('wiz-nav-c'); if (navc) navc.innerHTML = nav();
     document.querySelectorAll('.wiz-panel').forEach(function (p) { p.style.display = (parseInt(p.getAttribute('data-step'), 10) === st.step) ? '' : 'none'; });
     if (st.step === 4) { var rp = document.getElementById('panel-review'); if (rp) rp.innerHTML = step4(); }
@@ -184,14 +208,16 @@
         '<div class="grid cols-3">' +
           field('County *', txt('f-county'), null, 'f-county') +
           field('ZIP *', '<input id="f-zip" type="text" inputmode="numeric" maxlength="5">', 'Required — this is how we place the department on the map.', 'f-zip') +
-          field('Type', sel('f-dtype', [['municipal', 'Municipal'], ['esd', 'Emergency services district'], ['county', 'County'], ['university', 'University'], ['airport', 'Airport'], ['fire-rescue-district', 'Fire-rescue district'], ['combination', 'Combination'], ['other', 'Other']]), null, 'f-dtype') + '</div>' +
+          // No pre-selected default: "Municipal" silently became the answer for
+          // anyone who skipped the field, asserting a fact nobody stated.
+          field('Type', selP('f-dtype', [['municipal', 'Municipal'], ['esd', 'Emergency services district'], ['county', 'County'], ['university', 'University'], ['airport', 'Airport'], ['fire-rescue-district', 'Fire-rescue district'], ['combination', 'Combination'], ['other', 'Other']], 'Select type…'), null, 'f-dtype') + '</div>' +
         field('Website or careers URL', '<input id="f-web" type="url" placeholder="https://">', null, 'f-web');
     }
     return '<h2>Which department?</h2>' + typeToggle +
       field('Search for a department',
         '<input id="f-dept-search" type="text" list="dept-list" autocomplete="off" placeholder="Type a department, city, or county…">' +
         '<datalist id="dept-list">' + D.all().map(function (d) { return '<option value="' + UI.esc(d.name + ' — ' + d.city) + '"></option>'; }).join('') + '</datalist>',
-        'Start typing — 54 departments listed.', 'f-dept-search') +
+        'Start typing — ' + D.all().length + ' departments listed.', 'f-dept-search') +
       '<div id="current-values"></div>';
   }
 
@@ -458,7 +484,19 @@
       if (pv.effectiveDate) rows.push(arrow('Effective date', fmtDate(dept && dept.salary && dept.salary.effectiveDate) || null, UI.esc(fmtDate(pv.effectiveDate))));
     }
 
-    (pv.supplemental || []).forEach(function (s) { rows.push(kv(suppLabel(s.type), UI.money(s.amount) + '/' + unitLabel(s.unit))); });
+    // A percentage is not a dollar amount — "$10/% base" was nonsense.
+    (pv.supplemental || []).forEach(function (s) {
+      var shown = s.unit === 'pct' ? (s.amount + '% of base') : (UI.money(s.amount) + '/' + unitLabel(s.unit));
+      rows.push(kv(suppLabel(s.type), shown));
+    });
+    // readSupp() silently drops a row missing either half, so a contributor who
+    // picked "Longevity pay" and forgot the amount would see it simply not
+    // appear here with no explanation.
+    var halfFilled = countHalfFilledSupp();
+    if (halfFilled) {
+      rows.push(kv('Incomplete pay item' + (halfFilled > 1 ? 's' : ''),
+        '<span class="rv-old" style="text-decoration:none">' + halfFilled + ' skipped — needs both a type and an amount</span>'));
+    }
 
     var stepsList = '';
     if (payload.mode === 'plan' && (pv.steps || []).length) {
@@ -476,9 +514,16 @@
 
   // ── Wiring ────────────────────────────────────────────────────────────────────
   function wireStep() {
-    // type toggle
+    // type toggle — a full re-render, so everything typed on steps 2-3 (and any
+    // attached file) is discarded. Back-navigation preserves state, so people
+    // reasonably assume this does too; confirm before throwing the work away.
     document.querySelectorAll('#type-seg [data-type]').forEach(function (b) {
-      b.onclick = function () { st.type = b.getAttribute('data-type'); st.step = 1; render(); };
+      b.onclick = function () {
+        var next = b.getAttribute('data-type');
+        if (next === st.type) return;
+        if (hasEnteredWork() && !window.confirm('Switching between "Update a department" and "Add a new department" clears the pay details you have entered. Switch anyway?')) return;
+        st.type = next; st.step = 1; st.steps = []; render();
+      };
     });
     // mode toggle (step 2)
     document.querySelectorAll('#mode-seg [data-mode]').forEach(function (b) {
@@ -526,10 +571,61 @@
 
     // file upload
     var file = document.getElementById('src-file');
-    if (file) file.addEventListener('change', function () {
-      var f = file.files && file.files[0], name = document.getElementById('up-filename');
-      if (f) { if (f.size > 10 * 1024 * 1024) { name.innerHTML = '<span class="field-error">That file is over 10 MB.</span>'; file.value = ''; return; } name.textContent = '✓ ' + f.name; }
-      else name.textContent = '';
+    if (file) file.addEventListener('change', function () { acceptFile(file.files && file.files[0]); });
+    wireDropZone(file);
+  }
+
+  var MAX_FILE_BYTES = 10 * 1024 * 1024;
+  var ACCEPTED_TYPES = { 'image/png': 1, 'image/jpeg': 1, 'application/pdf': 1 };
+
+  // Shared by the file picker and the drop zone so both enforce the same limits
+  // the Storage rules do (10 MB, image or PDF).
+  function acceptFile(f) {
+    var name = document.getElementById('up-filename');
+    var input = document.getElementById('src-file');
+    if (!name) return;
+    if (!f) { name.textContent = ''; return; }
+    if (!ACCEPTED_TYPES[f.type]) {
+      name.innerHTML = '<span class="field-error">That file type isn’t accepted — use a PDF, PNG or JPG.</span>';
+      if (input) input.value = '';
+      return;
+    }
+    if (f.size > MAX_FILE_BYTES) {
+      name.innerHTML = '<span class="field-error">That file is over 10 MB.</span>';
+      if (input) input.value = '';
+      return;
+    }
+    name.textContent = '✓ ' + f.name;
+  }
+
+  // The upload area says "or drag a file here" but had no drop handling, so the
+  // browser fell back to its default for a dropped file: navigate to it. That
+  // discards every step of the form the moment someone takes the label at its
+  // word. Handlers below claim the drop; the window-level pair makes a near-miss
+  // (dropping just outside the box) a no-op instead of the same navigation.
+  function wireDropZone(input) {
+    var zone = document.querySelector('.upload-area');
+    if (!zone || !input) return;
+    var stop = function (e) { e.preventDefault(); e.stopPropagation(); };
+    ['dragenter', 'dragover'].forEach(function (ev) {
+      zone.addEventListener(ev, function (e) { stop(e); zone.classList.add('is-dragover'); });
+    });
+    ['dragleave', 'dragend'].forEach(function (ev) {
+      zone.addEventListener(ev, function (e) { stop(e); zone.classList.remove('is-dragover'); });
+    });
+    zone.addEventListener('drop', function (e) {
+      stop(e);
+      zone.classList.remove('is-dragover');
+      var dropped = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+      if (!dropped) return;
+      // Put it on the real input so save()/uploadSourceFile() find it there.
+      if (window.DataTransfer && input.files !== undefined) {
+        try { var dt = new DataTransfer(); dt.items.add(dropped); input.files = dt.files; } catch (err) {}
+      }
+      acceptFile(dropped);
+    });
+    ['dragover', 'drop'].forEach(function (ev) {
+      window.addEventListener(ev, function (e) { if (!zone.contains(e.target)) e.preventDefault(); });
     });
   }
 
@@ -576,6 +672,18 @@
   }
   function deptName() { var d = D.get(st.dept); return d ? d.name : 'this department'; }
 
+  // Has the contributor typed anything worth protecting from a destructive
+  // re-render? Covers every pay field across all three modes, the step editor,
+  // supplemental rows, and an attached file.
+  function hasEnteredWork() {
+    var ids = ['c-flat-amount', 'c-flat-recruit', 'c-flat-eff', 'c-entry', 'c-midpoint', 'c-top',
+      'c-recruit', 'c-eff', 'p-eff', 'p-recruit', 'p-notes', 'src-url', 'src-prov'];
+    if (ids.some(function (id) { return !!v(id); })) return true;
+    if (st.steps.some(function (s) { return s.basePay != null || s.sot != null; })) return true;
+    if (readSupp().length) return true;
+    return hasFile();
+  }
+
   // ── Validation ────────────────────────────────────────────────────────────────
   function validateStep() {
     var status = document.getElementById('form-status');
@@ -592,13 +700,27 @@
         if (!v('f-city')) return fail('Enter the city.');
         if (!v('f-county')) return fail('Enter the county.');
         if (!/^\d{5}$/.test(v('f-zip'))) return fail('Enter a valid 5-digit ZIP code — it’s how this department gets placed on the map.');
+        if (v('f-web') && !Lib.safeUrl(v('f-web'))) return fail('The website must be a full link starting with http:// or https:// — or leave it blank.');
         if (isDuplicateDept(v('f-name'), v('f-city'))) return warnOk(['This looks similar to a department already listed — if it’s the same one, use "Update a department" instead. You can still continue; an admin will double-check before it’s added to the map.']);
       }
-      else if (!st.dept) return fail('Pick a department from the list.');
+      // A slug from the URL (?dept=…) is trusted blindly otherwise. If it
+      // matches no department, the submission publishes keyed to a slug nothing
+      // reads and the report is silently discarded downstream — the same
+      // dead-end as a missing slug, just harder to notice because the wizard
+      // looks like it worked.
+      else if (!st.dept || !D.get(st.dept)) return fail('Pick a department from the list.');
+      return true;
+    }
+    if (st.step === 3) {
+      if (v('src-url') && !Lib.safeUrl(v('src-url'))) return fail('The source link must be a full link starting with http:// or https:// — or leave it blank.');
       return true;
     }
     if (st.step === 2) {
       var supp = readSupp();
+      // Civil service is a real, publishable change — extractCivilService reads
+      // it and it drives a directory filter — so it counts toward "did you
+      // change anything", same as a schedule or an effective date.
+      var civilAnswered = !!v('c-civil');
       if (supp.find(function (s) { return s.amount < 0; })) return fail('Supplemental pay can’t be negative.');
       // Plan mode keeps its own blocking checks first — a half-filled step table
       // is a hard error, not something to warn past.
@@ -607,26 +729,62 @@
         var entryAmt = Lib.parseMoney(v('c-entry')), midAmt = Lib.parseMoney(v('c-midpoint')), topAmt = Lib.parseMoney(v('c-top'));
         var rRecruitAmt = Lib.parseMoney(v('c-recruit'));
         var anyAmt = entryAmt != null || midAmt != null || topAmt != null || rRecruitAmt != null;
-        if (st.type === 'update' && !anyAmt && !supp.length && !v('c-sched') && !v('c-eff')) return fail('Add at least one change — a pay amount, schedule, effective date, or supplemental pay item.');
+        if (st.type === 'update' && !anyAmt && !supp.length && !civilAnswered && !v('c-sched') && !v('c-eff')) return fail('Add at least one change — a pay amount, schedule, effective date, or supplemental pay item.');
         if (anyAmt) {
           if ((entryAmt != null && entryAmt < 0) || (midAmt != null && midAmt < 0) || (topAmt != null && topAmt < 0) || (rRecruitAmt != null && rRecruitAmt < 0)) return fail('Pay amounts can’t be negative.');
           if (!v('c-basis')) return fail('Choose what these amounts represent (base, base+OT, or total).');
           if (!v('c-eff')) return fail('Add an effective date for these pay amounts.');
         }
-        return warnOk(noPayWarnings(anyAmt, supp));
+        // Annualized before the plausibility check — a $25.50 hourly rate is
+        // perfectly normal and must not trip the "unusually low" warning.
+        var rAnn = function (x) { return toAnnual(x, v('c-period'), Lib.parseNumber(v('c-hours'))); };
+        return warnOk(noPayWarnings(anyAmt, supp).concat(figureWarnings([
+          ['entry', rAnn(entryAmt)], ['midpoint', rAnn(midAmt)], ['top', rAnn(topAmt)]
+        ])));
       }
       // single (flat rate) mode
       var flatAmt = Lib.parseMoney(v('c-flat-amount'));
       var flatRecruitAmt = Lib.parseMoney(v('c-flat-recruit'));
-      if (st.type === 'update' && flatAmt == null && flatRecruitAmt == null && !supp.length && !v('c-flat-sched') && !v('c-flat-eff')) return fail('Add at least one change — a pay amount, schedule, effective date, or supplemental pay item.');
+      if (st.type === 'update' && flatAmt == null && flatRecruitAmt == null && !supp.length && !civilAnswered && !v('c-flat-sched') && !v('c-flat-eff')) return fail('Add at least one change — a pay amount, schedule, effective date, or supplemental pay item.');
       if (flatAmt != null || flatRecruitAmt != null) {
         if ((flatAmt != null && flatAmt < 0) || (flatRecruitAmt != null && flatRecruitAmt < 0)) return fail('Pay amounts can’t be negative.');
         if (!v('c-flat-basis')) return fail('Choose what the amount represents (base, base+OT, or total).');
         if (!v('c-flat-eff')) return fail('Add an effective date for the pay amount.');
       }
-      return warnOk(noPayWarnings(flatAmt != null || flatRecruitAmt != null, supp));
+      return warnOk(noPayWarnings(flatAmt != null || flatRecruitAmt != null, supp)
+        .concat(figureWarnings([['flat rate', toAnnual(flatAmt, v('c-flat-period'), Lib.parseNumber(v('c-flat-hours')))]])));
     }
     return true;
+  }
+
+  // Plan mode has warned about decreasing steps and implausible figures since it
+  // shipped; single/range had nothing equivalent, so the only backstop was
+  // computeAutomatedFlags AFTER submission, which routes the whole thing to the
+  // admin queue instead of letting the contributor catch a typo in place.
+  // Non-blocking, like every other warning here — one more click proceeds.
+  function figureWarnings(pairs) {
+    var warns = [];
+    var got = {};
+    pairs.forEach(function (p) { if (p[1] != null) got[p[0]] = p[1]; });
+    // Career points must not run backwards. Only compare pairs actually given —
+    // a blank midpoint means "unknown", never "zero".
+    if (got.entry != null && got.top != null && got.entry > got.top) {
+      warns.push('entry pay is higher than top pay — check they aren’t swapped.');
+    }
+    if (got.midpoint != null && got.entry != null && got.midpoint < got.entry) {
+      warns.push('midpoint pay is below entry pay.');
+    }
+    if (got.midpoint != null && got.top != null && got.midpoint > got.top) {
+      warns.push('midpoint pay is above top pay.');
+    }
+    var vals = Object.keys(got).map(function (k) { return got[k]; });
+    if (vals.some(function (n) { return n > Lib.FLAG_MAX_REASONABLE; })) {
+      warns.push('a figure looks unusually high — double-check the amount and the pay period.');
+    }
+    if (vals.some(function (n) { return n > 0 && n < Lib.FLAG_MIN_REASONABLE; })) {
+      warns.push('a figure looks unusually low for an annual salary — if you meant an hourly or monthly rate, set “Pay period” to match.');
+    }
+    return warns;
   }
 
   // Skipping pay is a supported way to add a department ("Add starting pay now,
@@ -648,7 +806,7 @@
   function validatePlan(fail, warnOk, supp) {
     var steps = st.steps;
     var meaningful = steps.filter(function (s) { return s.basePay != null || (s.label && s.label.trim()) || s.startMonths != null; });
-    if (st.type === 'update' && !meaningful.length && !supp.length) return fail('Add at least one pay step.');
+    if (st.type === 'update' && !meaningful.length && !supp.length && !v('c-civil')) return fail('Add at least one pay step.');
     // Add flow with no comp is allowed — but say so rather than passing silently.
     if (!meaningful.length) return warnOk(noPayWarnings(Lib.parseMoney(v('p-recruit')) != null, supp));
     if (!v('p-eff')) return fail('Add an effective date for this pay plan.');
@@ -690,6 +848,18 @@
     return out;
   }
 
+  // Rows where exactly one of {type, amount} is filled — readSupp() drops these,
+  // so they're surfaced in review rather than vanishing without a word.
+  function countHalfFilledSupp() {
+    var n = 0;
+    document.querySelectorAll('#supp-rows .supp-row').forEach(function (r) {
+      var type = (r.querySelector('.s-type') || {}).value;
+      var amount = Lib.parseMoney((r.querySelector('.s-amt') || {}).value);
+      if ((!!type) !== (amount != null)) n++;
+    });
+    return n;
+  }
+
   function planSteps() {
     return st.steps.filter(function (s) { return s.basePay != null && s.label && s.label.trim(); }).map(function (s) {
       return { label: s.label.trim(), startMonths: Number(s.startMonths) || 0, basePay: s.basePay,
@@ -701,14 +871,18 @@
     var base = { submissionType: st.type === 'add' ? 'add' : 'update', mode: st.mode,
       contributorType: (A && A.profile && A.profile.role === 'department') ? 'department' : 'community' };
     var prov = v('src-prov') || null;
-    base.sourceType = prov; base.sourceUrl = v('src-url') || null;
+    base.sourceType = prov;
+    // Only a real http(s) link is stored or counted. Lib.safeUrl drops
+    // javascript:/data:/etc before the value can ever reach an href, and
+    // dropping non-URLs here also stops "asdf" from earning the Sourced chip.
+    base.sourceUrl = Lib.safeUrl(v('src-url'));
     base.sourceStatus = ((prov && SOURCED_PROVENANCE[prov]) || base.sourceUrl) ? 'sourced' : 'provisional';
     base.hasFile = hasFile();
     var civil = v('c-civil');
     if (civil === 'yes') base.civilService = true;
     else if (civil === 'no') base.civilService = false;
     if (st.type === 'add') {
-      Object.assign(base, { name: v('f-name'), city: v('f-city'), county: v('f-county'), zip: v('f-zip'), departmentType: v('f-dtype'), website: v('f-web') });
+      Object.assign(base, { name: v('f-name'), city: v('f-city'), county: v('f-county'), zip: v('f-zip'), departmentType: v('f-dtype') || undefined, website: Lib.safeUrl(v('f-web')) || undefined });
       base.possibleDuplicate = isDuplicateDept(base.name, base.city);
     }
     else base.departmentSlug = st.dept;
@@ -815,15 +989,22 @@
     return flags;
   }
 
+  // Guards against a second write while the first is still in flight. save() is
+  // async (file upload, then addDoc), so an impatient double-click otherwise
+  // creates two documents: consensus dedupes by contributor so the vote isn't
+  // double-counted, but the revision history and analytics both show it twice.
+  var _saving = false;
+
   function onSubmit() {
     var status = document.getElementById('form-status');
+    if (_saving) return;
     if (!document.getElementById('att-main') || !document.getElementById('att-main').checked) { status.innerHTML = notice('warn', 'Please confirm the accuracy statement.'); return; }
     var fileC = document.getElementById('att-file');
     if (fileC && !fileC.checked) { status.innerHTML = notice('warn', 'Please confirm you can share the attached file.'); return; }
     var payload = gather();
     var pv = payload.proposedValues || {};
     var hasAmount = pv.entry != null || pv.midpoint != null || pv.top != null || pv.recruit != null || pv.reportedEntry != null || pv.reportedMidpoint != null || pv.reportedTop != null;
-    var hasChange = hasAmount || (pv.steps && pv.steps.length) || (pv.supplemental && pv.supplemental.length) || pv.schedule || pv.effectiveDate || base_effective(payload) || st.type === 'add';
+    var hasChange = hasAmount || (pv.steps && pv.steps.length) || (pv.supplemental && pv.supplemental.length) || pv.schedule || pv.effectiveDate || payload.civilService != null || base_effective(payload) || st.type === 'add';
     if (!hasChange) { status.innerHTML = notice('warn', 'No changes to submit — go back and add at least one figure.'); return; }
     payload.automatedFlags = computeAutomatedFlags(pv);
     if (!(A && A.canContribute())) {
@@ -831,9 +1012,12 @@
         status.innerHTML = notice('info', '<strong>Preview mode — validated, not saved.</strong> This would publish as a preserved revision. Payload:<pre class="mono" style="white-space:pre-wrap;font-size:.72rem;margin:.5rem 0 0">' + UI.esc(JSON.stringify(payload, null, 2)) + '</pre>');
         return;
       }
-      status.innerHTML = notice('warn', 'Please sign in with a verified email to publish. <a href="/sign-in.html">Sign in →</a>');
+      // Opens in a new tab deliberately: navigating away here would discard all
+      // four steps of typed work, and there is no draft to come back to.
+      status.innerHTML = notice('warn', 'Please sign in with a verified email to publish — your entries stay here. <a href="/sign-in.html" target="_blank" rel="noopener">Sign in in a new tab →</a>');
       return;
     }
+    setSaving(true);
     if (hasFile()) status.innerHTML = notice('info', 'Uploading source file and publishing…');
     save(payload).then(function (fileUploadFailed) {
       var host = document.getElementById('submit-body');
@@ -846,8 +1030,23 @@
       host.innerHTML = '<div class="notice info" style="font-size:1rem"><span class="notice-icon">✓</span><div>' + msg + '<div style="margin-top:.75rem">' +
         (st.dept ? '<a class="btn btn-outline btn-sm" href="/departments/' + UI.esc(st.dept) + '/">View department</a> ' : '') +
         '<button class="btn btn-ghost btn-sm" onclick="location.reload()">Submit another</button></div></div></div>';
-    }).catch(function (err) { status.innerHTML = notice('warn', 'Could not save: ' + UI.esc(err.message)); });
+    }).catch(function (err) {
+      // Re-enable on failure so a transient error (offline, rules hiccup) can
+      // be retried without reloading and re-typing everything.
+      setSaving(false);
+      status.innerHTML = notice('warn', 'Could not save: ' + UI.esc(err.message) + ' — your entries are still here, try again.');
+    });
   }
+
+  function setSaving(on) {
+    _saving = on;
+    var b = document.getElementById('wiz-submit');
+    if (!b) return;
+    b.disabled = on;
+    b.setAttribute('aria-busy', on ? 'true' : 'false');
+    b.textContent = on ? 'Submitting…' : 'Submit for the community';
+  }
+
   function base_effective(p) { return !!(p.plan && p.plan.effectiveDate); }
 
   function pruneUndefined(o) {

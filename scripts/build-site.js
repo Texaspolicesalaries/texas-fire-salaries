@@ -160,9 +160,9 @@ function departmentPage(dept) {
             <p class="dept-hero-loc">${esc(dept.city)}, Texas <span>•</span> ${esc(dept.county)} County <span>•</span> ${esc(regionName(dept.region))}</p>
             <div class="dept-status-row" aria-label="Data status">${badges} ${hiring}</div>
             <div class="dept-hero-buttons">
-              ${s.sourceUrl ? `<a class="btn btn-light" href="${esc(s.sourceUrl)}" rel="nofollow noopener" target="_blank">View pay plan <span aria-hidden="true">↗</span></a>` : `<a class="btn btn-light" href="/submit.html?dept=${esc(dept.slug)}&mode=update">Update information</a>`}
+              ${Lib.safeUrl(s.sourceUrl) ? `<a class="btn btn-light" href="${esc(Lib.safeUrl(s.sourceUrl))}" rel="nofollow noopener" target="_blank">View pay plan <span aria-hidden="true">↗</span></a>` : `<a class="btn btn-light" href="/submit.html?dept=${esc(dept.slug)}&mode=update">Update information</a>`}
               <a class="btn btn-ghost-dark" href="/compare.html?d=${esc(dept.slug)}">Add to comparison <span aria-hidden="true">＋</span></a>
-              ${dept.careersUrl ? `<a class="btn btn-ghost-dark" href="${esc(dept.careersUrl)}" rel="nofollow noopener" target="_blank">Careers page ↗</a>` : ''}
+              ${Lib.safeUrl(dept.careersUrl) ? `<a class="btn btn-ghost-dark" href="${esc(Lib.safeUrl(dept.careersUrl))}" rel="nofollow noopener" target="_blank">Careers page ↗</a>` : ''}
             </div>
           </div>
 ${heroStat}
@@ -303,7 +303,7 @@ function detailsBlock(dept) {
   const cards = rows.map(([k, v, isText], i) =>
     `<div class="detail-card${i === 0 ? ' accent-card' : ''}"><span class="detail-label">${esc(k)}</span><strong${isText ? ' class="detail-text"' : ''}>${esc(v)}</strong></div>`).join('');
   return `<div class="detail-grid">${cards}</div>
-    ${dept.website ? `<p style="margin:1rem 0 0"><a href="${esc(dept.website)}" rel="nofollow noopener" target="_blank">Department website ↗</a></p>` : ''}`;
+    ${Lib.safeUrl(dept.website) ? `<p style="margin:1rem 0 0"><a href="${esc(Lib.safeUrl(dept.website))}" rel="nofollow noopener" target="_blank">Department website ↗</a></p>` : ''}`;
 }
 
 // ── List pages (counties, regions, rankings) ─────────────────────────────────
@@ -371,6 +371,7 @@ function main() {
   const oStepPlans = overlay.stepPlans || {};           // live, community-submitted full pay-step plans
   const oClaimedSlugs = new Set(overlay.claimedSlugs || []); // admin-approved "Department maintained" claims
   const oCivilService = overlay.civilService || {};     // optional dept-level fact from a submission
+const oDeptFacts = overlay.deptFacts || {};           // schedule / scheduled annual hours, same source
   const oDeptOverrides = overlay.departmentOverrides || {}; // admin name/coordinate corrections + duplicate merges
   const oFieldLocks = overlay.fieldLocks || {};          // admin-pinned entry/top/midpoint values
   const oSuspended = new Set(overlay.suspendedContributorIds || []); // spam/abuse contributors, reports excluded
@@ -384,6 +385,7 @@ function main() {
     if (oStepPlans[d.slug]) merged = Agg.applyStepPlan(merged, oStepPlans[d.slug]);
     if (oClaimedSlugs.has(d.slug)) merged = Agg.applyClaim(merged, true);
     if (Object.prototype.hasOwnProperty.call(oCivilService, d.slug)) merged = Agg.applyCivilService(merged, oCivilService[d.slug]);
+    if (oDeptFacts[d.slug]) merged = Agg.applyDeptFacts(merged, oDeptFacts[d.slug]);
     if (oDeptOverrides[d.slug]) merged = Agg.applyDeptOverride(merged, oDeptOverrides[d.slug]);
     if (oFieldLocks[d.slug]) merged = Agg.applyFieldOverrides(merged, oFieldLocks[d.slug]);
     return merged;

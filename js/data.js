@@ -84,6 +84,7 @@
       // A department-level fact contributors can optionally assert alongside
       // their salary submission (see js/aggregate.js's applyCivilService).
       var civilService = (arr[1] && arr[1].civilService) || {};
+      var deptFacts = (arr[1] && arr[1].deptFacts) || {};
       // Admin tools (js/admin.js) — see js/aggregate.js's applyDeptOverride /
       // applyFieldOverrides / applySuspensions for what each does.
       var deptOverrides = (arr[1] && arr[1].departmentOverrides) || {};
@@ -107,6 +108,7 @@
           if (Agg && stepPlans[d.slug]) merged = Agg.applyStepPlan(merged, stepPlans[d.slug]);
           if (Agg && claimedSlugs[d.slug]) merged = Agg.applyClaim(merged, true);
           if (Agg && civilService.hasOwnProperty(d.slug)) merged = Agg.applyCivilService(merged, civilService[d.slug]);
+          if (Agg && deptFacts[d.slug]) merged = Agg.applyDeptFacts(merged, deptFacts[d.slug]);
           if (Agg && deptOverrides[d.slug]) merged = Agg.applyDeptOverride(merged, deptOverrides[d.slug]);
           if (Agg && fieldLocks[d.slug]) merged = Agg.applyFieldOverrides(merged, fieldLocks[d.slug]);
           merged.summary = deriveSummary(merged);

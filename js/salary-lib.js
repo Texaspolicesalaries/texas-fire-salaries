@@ -31,6 +31,51 @@ function parseNumber(s) {
   return isFinite(n) ? n : null;
 }
 
+// Live-typing formatter for a money input: adds thousands separators to the
+// integer part while leaving whatever the user is part-way through typing
+// intact. Formatting on every keystroke is what makes the grouping feel
+// automatic, but it means this function sees half-finished input constantly --
+// so a trailing "." and trailing zeros after it MUST survive untouched.
+// Round-tripping through parseFloat/toLocaleString does not: "25." loses the
+// dot, so the next keystroke turns "25.5" into "255", and "25.50" ends up as
+// 2,550 -- a 100x error that reads as a plausible salary. Digits and one
+// decimal point are all that's kept; everything else (letters, a second dot,
+// stray currency symbols) is dropped, and decimals are capped at 2 places.
+function formatMoneyInput(raw) {
+  var s = String(raw == null ? '' : raw).replace(/[^\d.]/g, '');
+  if (!s) return '';
+  var firstDot = s.indexOf('.');
+  var intPart = firstDot === -1 ? s : s.slice(0, firstDot);
+  // Everything after the first dot, with any further dots removed.
+  var decPart = firstDot === -1 ? null : s.slice(firstDot + 1).replace(/\./g, '').slice(0, 2);
+  var grouped = intPart ? Number(intPart).toLocaleString('en-US') : '';
+  if (intPart && !isFinite(Number(intPart))) grouped = intPart;
+  if (decPart === null) return grouped;
+  return (grouped || '0') + '.' + decPart;   // keeps a trailing "." mid-typing
+}
+
+// A URL that is safe to place in an href. Community-submitted links (pay-plan
+// sources, department websites) are auto-published and baked into the static
+// site by the refresh cron, so they reach every visitor without a human ever
+// looking at them. HTML-escaping is NOT enough here: esc() only neutralizes
+// markup characters, and `javascript:alert(1)` contains none -- it survives
+// intact into the href and runs on click. Only http/https are allowed through;
+// anything else (javascript:, data:, vbscript:, file:, protocol-relative //,
+// or a bare string) returns null so the caller can omit the link entirely.
+// Applied at BOTH ends -- submit-time validation for the contributor's sake,
+// and again in the export/build path, which is the last chokepoint before a
+// URL becomes a live link and the only one that also covers documents written
+// before this existed.
+function safeUrl(u) {
+  if (u == null) return null;
+  var s = String(u).trim();
+  if (!s) return null;
+  // Strip control characters/whitespace that can hide a scheme ("java\tscript:").
+  var probe = s.replace(/[\u0000-\u0020]/g, '').toLowerCase();
+  if (!/^https?:\/\/[^/]/.test(probe)) return null;
+  return s;
+}
+
 function fmtMoney(n, opts) {
   var v = parseMoney(n);
   if (v == null) return '—';
@@ -216,6 +261,8 @@ function flagFigure(fieldLabel, newValue, currentValue) {
 
 var FireSalaryLib = {
   parseMoney: parseMoney,
+  formatMoneyInput: formatMoneyInput,
+  safeUrl: safeUrl,
   parseNumber: parseNumber,
   fmtMoney: fmtMoney,
   effectiveHourly: effectiveHourly,
