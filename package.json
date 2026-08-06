@@ -8,6 +8,7 @@
     "test": "node --test js/*.test.js scripts/*.test.js",
     "build": "node scripts/build-site.js",
     "refresh": "node scripts/export-overlay.js && node scripts/build-site.js",
+    "publish-now": "npm run refresh && npm test && npx wrangler pages deploy . --project-name=texas-fire-salaries --branch=main --commit-dirty=true",
     "serve": "node scripts/serve.js",
     "dev": "npm run build && npm run serve"
   },
