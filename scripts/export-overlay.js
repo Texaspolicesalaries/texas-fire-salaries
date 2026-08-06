@@ -706,10 +706,13 @@ function promoteDepartments(rows, seedDepts, zips) {
     if (rep) reports[slug] = [rep];
     const plan = stepPlanFromDoc(r.document);
     if (plan) stepPlans[slug] = Object.assign({}, plan, { disputeCount: 0, disputed: false });
-    // 'none' means "no salary reported yet" and drives the directory's
-    // "Salary information needed" state — only accurate when nothing came with
-    // the request.
-    if (rep || plan) dept.dataStatus = 'current';
+    // Only an actual pay figure flips this, matching scripts/import-sheet.js's
+    // `steps ? 'current' : 'none'`. A supplemental-only request still attaches
+    // its report above (those items drive the cert/education/longevity/medic
+    // filter flags) but doesn't earn 'current' — there's no salary to show yet,
+    // which is exactly what 'none' means.
+    const PAY_FIELDS = ['entry', 'top', 'midpoint', 'recruit', 'reportedEntry', 'reportedTop', 'reportedMidpoint'];
+    if (plan || (rep && PAY_FIELDS.some(k => rep[k] != null))) dept.dataStatus = 'current';
     departments.push(dept);
     existing.push(dept); // so a later duplicate request in this same batch is caught too
   });

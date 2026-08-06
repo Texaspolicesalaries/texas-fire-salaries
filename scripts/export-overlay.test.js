@@ -144,6 +144,21 @@ test('promoteDepartments carries a full step plan submitted with a new departmen
   assert.strictEqual(departments[0].dataStatus, 'current');
 });
 
+test('promoteDepartments keeps a supplemental-only request at dataStatus none', () => {
+  const supp = arrVal([mapVal({ type: s('paramedic-incentive'), amount: num(500), unit: s('mo') })]);
+  const rows = [row({
+    name: s('Supp Only Fire Department'), city: s('Frisco'), county: s('Collin'), zip: s('75001'),
+    proposedValues: mapVal({ supplemental: supp })
+  }, '2026-01-01T00:00:00Z')];
+  const { departments, reports } = M.promoteDepartments(rows, SEED_DEPTS, ZIPS);
+  const slug = departments[0].slug;
+  // The report still attaches — those items drive the cert/medic filter flags.
+  assert.ok(reports[slug], 'supplemental pay is real data and must not be dropped');
+  assert.deepStrictEqual(reports[slug][0].supplemental, [{ type: 'paramedic-incentive', amount: 500, unit: 'mo' }]);
+  // ...but there is still no salary to show, which is what 'none' means.
+  assert.strictEqual(departments[0].dataStatus, 'none');
+});
+
 test('promoteDepartments reports nothing for a request that carried no salary', () => {
   const rows = [row({ name: s('Empty Fire Department'), city: s('Frisco'), county: s('Collin'), zip: s('75001') }, '2026-01-01T00:00:00Z')];
   const { departments, reports, stepPlans } = M.promoteDepartments(rows, SEED_DEPTS, ZIPS);
