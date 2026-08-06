@@ -191,36 +191,48 @@ function docId(doc) {
 // either way, matching how every other automatic-promotion path here works.
 const DISPUTE_REVERT_THRESHOLD = 3;
 
+// The step table carried by ONE plan-mode document, in seed `salary.steps`
+// shape — or null if this document isn't a usable plan. Shared by
+// extractStepPlans (ordinary `submissions`) and promoteDepartments
+// (`department_requests`, where a brand-new department can arrive with its
+// whole pay plan attached), so both paths build steps identically.
+function stepPlanFromDoc(doc) {
+  const f = (doc && doc.fields) || null;
+  if (!f) return null;
+  if (fv(f.mode) !== 'plan') return null;
+  const pv = decodeValue(f.proposedValues) || {};
+  const rawSteps = Array.isArray(pv.steps) ? pv.steps.filter(s => s && s.basePay != null && s.label) : [];
+  if (!rawSteps.length) return null;
+  const plan = decodeValue(f.plan) || {};
+  return {
+    id: docId(doc),
+    submittedAt: isoDay(f.submittedAt && f.submittedAt.timestampValue) || isoDay(Date.now()),
+    steps: rawSteps.map((s, i) => ({
+      stepName: s.label,
+      minimumMonths: s.startMonths,
+      maximumMonths: i < rawSteps.length - 1 ? rawSteps[i + 1].startMonths : null,
+      baseAnnualSalary: s.basePay,
+      scheduledOvertime: s.scheduledOvertime != null ? s.scheduledOvertime : undefined
+    })),
+    classification: plan.classification || undefined,
+    effectiveDate: plan.effectiveDate || undefined,
+    sourceType: fv(f.sourceType) || undefined,
+    sourceUrl: fv(f.sourceUrl) || undefined,
+    contributorId: fv(f.contributorId) || null
+  };
+}
+
 function extractStepPlans(rows, disputeCounts, threshold) {
   disputeCounts = disputeCounts || new Map();
   threshold = threshold == null ? DISPUTE_REVERT_THRESHOLD : threshold;
   const bySlug = {};
   rows.forEach(r => {
     if (!r.document || !r.document.fields) return;
-    const f = r.document.fields;
-    if (fv(f.mode) !== 'plan') return;
-    const slug = fv(f.departmentSlug);
+    const slug = fv(r.document.fields.departmentSlug);
     if (!slug) return;
-    const pv = decodeValue(f.proposedValues) || {};
-    const rawSteps = Array.isArray(pv.steps) ? pv.steps.filter(s => s && s.basePay != null && s.label) : [];
-    if (!rawSteps.length) return;
-    const plan = decodeValue(f.plan) || {};
-    (bySlug[slug] = bySlug[slug] || []).push({
-      id: docId(r.document),
-      submittedAt: isoDay(f.submittedAt && f.submittedAt.timestampValue) || isoDay(Date.now()),
-      steps: rawSteps.map((s, i) => ({
-        stepName: s.label,
-        minimumMonths: s.startMonths,
-        maximumMonths: i < rawSteps.length - 1 ? rawSteps[i + 1].startMonths : null,
-        baseAnnualSalary: s.basePay,
-        scheduledOvertime: s.scheduledOvertime != null ? s.scheduledOvertime : undefined
-      })),
-      classification: plan.classification || undefined,
-      effectiveDate: plan.effectiveDate || undefined,
-      sourceType: fv(f.sourceType) || undefined,
-      sourceUrl: fv(f.sourceUrl) || undefined,
-      contributorId: fv(f.contributorId) || null
-    });
+    const plan = stepPlanFromDoc(r.document);
+    if (!plan) return;
+    (bySlug[slug] = bySlug[slug] || []).push(plan);
   });
   const plans = {};
   Object.keys(bySlug).forEach(slug => {
@@ -644,6 +656,16 @@ function promoteDepartments(rows, seedDepts, zips) {
   const existing = (seedDepts || []).slice();
   const usedSlugs = new Set(existing.map(d => d.slug));
   const departments = [];
+  // A department_requests doc carries the SAME proposedValues/plan payload an
+  // ordinary submission does (js/submit.js's gather() builds one shape for both
+  // flows), but it has no departmentSlug — the slug doesn't exist until it's
+  // minted right here. The reports/stepPlans pools in main() are keyed by slug
+  // and skip anything without one, so unless this function hands the salary
+  // back under the slug it just assigned, everything the contributor typed on
+  // the "Add a new department" form is silently dropped and the department
+  // lands on the map reading "Salary information needed".
+  const reports = {};
+  const stepPlans = {};
   let skippedDup = 0, skippedNoZip = 0;
   // Deterministic order (earliest submission first) so re-runs produce the same
   // result and, if two people request the same place, the first one wins.
@@ -678,10 +700,20 @@ function promoteDepartments(rows, seedDepts, zips) {
       communityAdded: true,
       addedAt: isoDay(f.submittedAt && f.submittedAt.timestampValue) || isoDay(Date.now())
     };
+    // Salary the requester attached on the same form, re-keyed to the slug just
+    // minted above so main() can fold it into the normal report/step-plan pools.
+    const rep = toReport(f);
+    if (rep) reports[slug] = [rep];
+    const plan = stepPlanFromDoc(r.document);
+    if (plan) stepPlans[slug] = Object.assign({}, plan, { disputeCount: 0, disputed: false });
+    // 'none' means "no salary reported yet" and drives the directory's
+    // "Salary information needed" state — only accurate when nothing came with
+    // the request.
+    if (rep || plan) dept.dataStatus = 'current';
     departments.push(dept);
     existing.push(dept); // so a later duplicate request in this same batch is caught too
   });
-  return { departments, skippedDup, skippedNoZip };
+  return { departments, reports, stepPlans, skippedDup, skippedNoZip };
 }
 
 async function main() {
@@ -825,13 +857,24 @@ async function main() {
   // New departments: geocode from ZIP + auto-promote. Failures here (bad seed
   // read, missing ZIP table, Firestore hiccup) must not block the salary-report
   // overlay above, so they're isolated and just logged.
-  let departments = [], skippedDup = 0, skippedNoZip = 0;
+  let departments = [], skippedDup = 0, skippedNoZip = 0, promotedReportCount = 0;
   try {
     const seedJson = JSON.parse(fs.readFileSync(SEED, 'utf8'));
     const zips = readZipCentroids();
     const reqRows = await queryPublished(url, 'department_requests');
     const promoted = promoteDepartments(reqRows, seedJson.departments || [], zips);
     departments = promoted.departments; skippedDup = promoted.skippedDup; skippedNoZip = promoted.skippedNoZip;
+    // Salary that arrived on the "Add a new department" form, now keyed by the
+    // slug promoteDepartments minted. These slugs are brand new by definition,
+    // so nothing is overwritten — but merge rather than assign so a later
+    // ordinary submission against the same department still wins/accumulates.
+    Object.keys(promoted.reports).forEach(slug => {
+      reports[slug] = (reports[slug] || []).concat(promoted.reports[slug]);
+      promotedReportCount++;
+    });
+    Object.keys(promoted.stepPlans).forEach(slug => {
+      if (!stepPlans[slug]) stepPlans[slug] = promoted.stepPlans[slug];
+    });
   } catch (e) {
     console.warn('[export-overlay] department auto-promotion skipped:', e.message);
   }
@@ -855,6 +898,7 @@ async function main() {
   console.log(`Department claims: ${claimedSlugs.size} department(s) marked "Department maintained".`);
   console.log(`Admin tools: ${Object.keys(departmentOverrides).length} department override(s) (${mergedRedirects.length} merged), ${Object.keys(fieldLocks).length} department(s) with a locked field, ${suspendedContributorIds.length} suspended contributor(s), ${trustedContributorIds.size} trusted contributor(s).`);
   console.log(`Promoted ${departments.length} new department(s) to the map` +
+    (promotedReportCount ? `, ${promotedReportCount} arriving with salary data attached` : '') +
     (skippedDup ? `, skipped ${skippedDup} possible duplicate(s)` : '') +
     (skippedNoZip ? `, skipped ${skippedNoZip} with a missing/unrecognized ZIP` : '') + '.');
   const disputedCount = Object.values(stepPlans).filter(p => p.disputed).length;
@@ -869,7 +913,7 @@ if (require.main === module) {
 } else {
   module.exports = {
     slugify, normName, isDuplicate, makeRegionResolver, promoteDepartments, readZipCentroids, toReport, decodeValue,
-    extractStepPlans, extractCivilService, docId, DISPUTE_REVERT_THRESHOLD, confirmationToReport, applyValueDisputes,
+    extractStepPlans, stepPlanFromDoc, extractCivilService, docId, DISPUTE_REVERT_THRESHOLD, confirmationToReport, applyValueDisputes,
     dedupeConfirmations, computeActiveClaimants, CLAIM_EXPIRY_MONTHS,
     extractDeptOverrides, computeMergedRedirects, extractFieldLocks, adminCorrectionToReport,
     extractSuspendedContributors, computeTrustedContributors, MIN_TRUSTED_REPORTS, MIN_TRUSTED_DEPARTMENTS

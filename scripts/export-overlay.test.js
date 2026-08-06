@@ -100,6 +100,58 @@ test('promoteDepartments resolves slug collisions with a numeric suffix', () => 
   assert.strictEqual(departments[1].slug, 'frisco-fire-department-2');
 });
 
+// A department_requests doc has no departmentSlug -- the slug is minted during
+// promotion -- so unless promoteDepartments hands the salary back under that new
+// slug, everything typed on the "Add a new department" form is dropped and the
+// department lands on the map reading "Salary information needed".
+test('promoteDepartments carries the requester\'s salary into reports under the new slug', () => {
+  const rows = [row({
+    name: s('Brand New Fire Department'), city: s('Frisco'), county: s('Collin'), zip: s('75001'),
+    proposedValues: mapVal({ entry: num(60000), top: num(78000), recruit: num(52000) })
+  }, '2026-01-01T00:00:00Z')];
+  const { departments, reports } = M.promoteDepartments(rows, SEED_DEPTS, ZIPS);
+  const slug = departments[0].slug;
+  assert.strictEqual(slug, 'brand-new-fire-department');
+  assert.ok(reports[slug], 'salary should be keyed by the slug just minted');
+  assert.strictEqual(reports[slug][0].entry, 60000);
+  assert.strictEqual(reports[slug][0].top, 78000);
+  assert.strictEqual(reports[slug][0].recruit, 52000);
+  assert.strictEqual(departments[0].dataStatus, 'current'); // not "salary needed"
+});
+
+test('promoteDepartments carries a full step plan submitted with a new department', () => {
+  const rows = [row({
+    name: s('Planned Fire Department'), city: s('Frisco'), county: s('Collin'), zip: s('75001'),
+    mode: s('plan'),
+    proposedValues: mapVal({
+      entry: num(60000),
+      steps: arrVal([
+        stepVal({ label: 'Entry', startMonths: 0, basePay: 60000 }),
+        stepVal({ label: 'Top', startMonths: 24, basePay: 78000, isTopStep: true })
+      ])
+    }),
+    plan: mapVal({ effectiveDate: s('2026-01-01') })
+  }, '2026-01-01T00:00:00Z')];
+  const { departments, stepPlans } = M.promoteDepartments(rows, SEED_DEPTS, ZIPS);
+  const slug = departments[0].slug;
+  const plan = stepPlans[slug];
+  assert.ok(plan, 'a plan-mode request should bring its step table along');
+  assert.strictEqual(plan.steps.length, 2);
+  assert.strictEqual(plan.steps[0].baseAnnualSalary, 60000);
+  assert.strictEqual(plan.steps[0].maximumMonths, 24); // next step's start
+  assert.strictEqual(plan.steps[1].maximumMonths, null);
+  assert.strictEqual(plan.disputed, false);
+  assert.strictEqual(departments[0].dataStatus, 'current');
+});
+
+test('promoteDepartments reports nothing for a request that carried no salary', () => {
+  const rows = [row({ name: s('Empty Fire Department'), city: s('Frisco'), county: s('Collin'), zip: s('75001') }, '2026-01-01T00:00:00Z')];
+  const { departments, reports, stepPlans } = M.promoteDepartments(rows, SEED_DEPTS, ZIPS);
+  assert.deepStrictEqual(reports, {});
+  assert.deepStrictEqual(stepPlans, {});
+  assert.strictEqual(departments[0].dataStatus, 'none'); // genuinely needs salary
+});
+
 function num(v) { return { doubleValue: v }; }
 function mapVal(fields) { return { mapValue: { fields } } }
 
