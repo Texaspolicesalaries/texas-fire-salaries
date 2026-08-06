@@ -17,6 +17,7 @@
 'use strict';
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 
 const ROOT = path.resolve(__dirname, '..');
 const DATA = process.argv[2] || path.join(ROOT, 'data', 'departments.seed.json');
@@ -37,6 +38,42 @@ const FRESH_CLASS = { current: 'current', update_recommended: 'update', possibly
 
 function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
 
+// ── Asset cache-busting ──────────────────────────────────────────────────────
+// Most scripts ship unversioned (only a handful carry a hand-typed date like
+// nav-20260729.js), so a returning visitor kept running whatever their browser
+// had cached until it expired — for a while that meant serving known-vulnerable
+// code hours after the fix deployed. A date typed by hand doesn't solve it
+// either: the one time someone forgets to bump it, the bug is back and silent.
+//
+// So the stamp is derived from the file's own bytes. Change the file and the URL
+// changes; don't, and it doesn't — no diff churn on rebuilds, and nothing to
+// remember. Content hashing also beats a global version string, which would
+// needlessly bust every asset whenever any one of them changed.
+const _stampCache = new Map();
+function assetStamp(urlPath) {
+  const clean = urlPath.split('?')[0];
+  if (_stampCache.has(clean)) return _stampCache.get(clean);
+  let stamp = '';
+  try {
+    const buf = fs.readFileSync(path.join(ROOT, clean.replace(/^\//, '')));
+    stamp = crypto.createHash('sha1').update(buf).digest('hex').slice(0, 8);
+  } catch (e) {
+    stamp = ''; // asset missing (or generated later) — leave the URL untouched
+  }
+  _stampCache.set(clean, stamp);
+  return stamp;
+}
+
+// Rewrites every local /js/ and /css/ reference in a chunk of HTML to carry its
+// content stamp. Idempotent: an existing ?v= is replaced, so re-running the
+// build never layers stamps or produces a spurious diff.
+function stampAssets(html) {
+  return String(html).replace(/(src|href)="(\/(?:js|css)\/[^"?]+)(\?v=[^"]*)?"/g, (m, attr, p) => {
+    const s = assetStamp(p);
+    return s ? `${attr}="${p}?v=${s}"` : `${attr}="${p}"`;
+  });
+}
+
 // Cloudflare Pages serves every "/foo.html" as "/foo" and 308-redirects the
 // .html form to it, so the extensionless URL is the one that actually answers
 // 200. Canonical tags and sitemap entries must name THAT url: pointing them at
@@ -49,7 +86,25 @@ function money(v) { return Lib.fmtMoney(v); }
 function hourly(v) { return v == null ? '—' : '$' + (Math.round(v * 100) / 100).toFixed(2) + '/hr'; }
 function slugify(s) { return String(s).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''); }
 function ensureDir(p) { fs.mkdirSync(p, { recursive: true }); }
-function write(rel, html) { const f = path.join(ROOT, rel); ensureDir(path.dirname(f)); fs.writeFileSync(f, html); }
+// Every generated page goes through the stamper on its way out, so no call site
+// has to remember to do it.
+function write(rel, html) { const f = path.join(ROOT, rel); ensureDir(path.dirname(f)); fs.writeFileSync(f, stampAssets(html)); }
+
+// The hand-maintained pages at the repo root (index, submit, map, the legal
+// pages...) aren't generated, so they're stamped in place. Rewritten only when
+// the stamp actually differs, which keeps `npm run build` a no-op in git unless
+// a script or stylesheet genuinely changed.
+function stampRootPages() {
+  const files = fs.readdirSync(ROOT).filter(f => f.endsWith('.html'));
+  let changed = 0;
+  for (const f of files) {
+    const p = path.join(ROOT, f);
+    const src = fs.readFileSync(p, 'utf8');
+    const out = stampAssets(src);
+    if (out !== src) { fs.writeFileSync(p, out); changed++; }
+  }
+  return { scanned: files.length, changed };
+}
 
 function confChip(c) { return c ? `<span class="chip ${CONF_CLASS[c.key] || 'needed'}"><span class="chip-icon" aria-hidden="true">${esc(c.icon)}</span>${esc(c.label)}</span>` : ''; }
 function freshChip(f) { return f ? `<span class="chip ${FRESH_CLASS[f.key] || 'needed'}"><span class="chip-icon" aria-hidden="true">${esc(f.icon)}</span>${esc(f.label)}</span>` : ''; }
@@ -558,6 +613,8 @@ const oDeptFacts = overlay.deptFacts || {};           // schedule / scheduled an
 
   // Sitemap
   write('sitemap.xml', sitemap(urls));
+  const stamped = stampRootPages();
+  console.log(`Asset stamps: ${stamped.changed} of ${stamped.scanned} root page(s) updated (content-hashed /js and /css URLs).`);
 
   // Duplicate-department redirects (js/admin.js's "Merge duplicate department"
   // tool) — appended to the hand-maintained _redirects file inside a clearly
