@@ -412,8 +412,18 @@ function detailsBlock(dept) {
     ['Accepts laterals', dept.flags && dept.flags.lateralsAccepted ? 'Yes' : null, false], ['ZIP', dept.zip, true]
   ].filter(([, v]) => v != null && v !== '');
   if (!rows.length) return '<p class="dept-section-intro">No additional department facts on file yet.</p>';
+  // The per-row isText flag can't know how long a value will actually be. A
+  // shift schedule is "24/48" for most departments — properly a big mono stat —
+  // but "Modified 24-hour Schedule (24 on, 72 off; 48 on, 72 off)" for some, and
+  // that cannot wear the same treatment. Length decides, so the same field
+  // renders correctly whichever kind of value a department reports.
+  const valueClass = (v, isText) => {
+    const len = String(v).length;
+    if (len > 26) return ' class="detail-long"';
+    return isText ? ' class="detail-text"' : '';
+  };
   const cards = rows.map(([k, v, isText], i) =>
-    `<div class="detail-card${i === 0 ? ' accent-card' : ''}"><span class="detail-label">${esc(k)}</span><strong${isText ? ' class="detail-text"' : ''}>${esc(v)}</strong></div>`).join('');
+    `<div class="detail-card${i === 0 ? ' accent-card' : ''}"><span class="detail-label">${esc(k)}</span><strong${valueClass(v, isText)}>${esc(v)}</strong></div>`).join('');
   return `<div class="detail-grid">${cards}</div>
     ${Lib.safeUrl(dept.website) ? `<p style="margin:1rem 0 0"><a href="${esc(Lib.safeUrl(dept.website))}" rel="nofollow noopener" target="_blank">Department website ↗</a></p>` : ''}`;
 }

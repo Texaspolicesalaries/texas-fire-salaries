@@ -129,11 +129,23 @@
 
 /* Department detail grid */
 .detail-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
-.detail-grid .detail-card { min-height: 170px; padding: var(--sp-5); display: flex; flex-direction: column; background: var(--card); border: 1px solid var(--border); border-radius: var(--r-lg); }
-.detail-grid .detail-card strong { font-family: var(--font-mono); font-size: 1.9rem; margin: 1.4rem 0 auto; letter-spacing: -.05em; }
+/* min-height was 170px with `margin-bottom:auto` on the value, which pinned the
+   value upward and dumped every spare pixel BELOW it — most obvious on a
+   five-character ZIP. Grid rows already stretch their cards to a common height,
+   so a smaller floor plus `margin-top:auto` lets each card size to its content
+   and puts the value on the baseline, turning that dead band into deliberate
+   spacing between label and figure. */
+.detail-grid .detail-card { min-height: 118px; padding: var(--sp-5); display: flex; flex-direction: column; background: var(--card); border: 1px solid var(--border); border-radius: var(--r-lg); }
+.detail-grid .detail-card strong { font-family: var(--font-mono); font-size: 1.9rem; margin: 1.1rem 0 0; letter-spacing: -.05em; }
 .detail-grid .detail-card p { color: var(--text-faint); font-size: 12px; line-height: 1.55; margin: 0; }
 .detail-grid .detail-card.accent-card { border-top: 3px solid var(--red); }
 .detail-grid .detail-card .detail-text { font-family: var(--font-body); font-size: 1.6rem; letter-spacing: -.03em; }
+/* A value long enough to be a sentence — "Modified 24-hour Schedule (24 on, 72
+   off; 48 on, 72 off)" — can't wear the big mono numeral treatment: at 1.9rem in
+   a third-width card it overwhelms the section and wraps into a wall. Sized to
+   read as text, and allowed to break mid-word so an unbroken run can't push past
+   the card edge. */
+.detail-grid .detail-card .detail-long { font-family: var(--font-body); font-size: 1.02rem; line-height: 1.35; letter-spacing: 0; margin-top: .7rem; overflow-wrap: anywhere; }
 @media (max-width: 860px) { .detail-grid { grid-template-columns: 1fr; } }
 
 /* Claim CTA band */
