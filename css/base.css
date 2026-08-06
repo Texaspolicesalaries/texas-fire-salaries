@@ -124,6 +124,13 @@ img { max-width: 100%; height: auto; }
   }
   .nav-links.open { transform: translateY(0); }
   .nav-links a { padding: var(--sp-3) var(--sp-3); font-size: var(--fs-base); border-radius: var(--r-md); }
+  /* In the drawer each link is a full-width row, so the desktop underline
+     stretched edge to edge and read as a divider across the whole menu. */
+  .nav-links a.active {
+    box-shadow: inset 3px 0 0 var(--accent);
+    background: var(--accent-soft);
+    border-radius: var(--r-md);
+  }
   .nav-cta { margin: var(--sp-2) 0 0; }
 }
 

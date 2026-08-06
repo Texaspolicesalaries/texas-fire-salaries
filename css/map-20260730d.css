@@ -122,3 +122,13 @@ body[data-page="map"] .mobile-bar {
     overflow-y: auto;
   }
 }
+
+/* Leaflet ships `.leaflet-container a { color: #0078A8 }` — a class+element
+   selector that outranks our single-class .btn-primary, so the popup's
+   "View page" button rendered in Leaflet blue on the coral fill (unreadable).
+   Re-assert button colours for anchors inside the map. */
+.leaflet-container a.btn-primary,
+.leaflet-container a.btn-primary:hover { color: #fff; }
+.leaflet-container a.btn-outline,
+.leaflet-container a.btn-ghost { color: var(--text); }
+.leaflet-container .map-popup a:not(.btn) { color: var(--link); }

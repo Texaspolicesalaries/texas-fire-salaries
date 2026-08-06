@@ -74,9 +74,30 @@
       wrap.innerHTML = '<div class="empty-state">No departments selected yet. Use the search above, or add departments from the <a href="/map.html">map</a> or <a href="/departments.html">directory</a>.</div>';
       return;
     }
+    syncModeButtons(depts);
     wrap.innerHTML = warningsHTML(depts) + tableHTML(depts);
     wrap.querySelectorAll('.remove-col').forEach(function (b) { b.addEventListener('click', function () { remove(b.getAttribute('data-slug')); }); });
     markScrollable(wrap);
+  }
+
+  // Reported total compensation is a genuinely separate track that must never
+  // be blended with base pay — but almost no department has it reported yet,
+  // and offering the toggle then produces a table of dashes that reads as
+  // broken. Show it only when a department actually in view has the data (and
+  // fall back to base if the current mode just became unavailable).
+  function hasReportedComp(d) {
+    var s = d.summary || {};
+    return s.reportedEntry != null || s.reportedMidpoint != null || s.reportedTop != null;
+  }
+  function syncModeButtons(depts) {
+    var btn = document.querySelector('[data-mode="reported"]');
+    if (!btn) return;
+    var any = depts.some(hasReportedComp);
+    btn.hidden = !any;
+    if (!any && mode === 'reported') {
+      mode = 'base';
+      document.querySelectorAll('[data-mode]').forEach(function (x) { x.classList.toggle('active', x.getAttribute('data-mode') === 'base'); });
+    }
   }
 
   // The "swipe to see more" hint only makes sense when the table genuinely
@@ -121,9 +142,17 @@
     rows += salaryRow('Entry firefighter pay', depts, function (s) { return entryVal(s); });
     rows += salaryRow('Midpoint pay', depts, function (s) { return midpointVal(s); });
     rows += salaryRow('Top firefighter pay', depts, function (s) { return topVal(s); });
-    rows += plainRow('Years to top', depts, function (s) { return s.yearsToTop != null ? s.yearsToTop + ' yr' : '—'; });
+    // A single-rate department derives yearsToTop === 0 simply because only one
+    // pay rate was ever reported — that's "unknown", not "reaches top pay
+    // immediately", and printing 0 here (with no room for the explanatory
+    // label the department page carries) would both mislead and win the
+    // fewest-years highlight outright.
+    rows += plainRow('Years to top', depts, function (s) {
+      if (s.singleRatePlan || s.yearsToTop == null) return '—';
+      return s.yearsToTop + ' yr';
+    }, 'low');
     rows += plainRow('Annual scheduled hours', depts, function (s) { return s.annualHours ? s.annualHours.toLocaleString() : '—'; });
-    rows += plainRow('Effective hourly (entry)', depts, function (s) { return UI.hourly(s.effectiveHourlyEntry); });
+    rows += plainRow('Effective hourly (entry)', depts, function (s) { return UI.hourly(s.effectiveHourlyEntry); }, 'high');
     rows += careerRow('5-year career earnings', depts, 5);
     rows += careerRow('10-year career earnings', depts, 10);
     rows += careerRow('20-year career earnings', depts, 20);
@@ -172,8 +201,18 @@
         return '<td class="num"' + hi + '>' + (v == null ? '—' : UI.money(v)) + '</td>';
       }).join('') + '</tr>';
   }
-  function plainRow(label, depts, fn) {
-    return '<tr><th scope="row" class="row-label">' + label + '</th>' + depts.map(function (d) { return '<td class="num">' + (d.summary.hasSalary ? fn(d.summary) : '—') + '</td>'; }).join('') + '</tr>';
+  // `best` picks which value (if any) gets the winner highlight the pay rows
+  // use: 'high' when a bigger number is better, 'low' when a smaller one is
+  // (years to top), omitted where there is no better — annual hours and
+  // contributor counts aren't a contest, and colouring them would imply one.
+  function plainRow(label, depts, fn, best) {
+    var vals = depts.map(function (d) { return d.summary.hasSalary ? numFromCell(fn(d.summary)) : null; });
+    var win = best ? bestNumeric(vals, best) : null;
+    return '<tr><th scope="row" class="row-label">' + label + '</th>' + depts.map(function (d, i) {
+      var cell = d.summary.hasSalary ? fn(d.summary) : '—';
+      var hi = (win != null && vals[i] === win && depts.length > 1) ? ' style="color:var(--accent);font-weight:700"' : '';
+      return '<td class="num"' + hi + '>' + cell + '</td>';
+    }).join('') + '</tr>';
   }
   // All data cells share the same class="num" (right-aligned) treatment as
   // salaryRow/plainRow/careerRow above — mixing left- and right-aligned rows
@@ -190,7 +229,11 @@
   }
 
   function numFromCell(cell) { if (typeof cell === 'number') return cell; var n = parseFloat(String(cell).replace(/[$,\/hryr\s]/g, '')); return isFinite(n) ? n : null; }
-  function bestNumeric(arr) { var nums = arr.filter(function (v) { return typeof v === 'number' && isFinite(v); }); return nums.length ? Math.max.apply(null, nums) : null; }
+  function bestNumeric(arr, dir) {
+    var nums = arr.filter(function (v) { return typeof v === 'number' && isFinite(v); });
+    if (!nums.length) return null;
+    return dir === 'low' ? Math.min.apply(null, nums) : Math.max.apply(null, nums);
+  }
   function uniq(a) { var s = {}; a.forEach(function (v) { s[v] = true; }); return Object.keys(s); }
   function uniqBool(a) { var s = {}; a.forEach(function (v) { s[v ? '1' : '0'] = true; }); return Object.keys(s); }
 })();

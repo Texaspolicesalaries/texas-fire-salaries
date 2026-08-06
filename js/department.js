@@ -196,7 +196,7 @@
     // precise than the underlying data actually supports.
     if (summary.singleRatePlan) {
       host.innerHTML =
-        '<div class="dept-section-heading compact"><div><span class="section-kicker">02 / Projection</span><h2>Career earnings</h2></div></div>' +
+        '<div class="dept-section-heading compact"><div><span class="section-kicker">Projection</span><h2>Career earnings</h2></div></div>' +
         '<p class="dept-section-intro">Not shown yet — only a single pay rate has been reported for this department, with no step progression to project. ' +
         '<a href="/submit.html?dept=' + UI.esc(dept.slug) + '&mode=step">Add the full pay-step plan →</a></p>';
       return;
@@ -219,7 +219,7 @@
       }).join('') + '</div>';
     }
     host.innerHTML =
-      '<div class="dept-section-heading compact"><div><span class="section-kicker">02 / Projection</span><h2>Career earnings</h2></div></div>' +
+      '<div class="dept-section-heading compact"><div><span class="section-kicker">Projection</span><h2>Career earnings</h2></div></div>' +
       '<p class="dept-section-intro">Illustrative earnings at the current reported pay plan — not a forecast. <strong>Base salary</strong> and <strong>reported total compensation</strong> are kept separate — do not add them together.</p>' +
       barsFor('Base salary', baseTotals) +
       (repSteps.length ? '<p class="field-hint" style="margin:1rem 0 .5rem">Reported total compensation</p>' + barsFor('Reported total compensation', totals(repSteps)) : '') +
@@ -324,7 +324,6 @@
           '<a class="btn btn-primary full" href="/submit.html?dept=' + UI.esc(dept.slug) + '&mode=update">Submit an update</a>' +
           '<button class="btn btn-outline" id="act-confirm">This looks correct</button>' +
           '<button class="btn btn-outline" id="act-dispute">Report incorrect information</button>' +
-          '<a class="btn btn-outline" href="/submit.html?dept=' + UI.esc(dept.slug) + '&mode=step">Add missing pay step</a>' +
         '</div>' +
         '<div id="act-status" class="field-hint" style="margin:0 var(--sp-5) var(--sp-4)"></div>' +
         '<div id="dispute-form"></div>' +

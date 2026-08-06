@@ -176,7 +176,7 @@ ${heroStat}
         ${incomplete}
         ${s.hasSalary ? `<section id="salary" class="dept-section first">
           <div class="dept-section-heading">
-            <div><span class="section-kicker">01 / Compensation</span><h2>Salary at a glance</h2></div>
+            <div><span class="section-kicker">Compensation</span><h2>Salary at a glance</h2></div>
             <a href="/submit.html?dept=${esc(dept.slug)}&mode=update">Suggest an update <span aria-hidden="true">↗</span></a>
           </div>
           ${cards}
@@ -186,13 +186,13 @@ ${heroStat}
 
         <section id="earnings"></section>
         <section id="history" class="dept-section${s.hasSalary ? '' : ' first'}">
-          <div class="dept-section-heading compact"><div><span class="section-kicker">03 / Record</span><h2>History</h2></div></div>
+          <div class="dept-section-heading compact"><div><span class="section-kicker">Record</span><h2>History</h2></div></div>
           <div id="salary-history"></div>
           <div id="revision-history"></div>
         </section>
 
         <section id="details" class="dept-section">
-          <div class="dept-section-heading compact"><div><span class="section-kicker">04 / Department</span><h2>At the station</h2></div></div>
+          <div class="dept-section-heading compact"><div><span class="section-kicker">Department</span><h2>At the station</h2></div></div>
           ${facts}
         </section>
 

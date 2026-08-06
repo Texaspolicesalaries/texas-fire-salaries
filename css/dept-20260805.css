@@ -53,7 +53,7 @@
 
 /* ---------------- Two-column content ---------------- */
 .dept-grid { max-width: var(--maxw); margin: 0 auto; padding-inline: var(--sp-5); display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: var(--sp-8); align-items: start; }
-.dept-section { padding: var(--sp-8) 0; border-bottom: 1px solid var(--border); scroll-margin-top: calc(var(--nav-h) + 16px); }
+.dept-section { padding: var(--sp-6) 0; border-bottom: 1px solid var(--border); scroll-margin-top: calc(var(--nav-h) + 16px); }
 .dept-section.first { padding-top: 3rem; }
 .dept-section-heading { display: flex; justify-content: space-between; align-items: flex-end; gap: var(--sp-4); margin-bottom: var(--sp-6); flex-wrap: wrap; }
 .dept-section-heading h2 { font-size: 2rem; margin: 8px 0 0; }
@@ -197,6 +197,23 @@
      entire page sideways instead of letting .table-scroll scroll on its own. */
   .dept-grid { grid-template-columns: minmax(0, 1fr); }
   .dept-side-column { position: relative; top: auto; padding-top: 2rem; order: -1; }
+  /* 4rem top AND bottom stacked up to ~8rem of empty space between sections
+     on a phone, which read as the page having ended. */
+  .dept-section { padding: var(--sp-5) 0; }
+  .dept-section.first { padding-top: var(--sp-5); }
+  /* The confidence card's header was scaled for a narrow 340px desktop rail.
+     At full width on a phone it became a tall dark hero block that dwarfed
+     the salary cards it sits next to; trimmed so it reads as a peer card. */
+  .confidence-header { padding: var(--sp-4); }
+  .confidence-header > div:first-child strong { font-size: 15px; }
+  .confidence-ring { width: 52px; height: 52px; }
+  .confidence-ring span { font-size: 15px; }
+  .confidence-list { padding: 4px var(--sp-4); }
+  .confidence-list > div { min-height: 38px; }
+  .confidence-side-alert { margin-inline: var(--sp-4); }
+  .confidence-card .btn.full { margin-inline: var(--sp-4); width: calc(100% - 2 * var(--sp-4)); }
+  .confidence-actions-side { margin-inline: var(--sp-4); }
+  .confidence-card-disclaimer { margin-inline: var(--sp-4); }
 }
 @media (max-width: 500px) {
   /* Side-by-side rather than two stacked full-width buttons: halves this
