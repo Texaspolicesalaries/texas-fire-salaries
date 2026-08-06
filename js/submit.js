@@ -17,7 +17,11 @@
   'use strict';
   var UI = window.FireUI, Lib = window.FireSalaryLib, D = window.FireData, A = window.FireAuth;
 
-  var POSITIONS = ['Recruit', 'Firefighter'];
+  // Sworn classifications a pay STEP PLAN can describe. Recruit is deliberately
+  // absent: academy pay is a flat, pre-graduation rate with no step progression,
+  // and every mode now collects it in its own "Recruit / academy pay" field
+  // (pv.recruit) so it never feeds entry/top/years-to-top. See derive.js.
+  var POSITIONS = ['Firefighter', 'Firefighter-Paramedic'];
   var PERIODS = [['annual', 'Per year'], ['monthly', 'Per month'], ['hourly', 'Per hour']];
   var PLAN_PERIODS = [['annual', 'Per year'], ['hourly', 'Per hour']];
   var BASIS = [['base', 'Base pay only'], ['base-ot', 'Base + scheduled overtime'], ['total', 'Reported total compensation']];
@@ -231,7 +235,6 @@
   // same figure, distinct from only knowing (not lacking) one point of a scale.
   function singleFields() {
     return '' +
-      field('Position', selP('c-flat-position', POSITIONS, 'Select position…'), 'Recruit pay is captured as a flat academy figure, kept separate from Firefighter entry/top — submit both separately if the department has each.', 'c-flat-position') +
       '<div class="grid cols-2">' +
         field('Pay amount', money('c-flat-amount', '$'), 'One flat rate — no raise by tenure. Sets both entry and top pay to this figure.', 'c-flat-amount') +
         field('Pay period', sel('c-flat-period', PERIODS, 'annual'), null, 'c-flat-period') +
@@ -241,7 +244,8 @@
         field('Effective date', dateI('c-flat-eff'), null, 'c-flat-eff') +
         field('Shift schedule', sel('c-flat-sched', SCHEDULES, ''), null, 'c-flat-sched') +
       '</div>' +
-      field('Scheduled annual hours', numI('c-flat-hours', '2912'), null, 'c-flat-hours');
+      field('Scheduled annual hours', numI('c-flat-hours', '2912'), null, 'c-flat-hours') +
+      field('Recruit / academy pay (optional)', money('c-flat-recruit', '$'), 'Pay during the academy, before graduating to Firefighter — kept separate from the figure above. Leave blank if not applicable.', 'c-flat-recruit');
   }
 
   // Entry, midpoint, and/or top pay — a common 3-point pay scale, entered together
@@ -249,10 +253,6 @@
   // not "same as the others".
   function rangeFields() {
     return '' +
-      // Firefighter only — recruit/academy pay is a flat rate with no graduated
-      // entry/midpoint/top scale, so it belongs in "Single pay figure" with
-      // Position: Recruit instead (see singleFields()).
-      field('Position', sel('c-position', ['Firefighter'], 'Firefighter'), 'For recruit/academy pay, use “Single pay figure” with Position: Recruit — it’s a flat rate, not a graduated scale.', 'c-position') +
       '<div class="grid cols-3">' +
         field('Entry pay', money('c-entry', '$'), null, 'c-entry') +
         field('Midpoint pay', money('c-midpoint', '$'), 'Optional — leave blank if there isn’t one.', 'c-midpoint') +
@@ -267,7 +267,8 @@
       '<div class="grid cols-2">' +
         field('Shift schedule', sel('c-sched', SCHEDULES, ''), null, 'c-sched') +
         field('Scheduled annual hours', numI('c-hours', '2912'), null, 'c-hours') +
-      '</div>';
+      '</div>' +
+      field('Recruit / academy pay (optional)', money('c-recruit', '$'), 'Pay during the academy, before graduating to Firefighter — kept separate from the Firefighter scale above. Leave blank if not applicable.', 'c-recruit');
   }
 
   function planFields() {
@@ -425,7 +426,7 @@
       if (pl.yearsToTop != null) rows.push(kv('Years to top', pl.yearsToTop + ' yr'));
     } else if (pv.entry != null || pv.midpoint != null || pv.top != null || pv.reportedEntry != null || pv.reportedMidpoint != null || pv.reportedTop != null || pv.recruit != null) {
       var isTotal = pv.basis === 'total';
-      var posLabel = (pv.position || 'Pay') + ' — ' + periodLabel(pv.payPeriod);
+      var posLabel = 'Firefighter — ' + periodLabel(pv.payPeriod);
       if (pv.recruit != null) rows.push(arrow('Recruit / academy pay', cur.recruit != null ? UI.money(cur.recruit) : null, UI.money(pv.recruit) + ' — ' + periodLabel(pv.payPeriod)));
       // Entry/midpoint/top each get their own row, compared against the matching
       // career point AND the matching kind of figure — a midpoint amount is never
@@ -599,11 +600,11 @@
       if (st.mode === 'plan') return validatePlan(fail, warnOk, supp);
       if (st.mode === 'range') {
         var entryAmt = Lib.parseMoney(v('c-entry')), midAmt = Lib.parseMoney(v('c-midpoint')), topAmt = Lib.parseMoney(v('c-top'));
-        var anyAmt = entryAmt != null || midAmt != null || topAmt != null;
+        var rRecruitAmt = Lib.parseMoney(v('c-recruit'));
+        var anyAmt = entryAmt != null || midAmt != null || topAmt != null || rRecruitAmt != null;
         if (st.type === 'update' && !anyAmt && !supp.length && !v('c-sched') && !v('c-eff')) return fail('Add at least one change — a pay amount, schedule, effective date, or supplemental pay item.');
         if (anyAmt) {
-          if ((entryAmt != null && entryAmt < 0) || (midAmt != null && midAmt < 0) || (topAmt != null && topAmt < 0)) return fail('Pay amounts can’t be negative.');
-          if (!v('c-position')) return fail('Choose the position this pay is for.');
+          if ((entryAmt != null && entryAmt < 0) || (midAmt != null && midAmt < 0) || (topAmt != null && topAmt < 0) || (rRecruitAmt != null && rRecruitAmt < 0)) return fail('Pay amounts can’t be negative.');
           if (!v('c-basis')) return fail('Choose what these amounts represent (base, base+OT, or total).');
           if (!v('c-eff')) return fail('Add an effective date for these pay amounts.');
         }
@@ -611,10 +612,10 @@
       }
       // single (flat rate) mode
       var flatAmt = Lib.parseMoney(v('c-flat-amount'));
-      if (st.type === 'update' && flatAmt == null && !supp.length && !v('c-flat-sched') && !v('c-flat-eff')) return fail('Add at least one change — a pay amount, schedule, effective date, or supplemental pay item.');
-      if (flatAmt != null) {
-        if (flatAmt < 0) return fail('Pay amounts can’t be negative.');
-        if (!v('c-flat-position')) return fail('Choose the position this pay is for.');
+      var flatRecruitAmt = Lib.parseMoney(v('c-flat-recruit'));
+      if (st.type === 'update' && flatAmt == null && flatRecruitAmt == null && !supp.length && !v('c-flat-sched') && !v('c-flat-eff')) return fail('Add at least one change — a pay amount, schedule, effective date, or supplemental pay item.');
+      if (flatAmt != null || flatRecruitAmt != null) {
+        if ((flatAmt != null && flatAmt < 0) || (flatRecruitAmt != null && flatRecruitAmt < 0)) return fail('Pay amounts can’t be negative.');
         if (!v('c-flat-basis')) return fail('Choose what the amount represents (base, base+OT, or total).');
         if (!v('c-flat-eff')) return fail('Add an effective date for the pay amount.');
       }
@@ -714,7 +715,7 @@
       var midAmt = rToAnn(Lib.parseMoney(v('c-midpoint')));
       var topAmt = rToAnn(Lib.parseMoney(v('c-top')));
       Object.assign(pv, {
-        position: v('c-position') || undefined, payPeriod: rPeriod || undefined,
+        payPeriod: rPeriod || undefined,
         basis: rBasis || undefined, effectiveDate: v('c-eff') || undefined,
         schedule: v('c-sched') || undefined, hoursAnnual: rHours || undefined
       });
@@ -727,27 +728,33 @@
       if (entryAmt != null) { if (rIsTotal) pv.reportedEntry = entryAmt; else pv.entry = entryAmt; }
       if (midAmt != null) { if (rIsTotal) pv.reportedMidpoint = midAmt; else pv.midpoint = midAmt; }
       if (topAmt != null) { if (rIsTotal) pv.reportedTop = topAmt; else pv.top = topAmt; }
+      // Recruit/academy pay — a bonus field alongside the Firefighter scale
+      // above, not an alternative to it, so both can publish in one submission.
+      // Always a flat base figure, independent of the basis dropdown above.
+      var rRecruitPub = rToAnn(Lib.parseMoney(v('c-recruit')));
+      if (rRecruitPub != null) pv.recruit = rRecruitPub;
       base.effectiveDate = pv.effectiveDate;
     } else {
       // Single flat rate — one number, no raise by tenure. Sets BOTH entry and top
       // to the same figure (this is a distinct claim from "I only know entry of a
-      // graduated scale", which is what the range tab is for). Position: Recruit
-      // is a flat rate too, but routes to its own field — never entry/top — so an
-      // academy stipend can't get mistaken for the Firefighter classification's pay.
+      // graduated scale", which is what the range tab is for).
       var fBasis = v('c-flat-basis'), fPeriod = v('c-flat-period'), fHours = Lib.parseNumber(v('c-flat-hours'));
-      var fPosition = v('c-flat-position');
       var flatAmt = toAnnual(Lib.parseMoney(v('c-flat-amount')), fPeriod, fHours);
       Object.assign(pv, {
-        position: fPosition || undefined, payPeriod: fPeriod || undefined,
+        payPeriod: fPeriod || undefined,
         basis: fBasis || undefined, effectiveDate: v('c-flat-eff') || undefined,
         schedule: v('c-flat-sched') || undefined, hoursAnnual: fHours || undefined,
         flatRate: true
       });
       if (flatAmt != null) {
-        if (fPosition === 'Recruit') pv.recruit = flatAmt;
-        else if (fBasis === 'total') { pv.reportedEntry = flatAmt; pv.reportedTop = flatAmt; }
+        if (fBasis === 'total') { pv.reportedEntry = flatAmt; pv.reportedTop = flatAmt; }
         else { pv.entry = flatAmt; pv.top = flatAmt; }
       }
+      // Recruit/academy pay — a bonus field alongside the flat rate above, not
+      // an alternative to it, so both can publish in one submission. Always a
+      // flat base figure, independent of the basis dropdown above.
+      var fRecruitPub = toAnnual(Lib.parseMoney(v('c-flat-recruit')), fPeriod, fHours);
+      if (fRecruitPub != null) pv.recruit = fRecruitPub;
       base.effectiveDate = pv.effectiveDate;
     }
     if (!pv.supplemental.length) delete pv.supplemental;
