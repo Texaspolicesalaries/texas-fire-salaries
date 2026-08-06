@@ -6,10 +6,11 @@ on:
       - main
   schedule:
     # Every 5 minutes — GitHub's shortest allowed interval. The job takes about a
-    # minute, so a contributor waits ~1-6 minutes for their submission to show up
-    # on the site. GitHub delays scheduled runs under load, so treat this as a
-    # floor, not a guarantee; js/submit.js's success message sets expectations to
-    # match and should be updated alongside any change here.
+    # minute, so a submission normally shows up on the site within a few minutes.
+    # This is a floor, not a guarantee: GitHub delays scheduled runs under load
+    # and drops them entirely during an Actions outage. js/submit.js's success
+    # message is therefore worded not to promise a specific time — deliberately,
+    # so a CI problem never turns it into a visibly broken promise.
     - cron: "*/5 * * * *"
   workflow_dispatch:
 
