@@ -17,11 +17,16 @@
   'use strict';
   var UI = window.FireUI, Lib = window.FireSalaryLib, D = window.FireData, A = window.FireAuth;
 
-  // Sworn classifications a pay STEP PLAN can describe. Recruit is deliberately
-  // absent: academy pay is a flat, pre-graduation rate with no step progression,
-  // and every mode now collects it in its own "Recruit / academy pay" field
-  // (pv.recruit) so it never feeds entry/top/years-to-top. See derive.js.
-  var POSITIONS = ['Firefighter', 'Firefighter-Paramedic'];
+  // No classification/position picker anywhere in this form, by design. Every
+  // base figure it collects describes the ONE firefighter base scale, because
+  // nothing downstream partitions consensus by classification (js/derive.js
+  // passes it straight through for display) -- so a "Firefighter-Paramedic"
+  // plan's entry/top would compete against a "Firefighter" plan's as rival
+  // claims about the same number. Paramedic and EMT differentials are add-ons
+  // collected under Additional/supplemental pay (paramedic-incentive, emt),
+  // which is what drives the paramedicIncentive filter flag. See the ADD-ON
+  // note in js/aggregate.js -- entryMedic was removed for this same reason.
+  // Academy pay is likewise its own flat field (pv.recruit), never a step plan.
   var PERIODS = [['annual', 'Per year'], ['monthly', 'Per month'], ['hourly', 'Per hour']];
   var PLAN_PERIODS = [['annual', 'Per year'], ['hourly', 'Per hour']];
   var BASIS = [['base', 'Base pay only'], ['base-ot', 'Base + scheduled overtime'], ['total', 'Reported total compensation']];
@@ -274,11 +279,10 @@
   function planFields() {
     return '' +
       '<div class="grid cols-2">' +
-        field('Classification / position', selP('p-position', POSITIONS, 'Select position…'), 'Stored once for the whole plan — don’t repeat it per step.', 'p-position') +
         field('Effective date', dateI('p-eff'), null, 'p-eff') +
-      '</div>' +
-      '<div class="grid cols-3">' +
         field('Pay period', sel('p-period', PLAN_PERIODS, 'annual'), 'Sets the unit for every dollar figure in the steps below — switch to “Per hour” if you’re entering hourly rates, not annual salaries.', 'p-period') +
+      '</div>' +
+      '<div class="grid cols-2">' +
         field('Shift schedule', sel('p-sched', SCHEDULES, ''), null, 'p-sched') +
         field('Scheduled annual hours', numI('p-hours', '2912'), null, 'p-hours') +
       '</div>' +
@@ -415,7 +419,6 @@
 
     if (payload.mode === 'plan') {
       var pl = payload.plan || {};
-      if (pl.classification) rows.push(kv('Classification', UI.esc(pl.classification)));
       rows.push(arrow('Effective date', fmtDate(dept && dept.salary && dept.salary.effectiveDate) || null, UI.esc(fmtDate(pl.effectiveDate) || '—')));
       if (pl.schedule) rows.push(arrow('Schedule', dept ? (dept.scheduleType || null) : null, UI.esc(pl.schedule)));
       if (pl.hoursAnnual) rows.push(kv('Scheduled hours', UI.esc(pl.hoursAnnual)));
@@ -696,7 +699,7 @@
       var steps = planSteps();
       var period = v('p-period');
       var hours = Lib.parseNumber(v('p-hours'));
-      base.plan = { classification: v('p-position') || undefined, effectiveDate: v('p-eff') || undefined,
+      base.plan = { effectiveDate: v('p-eff') || undefined,
         payPeriod: period || undefined, schedule: v('p-sched') || undefined, hoursAnnual: hours || undefined, notes: v('p-notes') || undefined };
       pv.steps = steps;
       // Derive entry/top for the consensus engine — convert hourly to annual if needed.
