@@ -5,8 +5,12 @@ on:
     branches:
       - main
   schedule:
-    # Every 15 minutes, offset from the top of the hour to reduce queue delays.
-    - cron: "7,22,37,52 * * * *"
+    # Every 5 minutes — GitHub's shortest allowed interval. The job takes about a
+    # minute, so a contributor waits ~1-6 minutes for their submission to show up
+    # on the site. GitHub delays scheduled runs under load, so treat this as a
+    # floor, not a guarantee; js/submit.js's success message sets expectations to
+    # match and should be updated alongside any change here.
+    - cron: "*/5 * * * *"
   workflow_dispatch:
 
 permissions:

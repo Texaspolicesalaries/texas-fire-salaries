@@ -1022,9 +1022,15 @@
     save(payload).then(function (fileUploadFailed) {
       var host = document.getElementById('submit-body');
       var flagged = payload.automatedFlags && payload.automatedFlags.length;
+      // "Published" describes the record, not the page: the site is static and
+      // rebuilds on a schedule, so the figure appears a few minutes later. Saying
+      // only "published" reads as "it's live now" -- the contributor checks the
+      // department page, sees the old number, assumes the submission failed, and
+      // sends it again. Naming the delay up front is what prevents that; keep
+      // this wording in step with the cron in .github/workflows.
       var msg = flagged
-        ? '<strong>Thank you — your submission was received</strong> and is preserved as a revision, but one or more figures look unusual (' + UI.esc(payload.automatedFlags.join('; ')) + '), so it needs a quick admin review before it appears live.'
-        : '<strong>Thank you — your submission is published</strong> and preserved as a revision. The community consensus will update automatically.';
+        ? '<strong>Thank you — your submission was received</strong> and is preserved as a revision, but one or more figures look unusual (' + UI.esc(payload.automatedFlags.join('; ')) + '), so it needs a quick admin review before it appears on the site.'
+        : '<strong>Thank you — your submission is saved</strong> and preserved as a revision. It will appear on the department page within about <strong>5 minutes</strong>, once the site picks up the latest community data — no need to submit it again if you don’t see it straight away.';
       if (fileUploadFailed) msg += ' <strong>Note:</strong> the attached file could not be uploaded, so it was saved without it — you can add the file later with a follow-up submission.';
       if (window.FireAnalytics) window.FireAnalytics.trackSubmitComplete(st.dept, st.type);
       host.innerHTML = '<div class="notice info" style="font-size:1rem"><span class="notice-icon">✓</span><div>' + msg + '<div style="margin-top:.75rem">' +
