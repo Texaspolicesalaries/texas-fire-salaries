@@ -600,6 +600,8 @@
     if (st.step === 2) {
       var supp = readSupp();
       if (supp.find(function (s) { return s.amount < 0; })) return fail('Supplemental pay can’t be negative.');
+      // Plan mode keeps its own blocking checks first — a half-filled step table
+      // is a hard error, not something to warn past.
       if (st.mode === 'plan') return validatePlan(fail, warnOk, supp);
       if (st.mode === 'range') {
         var entryAmt = Lib.parseMoney(v('c-entry')), midAmt = Lib.parseMoney(v('c-midpoint')), topAmt = Lib.parseMoney(v('c-top'));
@@ -611,7 +613,7 @@
           if (!v('c-basis')) return fail('Choose what these amounts represent (base, base+OT, or total).');
           if (!v('c-eff')) return fail('Add an effective date for these pay amounts.');
         }
-        return true;
+        return warnOk(noPayWarnings(anyAmt, supp));
       }
       // single (flat rate) mode
       var flatAmt = Lib.parseMoney(v('c-flat-amount'));
@@ -622,16 +624,33 @@
         if (!v('c-flat-basis')) return fail('Choose what the amount represents (base, base+OT, or total).');
         if (!v('c-flat-eff')) return fail('Add an effective date for the pay amount.');
       }
-      return true;
+      return warnOk(noPayWarnings(flatAmt != null || flatRecruitAmt != null, supp));
     }
     return true;
+  }
+
+  // Skipping pay is a supported way to add a department ("Add starting pay now,
+  // or skip and let the community fill it in"), so neither of these can block.
+  // But every required-field check above sits inside `if (amount != null)`, so a
+  // blank pay box passes silently -- and the department then publishes reading
+  // "Salary information needed" with no hint that the one number the site exists
+  // to collect is the thing that got left out. Filling in supplemental pay while
+  // leaving base pay blank is the strongest signal of that mistake: nobody means
+  // to report a longevity differential for a salary they never gave. One more
+  // click still proceeds either way.
+  function noPayWarnings(anyBaseFigure, supp) {
+    if (anyBaseFigure) return [];
+    if (supp.length) return ['you entered supplemental pay but no base salary. Supplemental amounts alone can’t be displayed as a salary, so this will still publish reading “Salary information needed”.'];
+    if (st.type === 'add') return ['no pay amount was entered, so this department will publish reading “Salary information needed” until someone adds one.'];
+    return [];
   }
 
   function validatePlan(fail, warnOk, supp) {
     var steps = st.steps;
     var meaningful = steps.filter(function (s) { return s.basePay != null || (s.label && s.label.trim()) || s.startMonths != null; });
     if (st.type === 'update' && !meaningful.length && !supp.length) return fail('Add at least one pay step.');
-    if (!meaningful.length) return true; // add flow with no comp — allowed
+    // Add flow with no comp is allowed — but say so rather than passing silently.
+    if (!meaningful.length) return warnOk(noPayWarnings(Lib.parseMoney(v('p-recruit')) != null, supp));
     if (!v('p-eff')) return fail('Add an effective date for this pay plan.');
     var recruitAmt = Lib.parseMoney(v('p-recruit'));
     if (recruitAmt != null && recruitAmt < 0) return fail('Recruit/academy pay can’t be negative.');
