@@ -90,13 +90,23 @@ test('freshness thresholds are configurable', () => {
   assert.strictEqual(b.key, 'update_recommended');
 });
 
-test('a trusted contributor counts as two unique contributors in a cluster', () => {
+test('a trusted contributor is weighted double for ranking but counted once as a person', () => {
   const clusters = C.clusterValues([
     { value: 60000, contributorId: 'trusted-1', submittedAt: monthsAgo(1), trusted: true }
   ], { now: NOW });
-  assert.strictEqual(clusters[0].uniqueContributors, 2);
-  assert.strictEqual(clusters[0].uniqueRecentContributors, 2);
+  assert.strictEqual(clusters[0].uniqueContributors, 1);        // one human
+  assert.strictEqual(clusters[0].uniqueRecentContributors, 1);
+  assert.strictEqual(clusters[0].weightedContributors, 2);      // worth two when ranking rival values
+  assert.strictEqual(clusters[0].weightedRecentContributors, 2);
   assert.strictEqual(clusters[0].trustedContributors, 1);
+});
+
+test('a trusted contributor still outranks an ordinary one when two values compete', () => {
+  const clusters = C.clusterValues([
+    { value: 60000, contributorId: 'trusted-1', submittedAt: monthsAgo(1), trusted: true },
+    { value: 72000, contributorId: 'ordinary-1', submittedAt: monthsAgo(1) }
+  ], { now: NOW });
+  assert.strictEqual(C.selectCurrentCluster(clusters, { now: NOW }).value, 60000);
 });
 
 test('two trusted contributors agreeing alone still cannot reach "strong agreement" by themselves', () => {
@@ -104,15 +114,15 @@ test('two trusted contributors agreeing alone still cannot reach "strong agreeme
     { value: 60000, contributorId: 'trusted-1', submittedAt: monthsAgo(1), trusted: true },
     { value: 60050, contributorId: 'trusted-2', submittedAt: monthsAgo(1), trusted: true }
   ], { now: NOW });
-  // weight = 4 (2 contributors x 2 each) — still short of the real 3-more-
-  // people threshold this asserts against below, so this only proves it's a
-  // bounded, not unlimited, boost by checking against ordinary contributors.
+  // "Strong community agreement" is a statement about how many PEOPLE agree,
+  // so two of them cannot reach it however trusted they are — the trust boost
+  // decides which value wins, not how well attested it is.
   const ordinary = C.clusterValues([
     { value: 60000, contributorId: 'a', submittedAt: monthsAgo(1) },
     { value: 60050, contributorId: 'b', submittedAt: monthsAgo(1) }
   ], { now: NOW });
   assert.strictEqual(C.confidenceLabel(ordinary, { now: NOW }).key, 'reported');
-  assert.strictEqual(C.confidenceLabel(clusters, { now: NOW }).key, 'strong'); // trust tips it over
+  assert.strictEqual(C.confidenceLabel(clusters, { now: NOW }).key, 'reported');
 });
 
 test('a single trusted contributor alone cannot reach "strong agreement"', () => {

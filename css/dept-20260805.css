@@ -241,3 +241,13 @@
   .dept-claim-panel { flex-direction: column; align-items: flex-start; }
   .history-card { grid-template-columns: 51px 14px 1fr; gap: 7px; }
 }
+
+/* Supplemental pay table.
+   It carried a `pay-table` class that no stylesheet ever defined, so it fell
+   back to a bare browser table: shrink-to-content width, sitting squashed
+   against the left edge of its section while the rest of the card ran full
+   width. It now shares the same `data` styling as the pay-step table above it.
+   The 520px floor that class carries exists for that six-column table; these
+   three narrow columns fit a phone comfortably, so the floor is dropped rather
+   than forcing a pointless sideways scroll. */
+#supplemental table.pay-table { min-width: 0; }

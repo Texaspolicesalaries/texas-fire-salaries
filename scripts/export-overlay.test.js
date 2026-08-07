@@ -511,9 +511,18 @@ test('applyValueDisputes leaves a report untouched when nothing about it is disp
   assert.strictEqual(out[0].entryDisputeCount, undefined);
 });
 
+// Disputes are grouped "slug|field" -> [{ value, flaggers:Set }], the shape
+// countValueDisputes() builds, so a dispute can be matched against every report
+// in the same consensus cluster rather than only an exactly equal one.
+function disputesOf(slug, field, value, flaggerCount) {
+  const flaggers = new Set();
+  for (let i = 0; i < flaggerCount; i++) flaggers.add('flagger-' + i);
+  return new Map([[`${slug}|${field}`, [{ value, flaggers }]]]);
+}
+
 test('applyValueDisputes annotates a below-threshold disputed value but keeps it', () => {
   const reports = [{ contributorId: 'u1', entry: 60000, top: 78000 }];
-  const counts = new Map([['addison-fd|entry|60000', 2]]); // below default threshold of 3
+  const counts = disputesOf('addison-fd', 'entry', 60000, 2); // below default threshold of 3
   const out = M.applyValueDisputes(reports, 'addison-fd', counts);
   assert.strictEqual(out[0].entry, 60000); // still present
   assert.strictEqual(out[0].entryDisputeCount, 2);
@@ -522,24 +531,50 @@ test('applyValueDisputes annotates a below-threshold disputed value but keeps it
 
 test('applyValueDisputes suppresses only the disputed field once it hits the threshold', () => {
   const reports = [{ contributorId: 'u1', entry: 60000, top: 78000 }];
-  const counts = new Map([['addison-fd|entry|60000', 3]]);
-  const out = M.applyValueDisputes(reports, 'addison-fd', counts);
+  const out = M.applyValueDisputes(reports, 'addison-fd', disputesOf('addison-fd', 'entry', 60000, 3));
   assert.strictEqual(out[0].entry, null);   // suppressed
   assert.strictEqual(out[0].top, 78000);    // top was never disputed — untouched
 });
 
 test('applyValueDisputes suppresses a disputed recruit-pay value the same as entry/top/midpoint', () => {
   const reports = [{ contributorId: 'u1', recruit: 52000 }];
-  const counts = new Map([['addison-fd|recruit|52000', 3]]);
-  const out = M.applyValueDisputes(reports, 'addison-fd', counts);
+  const out = M.applyValueDisputes(reports, 'addison-fd', disputesOf('addison-fd', 'recruit', 52000, 3));
   assert.strictEqual(out[0].recruit, null);
 });
 
 test('applyValueDisputes respects a custom threshold', () => {
   const reports = [{ contributorId: 'u1', entry: 60000 }];
-  const counts = new Map([['addison-fd|entry|60000', 2]]);
+  const counts = disputesOf('addison-fd', 'entry', 60000, 2);
   assert.strictEqual(M.applyValueDisputes(reports, 'addison-fd', counts, 2)[0].entry, null);
   assert.strictEqual(M.applyValueDisputes(reports, 'addison-fd', counts, 3)[0].entry, 60000);
+});
+
+// The case that made disputes inoperative on well-reported departments: what a
+// visitor sees, and therefore disputes, is the cluster MEAN, which is usually
+// not a value any single report holds.
+test('applyValueDisputes suppresses reports when the DISPLAYED mean is disputed, not an exact report value', () => {
+  const reports = [{ contributorId: 'u1', entry: 60000 }, { contributorId: 'u2', entry: 60500 }];
+  const displayedMean = 60250; // what js/consensus.js clusterValues shows, and department.js records
+  const out = M.applyValueDisputes(reports, 'addison-fd', disputesOf('addison-fd', 'entry', displayedMean, 3));
+  assert.deepStrictEqual(out.map(r => r.entry), [null, null]);
+});
+
+test('applyValueDisputes leaves a genuinely different value alone', () => {
+  const reports = [{ contributorId: 'u1', entry: 60000 }, { contributorId: 'u2', entry: 72000 }];
+  const out = M.applyValueDisputes(reports, 'addison-fd', disputesOf('addison-fd', 'entry', 60000, 3));
+  assert.deepStrictEqual(out.map(r => r.entry), [null, 72000]); // 72000 is a different cluster
+});
+
+test('one person disputing two values inside the same cluster counts once', () => {
+  const reports = [{ contributorId: 'u1', entry: 60000 }];
+  const repeat = new Map([['addison-fd|entry', [
+    { value: 60000, flaggers: new Set(['same-person']) },
+    { value: 60400, flaggers: new Set(['same-person']) },
+    { value: 60200, flaggers: new Set(['same-person']) }
+  ]]]);
+  const out = M.applyValueDisputes(reports, 'addison-fd', repeat);
+  assert.strictEqual(out[0].entry, 60000);       // not suppressed by one person
+  assert.strictEqual(out[0].entryDisputeCount, 1);
 });
 
 // ── computeActiveClaimants ───────────────────────────────────────────────────
@@ -678,8 +713,8 @@ test('computeTrustedContributors withholds trust below the report/department min
 
 test('computeTrustedContributors disqualifies a contributor whose value was successfully disputed', () => {
   const rows = [subRow('u1', 'addison-fd', 60000), subRow('u1', 'allen-fd', 70000), subRow('u1', 'anna-fd', 65000)];
-  const disputeCounts = new Map([['addison-fd|entry|60000', M.DISPUTE_REVERT_THRESHOLD]]);
-  const trusted = M.computeTrustedContributors(rows, disputeCounts);
+  const disputes = disputesOf('addison-fd', 'entry', 60000, M.DISPUTE_REVERT_THRESHOLD);
+  const trusted = M.computeTrustedContributors(rows, disputes);
   assert.ok(!trusted.has('u1'));
 });
 
@@ -695,3 +730,55 @@ test('computeTrustedContributors respects custom thresholds', () => {
   assert.ok(trusted.has('u1'));
 });
 
+
+// ── Fields that used to be collected and then dropped ────────────────────────
+
+test('toReport carries the effective date a contributor was required to supply', () => {
+  const rep = M.toReport({
+    contributorId: s('u1'), submittedAt: { timestampValue: '2026-08-01T00:00:00Z' },
+    proposedValues: { mapValue: { fields: { entry: { doubleValue: 70000 }, effectiveDate: s('2026-10-01') } } }
+  });
+  assert.strictEqual(rep.effectiveDate, '2026-10-01');
+});
+
+test('toReport reads a plan-mode effective date off `plan`', () => {
+  const rep = M.toReport({
+    contributorId: s('u1'), submittedAt: { timestampValue: '2026-08-01T00:00:00Z' },
+    plan: { mapValue: { fields: { effectiveDate: s('2026-01-01') } } },
+    proposedValues: { mapValue: { fields: { entry: { doubleValue: 70000 } } } }
+  });
+  assert.strictEqual(rep.effectiveDate, '2026-01-01');
+});
+
+test('confirmationToReport marks itself so the history timeline never diffs it', () => {
+  const rep = M.confirmationToReport({
+    contributorId: s('c1'), createdAt: { timestampValue: '2026-06-01T00:00:00Z' },
+    confirmedEntry: { doubleValue: 60000 }, confirmedTop: { doubleValue: 90000 }
+  });
+  assert.strictEqual(rep.confirmation, true);
+});
+
+test('a promoted department keeps the working conditions it was submitted with', () => {
+  const rows = [row({
+    name: s('Testville Fire Department'), city: s('Testville'), county: s('Cooke'), zip: s('78701'),
+    civilService: { booleanValue: true },
+    proposedValues: { mapValue: { fields: {
+      entry: { doubleValue: 58000 }, schedule: s('24/72'), hoursAnnual: { doubleValue: 2184 }
+    } } }
+  }, '2026-08-01T00:00:00Z')];
+  const out = M.promoteDepartments(rows, SEED_DEPTS, ZIPS);
+  const dept = out.departments[0];
+  assert.strictEqual(dept.scheduleType, '24/72');
+  assert.strictEqual(dept.annualScheduledHours, 2184);
+  assert.strictEqual(dept.civilService, true);
+});
+
+test('a submission that only dates the existing figures survives export', () => {
+  const rep = M.toReport({
+    contributorId: s('u1'), submittedAt: { timestampValue: '2026-08-01T00:00:00Z' },
+    proposedValues: { mapValue: { fields: { effectiveDate: s('2026-10-01') } } }
+  });
+  assert.ok(rep, 'an effective-date-only report should not be dropped');
+  assert.strictEqual(rep.effectiveDate, '2026-10-01');
+  assert.strictEqual(rep.entry, null); // carries no figure, so it joins no consensus cluster
+});

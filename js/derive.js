@@ -146,6 +146,21 @@
     out.planNotes = s.planNotes || null;
     out.includesFlsaOvertime = !!s.includesFlsaOvertime;
     out.effectiveDate = s.effectiveDate || null;
+    // An ordinary submission's effective date supersedes the seed's historical
+    // one, on the same principle applyStepPlan uses for step tables: community
+    // data beats starter data. The comparison against effectiveDateAt keeps a
+    // newer step plan's date from being undone by an older single-figure
+    // report — whichever date was CLAIMED most recently wins, and the seed
+    // (which carries no claim date at all) always loses to a real submission.
+    var datedReports = (s.reports || []).concat(extraReports || [])
+      .filter(function (r) { return r && r.effectiveDate; })
+      .sort(function (a, b) { return (toMs(b.submittedAt) || 0) - (toMs(a.submittedAt) || 0); });
+    if (datedReports.length) {
+      var claimedAt = toMs(s.effectiveDateAt);
+      if (claimedAt == null || (toMs(datedReports[0].submittedAt) || 0) >= claimedAt) {
+        out.effectiveDate = datedReports[0].effectiveDate;
+      }
+    }
     out.sourceType = s.sourceType || null;
     out.sourceUrl = s.sourceUrl || null;
     // Fall back to the newest report that carries a link. Must come AFTER the
@@ -291,7 +306,10 @@
     out.lastUpdated = newest || null;
     out.newestSubmission = newest || null;
     out.oldestCurrent = current ? current.oldest : null;
-    out.freshness = C.freshnessBucket(newest, { now: now, effectiveMs: toMs(s.effectiveDate) });
+    // out.effectiveDate, not s.effectiveDate: an "Upcoming pay plan" announced
+    // through an ordinary submission has to be recognized as upcoming too, not
+    // only one that arrived attached to a full step plan.
+    out.freshness = C.freshnessBucket(newest, { now: now, effectiveMs: toMs(out.effectiveDate) });
     // hasSalary if there's a seed plan OR any live consensus figure came through —
     // a department that's never had any salary data reported stays "needed".
     out.hasSalary = hasSteps || out.entry != null || out.topBase != null || out.midpoint != null ||

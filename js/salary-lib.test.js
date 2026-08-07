@@ -383,3 +383,62 @@ test('flagFigure is null-safe and ignores non-numeric input', () => {
   assert.deepStrictEqual(L.flagFigure('Entry pay', null, 60000), []);
   assert.deepStrictEqual(L.flagFigure('Entry pay', undefined, 60000), []);
 });
+
+test('describeRevisionChanges reports a move onto a new effective date', () => {
+  const changes = L.describeRevisionChanges(
+    { entry: 62000, effectiveDate: '2026-10-01' },
+    { entry: 62000, effectiveDate: '2025-01-01' }
+  );
+  assert.deepStrictEqual(changes, [{ label: 'Effective date', from: '2025-01-01', to: '2026-10-01', kind: 'text' }]);
+});
+
+test('describeRevisionChanges stays quiet when the effective date is unchanged', () => {
+  const changes = L.describeRevisionChanges(
+    { entry: 62000, effectiveDate: '2026-10-01' },
+    { entry: 62000, effectiveDate: '2026-10-01' }
+  );
+  assert.deepStrictEqual(changes, []);
+});
+
+// ── Supplemental removal ────────────────────────────────────────────────────
+// A prefilled row the contributor deletes publishes a removal marker; without
+// this, consolidation would keep showing the item because "not mentioned" and
+// "explicitly withdrawn" looked identical.
+test('consolidateSupplemental drops an item whose newest word is a removal', () => {
+  const out = L.consolidateSupplemental([
+    { submittedAt: '2026-01-01', supplemental: [{ type: 'longevity', amount: 900, unit: 'yr' }] },
+    { submittedAt: '2026-06-01', supplemental: [{ type: 'longevity', removed: true }] }
+  ]);
+  assert.deepStrictEqual(out, []);
+});
+
+test('consolidateSupplemental ignores a removal that a newer report contradicts', () => {
+  const out = L.consolidateSupplemental([
+    { submittedAt: '2026-01-01', supplemental: [{ type: 'longevity', removed: true }] },
+    { submittedAt: '2026-06-01', supplemental: [{ type: 'longevity', amount: 1200, unit: 'yr' }] }
+  ]);
+  assert.strictEqual(out.length, 1);
+  assert.strictEqual(out[0].amount, 1200);
+});
+
+test('removing one supplemental item leaves the others alone', () => {
+  const out = L.consolidateSupplemental([
+    { submittedAt: '2026-01-01', supplemental: [
+      { type: 'longevity', amount: 900, unit: 'yr' },
+      { type: 'emt', amount: 600, unit: 'yr' }
+    ] },
+    { submittedAt: '2026-06-01', supplemental: [{ type: 'longevity', removed: true }] }
+  ]);
+  assert.deepStrictEqual(out.map(x => x.type), ['emt']);
+});
+
+test('an "other" removal only withdraws the item with that name', () => {
+  const out = L.consolidateSupplemental([
+    { submittedAt: '2026-01-01', supplemental: [
+      { type: 'other', label: 'Hazmat team stipend', amount: 1000, unit: 'yr' },
+      { type: 'other', label: 'Dive team pay', amount: 800, unit: 'yr' }
+    ] },
+    { submittedAt: '2026-06-01', supplemental: [{ type: 'other', label: 'Dive team pay', removed: true }] }
+  ]);
+  assert.deepStrictEqual(out.map(x => x.label), ['Hazmat team stipend']);
+});

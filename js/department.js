@@ -239,7 +239,11 @@
   function renderHistory() {
     var host = document.getElementById('salary-history');
     if (!host) return;
-    var reports = ((dept.salary && dept.salary.reports) || []).slice().filter(function (r) { return r.entry != null && r.submittedAt; });
+    // Confirmations are excluded: they carry whatever was on the page at the
+    // time, so plotting them adds points that restate the current figure as if
+    // it had been reported again. This chart is about what people reported.
+    var reports = ((dept.salary && dept.salary.reports) || []).slice()
+      .filter(function (r) { return r.entry != null && r.submittedAt && !r.confirmation; });
     reports.sort(function (a, b) { return Date.parse(a.submittedAt) - Date.parse(b.submittedAt); });
     var pts = reports.map(function (r) { return { t: Date.parse(r.submittedAt), entry: r.entry, top: r.top, when: r.submittedAt }; });
     host.innerHTML = pts.length >= 2 ? chartSVG(pts) : '';
@@ -271,7 +275,10 @@
   }
 
   // ---- Community confidence panel + actions ----
-  var DISPUTE_FIELDS = [['entry', 'Entry pay'], ['midpoint', 'Midpoint pay'], ['top', 'Top pay']];
+  // Recruit pay belongs here too: scripts/export-overlay.js has always counted
+  // and reverted recruit disputes, but the picker never offered the field, so
+  // the one figure nobody could challenge was the academy rate.
+  var DISPUTE_FIELDS = [['entry', 'Entry pay'], ['midpoint', 'Midpoint pay'], ['top', 'Top pay'], ['recruit', 'Recruit / academy pay']];
 
   function renderConfidence() {
     var host = document.getElementById('confidence-panel');
@@ -337,7 +344,12 @@
   function sideAlert(title, body) {
     return '<div class="confidence-side-alert"><span class="alert-dot" aria-hidden="true"></span><div><strong>' + UI.esc(title) + '</strong><p>' + UI.esc(body) + '</p></div></div>';
   }
-  function fieldValue(field) { return field === 'top' ? summary.topBase : field === 'midpoint' ? summary.midpoint : summary.entry; }
+  function fieldValue(field) {
+    if (field === 'top') return summary.topBase;
+    if (field === 'midpoint') return summary.midpoint;
+    if (field === 'recruit') return summary.recruit;
+    return summary.entry;
+  }
 
   // ---- Revision history (public; no emails) ----
   var REV_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -375,12 +387,33 @@
     };
     return changes.map(function (c) {
       var to = fmt(c.to, c.kind);
+      var from = c.from == null ? null : fmt(c.from, c.kind);
+      // Sub-dollar corrections are real, and the seed import is full of figures
+      // like $76,208.01 — but rounded to whole dollars they render as
+      // "$76,208 → $76,208", which reads as a site bug rather than a one-cent
+      // change. When the two sides would look identical, show the cents that
+      // actually moved instead of hiding them.
+      if (c.kind === 'money' && from != null && from === to) {
+        from = Lib.fmtMoney(c.from, { cents: true });
+        to = Lib.fmtMoney(c.to, { cents: true });
+      }
       var body = (c.from == null) ? to
-        : '<span class="rv-old">' + fmt(c.from, c.kind) + '</span> → ' + to;
+        : '<span class="rv-old">' + from + '</span> → ' + to;
       // A long schedule string would blow out the inline chip row.
       var cls = c.kind === 'text' ? ' class="chg-text"' : '';
       return '<span' + cls + '><small>' + UI.esc(c.label) + '</small>' + body + '</span>';
     }).join('');
+  }
+
+  // What a "This looks correct" click actually agreed with — the figures that
+  // were on the page at the time. Shown plainly, with no old → new arrow,
+  // because a confirmation changes nothing.
+  var CONFIRMED_FIELDS = [['entry', 'Entry pay'], ['midpoint', 'Midpoint pay'], ['top', 'Top pay']];
+  function confirmedChips(r) {
+    var chips = CONFIRMED_FIELDS.filter(function (f) { return r[f[0]] != null; })
+      .map(function (f) { return '<span><small>' + UI.esc(f[1]) + '</small>' + UI.money(r[f[0]]) + '</span>'; });
+    if (!chips.length) return '<span class="muted" style="font-size:var(--fs-sm)">Agreed with the figures shown</span>';
+    return chips.join('');
   }
 
   // A link to the evidence THIS revision was submitted with. An uploaded file
@@ -399,6 +432,19 @@
     var reports = ((dept.salary && dept.salary.reports) || []).slice();
     if (!reports.length) { host.innerHTML = ''; return; }
     reports.sort(function (a, b) { return Date.parse(b.submittedAt) - Date.parse(a.submittedAt); });
+    // A revision is diffed against the previous REPORT, skipping confirmations:
+    // a confirmation holds the figures that were on the page when it was made,
+    // so letting one sit in the chain made the next real submission's diff
+    // measure against the displayed consensus instead of against the last thing
+    // anyone actually reported.
+    var prevReport = function (i) {
+      for (var j = i + 1; j < reports.length; j++) { if (!reports[j].confirmation) return reports[j]; }
+      return null;
+    };
+    // The earliest genuine report is the one whose figures are all "first
+    // reported"; a confirmation older than it is not.
+    var firstReportIdx = -1;
+    reports.forEach(function (r, i) { if (!r.confirmation) firstReportIdx = i; });
     // Only the CURRENT full pay-step plan is retained (see export-overlay.js's
     // extractStepPlans — no per-revision step history yet), so a link to it only
     // makes sense on the current entry, not on superseded ones below.
@@ -408,21 +454,26 @@
       '<div class="history-timeline">' +
       reports.map(function (r, i) {
         var isCurrent = i === 0;
-        var type = r.adminCorrection ? 'Admin correction' : r.departmentMaintained ? 'Department representative' : 'Community contributor';
+        var type = r.confirmation ? 'Community confirmation'
+          : r.adminCorrection ? 'Admin correction'
+          : r.departmentMaintained ? 'Department representative' : 'Community contributor';
         var when = revDate(r.submittedAt);
-        // Diffed against the NEXT entry, which is the one before it in time
-        // (the list is newest-first). The oldest revision has no predecessor,
-        // so everything it carries reads as added.
-        var changes = Lib.describeRevisionChanges(r, reports[i + 1] || null);
+        // Diffed against the previous report in time (the list is newest-first).
+        // The oldest report has no predecessor, so everything it carries reads
+        // as added. A confirmation reported nothing, so it is never diffed —
+        // it is shown for what it is, with the figures the person agreed with.
+        var changes = r.confirmation ? [] : Lib.describeRevisionChanges(r, prevReport(i));
+        var headline = r.confirmation ? 'Confirmed the figures shown' : revisionHeadline(changes, i === firstReportIdx);
+        var body = r.confirmation ? confirmedChips(r) : changeChips(changes);
         return '<div class="history-card">' +
           '<div class="history-date"><strong>' + when.m + '</strong><span>' + when.y + '</span></div>' +
           '<div class="history-line"><i aria-hidden="true"></i></div>' +
           '<div class="history-details' + (isCurrent ? '' : ' superseded') + '">' +
-            '<div class="history-title"><div><strong>' + revisionHeadline(changes, i === reports.length - 1) + '</strong><span>' + type + '</span></div>' +
+            '<div class="history-title"><div><strong>' + headline + '</strong><span>' + type + '</span></div>' +
               '<span class="' + (isCurrent ? 'history-current-pill' : 'history-superseded-pill') + '">' + (isCurrent ? 'Current' : 'Superseded') + '</span>' +
             '</div>' +
             '<div class="history-values">' +
-              changeChips(changes) +
+              body +
               // This revision's OWN source, not the step plan's — payPlanLink
               // reads summary.sourceUrl, so every card used to link the same
               // document regardless of which submission it came from.

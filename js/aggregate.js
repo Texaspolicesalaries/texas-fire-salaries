@@ -14,6 +14,11 @@
 
   var Derive = (typeof window !== 'undefined' && window.FireDerive) ||
     (typeof require === 'function' && require('./derive.js'));
+  // Needed for consolidateSupplemental in applySupplementalFlags. Every page
+  // that loads this file loads salary-lib.js before it (see DEPT_SCRIPTS in
+  // scripts/build-site.js and the script order in the root pages).
+  var Lib = (typeof window !== 'undefined' && window.FireSalaryLib) ||
+    (typeof require === 'function' && require('./salary-lib.js'));
 
   function toMs(d) {
     if (d == null || d === '') return null;
@@ -68,6 +73,9 @@
       reportedMidpoint: reportedMidpoint,
       contributorId: sub.contributorId || null,
       submittedAt: toMs(sub.submittedAt),
+      // Kept in step with scripts/export-overlay.js's toReport() so the live
+      // and static paths agree on a department's effective date.
+      effectiveDate: (sub.plan && sub.plan.effectiveDate) || pv.effectiveDate || null,
       hasSource: !!(sub.sourceUrl || sub.sourceFile),
       departmentMaintained: sub.contributorType === 'department'
     };
@@ -103,6 +111,10 @@
     // disputed notice once at least one flag exists but hasn't reached the
     // revert threshold yet (scripts/export-overlay.js's extractStepPlans).
     salary.stepPlanId = stepPlan.id || null;
+    // WHEN this plan's effective date was claimed, so js/derive.js can tell it
+    // apart from a later ordinary submission's effective date rather than
+    // letting whichever it happens to see last win.
+    salary.effectiveDateAt = stepPlan.submittedAt || null;
     salary.stepPlanDisputed = !!stepPlan.disputed;
     salary.stepPlanDisputeCount = stepPlan.disputeCount || 0;
     if (stepPlan.classification) salary.classification = stepPlan.classification;
@@ -164,14 +176,18 @@
   function applySupplementalFlags(dept) {
     var reports = (dept.salary && dept.salary.reports) || [];
     var hasCert = false, hasEdu = false, hasLongevity = false, hasMedic = false;
-    reports.forEach(function (r) {
-      (r.supplemental || []).forEach(function (s) {
-        if (!s || !s.type) return;
-        if (CERT_PAY_TYPES.indexOf(s.type) !== -1) hasCert = true;
-        else if (EDU_PAY_TYPES.indexOf(s.type) !== -1) hasEdu = true;
-        else if (s.type === 'longevity') hasLongevity = true;
-        else if (s.type === 'paramedic-incentive') hasMedic = true;
-      });
+    // Read off the CONSOLIDATED list rather than every raw report. An item
+    // mentioned once still stays true going forward — consolidation keeps the
+    // newest entry per pay type and never drops a type nobody mentioned again —
+    // but an item a contributor has since removed stops setting its filter flag,
+    // instead of the department staying in "has longevity pay" results forever
+    // on the strength of a report that has been withdrawn.
+    Lib.consolidateSupplemental(reports).forEach(function (s) {
+      if (!s || !s.type) return;
+      if (CERT_PAY_TYPES.indexOf(s.type) !== -1) hasCert = true;
+      else if (EDU_PAY_TYPES.indexOf(s.type) !== -1) hasEdu = true;
+      else if (s.type === 'longevity') hasLongevity = true;
+      else if (s.type === 'paramedic-incentive') hasMedic = true;
     });
     if (!hasCert && !hasEdu && !hasLongevity && !hasMedic) return dept;
     var d = Object.assign({}, dept);

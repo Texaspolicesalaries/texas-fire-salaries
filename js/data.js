@@ -188,6 +188,7 @@
           reportedMidpoint: reportedMidpoint,
           contributorId: d.contributorId,
           submittedAt: toMs(d.submittedAt),
+          effectiveDate: (d.plan && d.plan.effectiveDate) || pv.effectiveDate || null,
           hasSource: !!(d.sourceUrl || d.sourceFile),
           departmentMaintained: d.contributorType === 'department'
         });
@@ -222,6 +223,7 @@
           midpoint: midpoint,
           contributorId: cid,
           submittedAt: toMs(d.createdAt),
+          confirmation: true,   // see confirmationToReport() in scripts/export-overlay.js
           hasSource: false,
           departmentMaintained: false
         });

@@ -143,13 +143,18 @@ function consolidateSupplemental(reports) {
     ((r && r.supplemental) || []).forEach(function (s) {
       if (!s || !s.type) return;
       var amount = parseMoney(s.amount);
-      if (amount == null) return;
+      // A removal carries no amount — it is a contributor saying this
+      // department does not pay this item, which has to win over an older
+      // report of it the same way a corrected figure does.
+      if (amount == null && !s.removed) return;
       var key = supplementalKey(s.type, s.label);
       var cur = best[key];
-      if (!cur || at >= cur.at) best[key] = { type: s.type, label: s.label || undefined, amount: amount, unit: s.unit || 'yr', at: at };
+      if (!cur || at >= cur.at) best[key] = { type: s.type, label: s.label || undefined, amount: amount, unit: s.unit || 'yr', at: at, removed: !!s.removed };
     });
   });
   return Object.keys(best)
+    // Items whose most recent word on the subject was "this is not paid here".
+    .filter(function (k) { return !best[k].removed; })
     .sort(function (a, b) {
       var ia = SUPPLEMENTAL_ORDER.indexOf(best[a].type), ib = SUPPLEMENTAL_ORDER.indexOf(best[b].type);
       var da = (ia === -1 ? 999 : ia), db = (ib === -1 ? 999 : ib);
@@ -215,6 +220,14 @@ function describeRevisionChanges(newer, older) {
   if (nHours != null) {
     var oHours = older ? parseNumber(older.hoursAnnual) : null;
     if (oHours !== nHours) out.push({ label: 'Scheduled annual hours', from: oHours, to: nHours, kind: 'count' });
+  }
+  // The effective date is a change in its own right — a revision that moves a
+  // department onto its 2026 pay plan is exactly what a reader scanning this
+  // timeline is looking for, and it read as "No figures changed" before.
+  var nEff = newer.effectiveDate || null;
+  if (nEff) {
+    var oEff = (older && older.effectiveDate) || null;
+    if (oEff !== nEff) out.push({ label: 'Effective date', from: oEff, to: nEff, kind: 'text' });
   }
   var nSupp = ((newer.supplemental) || []).length;
   var oSupp = older ? ((older.supplemental) || []).length : 0;

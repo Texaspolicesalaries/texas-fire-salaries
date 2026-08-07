@@ -21,6 +21,9 @@ const path = require('path');
 // every document including ones written before that validation existed, and
 // Firestore rules don't constrain URL shape at all.
 const { safeUrl } = require('../js/salary-lib.js');
+// The same tolerance the consensus engine clusters with — disputes have to be
+// matched the way values are grouped, not by exact equality. See disputeCountFor.
+const { valuesMatch } = require('../js/consensus.js');
 
 const ROOT = path.resolve(__dirname, '..');
 const OUT = path.join(ROOT, 'data', 'overlay.json');
@@ -100,10 +103,20 @@ function toReport(fields) {
   const schedule = plan.schedule || fv(pv.schedule) || undefined;
   const hoursRaw = plan.hoursAnnual != null ? plan.hoursAnnual : fv(pv.hoursAnnual);
   const hoursAnnual = hoursRaw == null || hoursRaw === '' ? undefined : Number(hoursRaw);
-  // A submission that changes ONLY working conditions is still a real
-  // contribution; returning null here dropped it entirely.
+  // The effective date the form REQUIRES alongside any pay figure. It was
+  // collected, validated, and stored faithfully — and then dropped right here,
+  // so a department went on showing its seed effective date no matter how many
+  // current figures arrived. Plan mode carries it on `plan`, every other mode on
+  // `proposedValues`; both are read so the submission's mode doesn't matter.
+  const effectiveDate = plan.effectiveDate || fv(pv.effectiveDate) || undefined;
+  // A submission that changes ONLY working conditions — or only says when the
+  // figures already on file took effect — is still a real contribution;
+  // returning null here dropped it entirely. An effective-date-only report
+  // carries no figure, so it never joins a consensus cluster or counts toward
+  // the contributor total; it exists so derive.js can pick the date up and the
+  // history timeline can show who supplied it.
   if (entry == null && top == null && midpoint == null && recruit == null && reportedEntry == null && reportedTop == null && reportedMidpoint == null
-      && !(supplemental && supplemental.length) && !schedule && !(hoursAnnual > 0)) return null;
+      && !(supplemental && supplemental.length) && !schedule && !(hoursAnnual > 0) && !effectiveDate) return null;
   return {
     contributorId: fv(fields.contributorId) || null,
     submittedAt: isoDay(fields.submittedAt && fields.submittedAt.timestampValue) || isoDay(Date.now()),
@@ -117,6 +130,7 @@ function toReport(fields) {
     supplemental,
     schedule,
     hoursAnnual,
+    effectiveDate,
     // The LINK itself, not just the fact that one exists. Keeping only the
     // boolean meant a contributor could paste their department's official pay
     // page and the site would still render "Source supplied: No" — the evidence
@@ -151,6 +165,13 @@ function confirmationToReport(fields) {
     contributorId: fv(fields.contributorId) || null,
     submittedAt: isoDay(fields.createdAt && fields.createdAt.timestampValue) || isoDay(Date.now()),
     entry, top, midpoint,
+    // Marks this as a "This looks correct" click rather than a reported figure.
+    // It joins the consensus pool either way, but js/department.js's revision
+    // timeline must not diff it against the report before it: a confirmation
+    // carries the figures DISPLAYED at the time, so diffing produced phantom
+    // revisions — "Added top pay $90,000", credited to someone who only clicked
+    // a button and reported nothing.
+    confirmation: true,
     hasSource: false,
     departmentMaintained: false
   };
@@ -164,13 +185,40 @@ function confirmationToReport(fields) {
 // submissions, not one). Suppresses only the specific field that hit the
 // threshold on each report — a report's other fields (e.g. its own top pay,
 // if the dispute was against entry) are left untouched.
-function applyValueDisputes(reports, slug, disputeCounts, threshold) {
+// How many DISTINCT contributors have disputed a value that belongs to the same
+// consensus cluster as `value`.
+//
+// Matching by the clustering tolerance rather than by exact equality is what
+// makes a dispute work at all on a figure backed by more than one report. The
+// page displays the cluster MEAN (js/consensus.js's clusterValues), so the
+// number a visitor sees — and therefore the number js/department.js records as
+// `disputedValue` — is routinely a number no individual report holds: two
+// reports of $60,000 and $60,500 display as $60,250. Keyed on exact equality,
+// any number of people disputing that displayed figure suppressed nothing at
+// all, silently, which made the whole "report incorrect information" path
+// inoperative on exactly the departments with the most reports behind them.
+//
+// Flagger sets are unioned rather than counts summed, so one person disputing
+// both $60,000 and $60,500 still counts once toward the revert threshold.
+function disputeCountFor(disputes, slug, field, value) {
+  if (value == null || !disputes) return 0;
+  const entries = disputes.get(`${slug}|${field}`);
+  if (!entries) return 0;
+  const flaggers = new Set();
+  entries.forEach(e => {
+    if (!valuesMatch(e.value, value)) return;
+    e.flaggers.forEach(f => flaggers.add(f));
+  });
+  return flaggers.size;
+}
+
+function applyValueDisputes(reports, slug, disputes, threshold) {
   threshold = threshold == null ? DISPUTE_REVERT_THRESHOLD : threshold;
   return reports.map(r => {
     const out = Object.assign({}, r);
     ['entry', 'midpoint', 'top', 'recruit'].forEach(field => {
       if (out[field] == null) return;
-      const count = disputeCounts.get(`${slug}|${field}|${out[field]}`) || 0;
+      const count = disputeCountFor(disputes, slug, field, out[field]);
       if (count >= threshold) out[field] = null;
       else if (count > 0) out[field + 'DisputeCount'] = count;
     });
@@ -404,19 +452,25 @@ async function countValueDisputes(baseUrl) {
   if (!res.ok) throw new Error('Firestore REST ' + res.status + ': ' + (await res.text()).slice(0, 300));
   const rows = await res.json();
   if (rows && rows.error) throw new Error(rows.error.status + ' ' + rows.error.message);
-  const flaggers = {}; // "slug|field|value" -> Set(contributorId)
+  // "slug|field" -> [{ value, flaggers:Set }], one entry per distinct disputed
+  // value. Grouped by field rather than by exact value so disputeCountFor() can
+  // gather every dispute that falls inside a report's consensus cluster.
+  const byField = new Map();
   (Array.isArray(rows) ? rows : []).forEach(r => {
     if (!r.document || !r.document.fields) return;
     const f = r.document.fields;
-    const slug = fv(f.departmentSlug), field = fv(f.field), value = fv(f.disputedValue);
-    if (!slug || !field || value == null) return;
-    const key = `${slug}|${field}|${value}`;
-    const flagger = fv(f.contributorId) || Math.random();
-    (flaggers[key] = flaggers[key] || new Set()).add(flagger);
+    const slug = fv(f.departmentSlug), field = fv(f.field), raw = fv(f.disputedValue);
+    if (!slug || !field || raw == null) return;
+    const value = money(raw);
+    if (value == null) return;
+    const key = `${slug}|${field}`;
+    const entries = byField.get(key) || [];
+    let entry = entries.find(e => e.value === value);
+    if (!entry) { entry = { value, flaggers: new Set() }; entries.push(entry); }
+    entry.flaggers.add(fv(f.contributorId) || Math.random()); // anonymous flags each still count once
+    byField.set(key, entries);
   });
-  const counts = new Map();
-  Object.keys(flaggers).forEach(key => counts.set(key, flaggers[key].size));
-  return counts;
+  return byField;
 }
 
 // Public-read per firestore.rules (confirmations: allow read: if true).
@@ -624,9 +678,9 @@ function computeActiveClaimants(claims, subRows, now, thresholdMonths) {
 // bounded boost, nowhere near department-maintained's outright override.
 const MIN_TRUSTED_REPORTS = 3;
 const MIN_TRUSTED_DEPARTMENTS = 2;
-function computeTrustedContributors(subRows, disputeCounts, opts) {
+function computeTrustedContributors(subRows, disputes, opts) {
   opts = opts || {};
-  disputeCounts = disputeCounts || new Map();
+  disputes = disputes || new Map();
   const minReports = opts.minReports == null ? MIN_TRUSTED_REPORTS : opts.minReports;
   const minDepartments = opts.minDepartments == null ? MIN_TRUSTED_DEPARTMENTS : opts.minDepartments;
   const threshold = opts.disputeThreshold == null ? DISPUTE_REVERT_THRESHOLD : opts.disputeThreshold;
@@ -643,7 +697,7 @@ function computeTrustedContributors(subRows, disputeCounts, opts) {
     const entry = byContributor.get(contributorId) || { depts: new Set(), reports: 0, disqualified: false };
     ['entry', 'top', 'midpoint', 'recruit'].forEach(field => {
       if (rep[field] == null) return;
-      if ((disputeCounts.get(`${slug}|${field}|${rep[field]}`) || 0) >= threshold) entry.disqualified = true;
+      if (disputeCountFor(disputes, slug, field, rep[field]) >= threshold) entry.disqualified = true;
     });
     entry.depts.add(slug);
     entry.reports++;
@@ -780,6 +834,16 @@ function promoteDepartments(rows, seedDepts, zips) {
     // minted above so main() can fold it into the normal report/step-plan pools.
     const rep = toReport(f);
     if (rep) reports[slug] = [rep];
+    // Working conditions and the civil-service answer come in on the SAME form
+    // as a new department's pay, but extractDeptFacts/extractCivilService only
+    // scan `submissions` — and this record is a department_request, so
+    // everything the founding contributor said about the department itself was
+    // dropped and the page published with a blank schedule and no hours, which
+    // also left its effective-hourly figures resting on the 2,912 assumption.
+    if (rep && rep.schedule) dept.scheduleType = String(rep.schedule);
+    if (rep && rep.hoursAnnual > 0) dept.annualScheduledHours = rep.hoursAnnual;
+    const civil = fv(f.civilService);
+    if (civil === true || civil === false) dept.civilService = civil;
     const plan = stepPlanFromDoc(r.document);
     if (plan) stepPlans[slug] = Object.assign({}, plan, { disputeCount: 0, disputed: false });
     // Only an actual pay figure flips this, matching scripts/import-sheet.js's
@@ -858,11 +922,11 @@ async function main() {
   // suppressed this run. Hoisted (not `const` inside the try) so
   // computeTrustedContributors below can reuse the same fetched counts rather
   // than querying disputes twice.
-  let valueDisputeCounts = new Map();
+  let valueDisputes = new Map();
   try {
-    valueDisputeCounts = await countValueDisputes(url);
+    valueDisputes = await countValueDisputes(url);
     Object.keys(reports).forEach(slug => {
-      reports[slug] = applyValueDisputes(reports[slug], slug, valueDisputeCounts);
+      reports[slug] = applyValueDisputes(reports[slug], slug, valueDisputes);
     });
   } catch (e) {
     console.warn('[export-overlay] entry/top/midpoint dispute lookup failed (treating none as disputed):', e.message);
@@ -926,7 +990,7 @@ async function main() {
   // dispute counts already fetched above, so this costs zero extra reads.
   let trustedContributorIds = new Set();
   try {
-    trustedContributorIds = computeTrustedContributors(subRows, valueDisputeCounts, { suspendedIds: new Set(suspendedContributorIds) });
+    trustedContributorIds = computeTrustedContributors(subRows, valueDisputes, { suspendedIds: new Set(suspendedContributorIds) });
     Object.keys(reports).forEach(slug => {
       reports[slug].forEach(rep => { rep.trusted = !!(rep.contributorId && trustedContributorIds.has(rep.contributorId)); });
     });

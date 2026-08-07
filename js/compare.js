@@ -156,7 +156,7 @@
     rows += careerRow('5-year career earnings', depts, 5);
     rows += careerRow('10-year career earnings', depts, 10);
     rows += careerRow('20-year career earnings', depts, 20);
-    rows += plainRowD('Shift schedule', depts, function (d) { return d.scheduleType || '—'; });
+    rows += plainRowD('Shift schedule', depts, function (d) { return UI.esc(d.scheduleType || '—'); });
     rows += flagRow('Paramedic incentive', depts, 'paramedicIncentive');
     rows += flagRow('Certification pay', depts, 'certPay');
     rows += flagRow('Education pay', depts, 'educationPay');

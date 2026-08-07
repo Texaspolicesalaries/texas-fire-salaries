@@ -36,6 +36,13 @@
     };
   }
 
+  // Sorts whose LABEL already names a direction ("Most recently updated", "Most
+  // confirmations"). They have to open descending or the label is simply wrong:
+  // picking "Most confirmations" kept the global Low→High toggle and led with
+  // the departments nobody had confirmed.
+  var DESC_BY_DEFAULT = { updated: true, confirmations: true };
+  function defaultDirFor(sort) { return DESC_BY_DEFAULT[sort] ? 'desc' : 'asc'; }
+
   function fromURL(search) {
     var p = new URLSearchParams(search || window.location.search);
     var st = defaults();
@@ -45,6 +52,9 @@
       if (typeof st[k] === 'boolean') st[k] = (v === '1' || v === 'true');
       else st[k] = v;
     });
+    // A shared link that names only the sort (?sort=confirmations) gets that
+    // sort's natural direction; an explicit &dir= in the URL still wins.
+    if (p.has('sort') && !p.has('dir')) st.dir = defaultDirFor(st.sort);
     return st;
   }
 
@@ -174,7 +184,13 @@
       switch (sort) {
         case 'entry': return num2(s.entry);
         case 'top': return num2(s.topBase);
-        case 'ytt': return num2(s.yearsToTop);
+        // A single-rate plan's "0 years to top" is an artefact of having one step
+        // on file, not a department where everyone starts at top pay. Ranked as a
+        // number it put departments with NO progression data above one with a
+        // documented 1-year progression, so it sorts as unknown (last) instead.
+        // The detail page keeps showing 0 with its "Single-rate plan reported"
+        // caption — this is about ranking, not about hiding what was reported.
+        case 'ytt': return s.singleRatePlan ? null : num2(s.yearsToTop);
         case 'hourly': return num2(s.effectiveHourlyEntry);
         case 'updated': return num2(s.lastUpdated);
         case 'confirmations': return num2(s.contributors);
@@ -213,7 +229,7 @@
   window.FireFilters = {
     KEYS: KEYS,
     defaults: defaults,
-    fromURL: fromURL,
+    fromURL: fromURL, defaultDirFor: defaultDirFor,
     toParams: toParams,
     toQueryString: toQueryString,
     syncURL: syncURL,

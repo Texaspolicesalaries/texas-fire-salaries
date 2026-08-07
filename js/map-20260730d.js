@@ -245,7 +245,9 @@
       row('Entry FF', UI.money(s.entry)) +
       row('Top FF', UI.money(s.topBase)) +
       row('Years to top', s.yearsToTop != null ? s.yearsToTop + ' yr' : '—') +
-      row('Schedule', d.scheduleType || '—')
+      // Contributor-supplied free text (the described "Other / modified"
+      // schedule), so it is escaped before it reaches the popup's innerHTML.
+      row('Schedule', UI.esc(d.scheduleType || '—'))
     ) : '<p class="needs-data" style="margin:.3rem 0">Salary information needed.</p>';
     return '<div class="map-popup">' +
       '<strong>' + UI.esc(d.name) + '</strong><div class="muted" style="font-size:.8rem">' + UI.esc(d.city) + ', ' + UI.esc(d.county) + ' Co.' + (dist != null ? ' · ' + (Math.round(dist * 10) / 10) + ' mi' : '') + '</div>' +

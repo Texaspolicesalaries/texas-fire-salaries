@@ -158,7 +158,7 @@ function departmentPage(dept) {
   const typeLabel = TYPE_LABELS[dept.departmentType] || 'Fire department';
   const title = `${dept.name} Salary and Pay Scale | Texas Fire Salaries`;
   const desc = s.hasSalary
-    ? `Community-reported ${dept.name} firefighter pay: entry ${money(s.entry)}, top ${money(s.topBase)}${s.yearsToTop != null ? `, ${s.yearsToTop} years to top` : ''}. Schedule ${dept.scheduleType || '—'}. Effective ${dept.salary.effectiveDate || 'n/a'}.`
+    ? `Community-reported ${dept.name} firefighter pay: entry ${money(s.entry)}, top ${money(s.topBase)}${s.yearsToTop != null ? `, ${s.yearsToTop} years to top` : ''}. Schedule ${dept.scheduleType || '—'}. Effective ${s.effectiveDate || 'n/a'}.`
     : `${dept.name} in ${dept.city}, ${dept.county} County. Firefighter salary information has not yet been submitted — help the community by adding it.`;
 
   const cards = s.hasSalary ? salaryCards(s) : '';
@@ -166,7 +166,7 @@ function departmentPage(dept) {
   // Only render the step table when there are 3+ distinct steps; a flat/2-tier
   // plan is already conveyed by the summary cards (avoids a thin, redundant table).
   const stepTable = (s.hasSalary && s.steps && s.steps.length >= 3) ? payStepTable(s) : '';
-  const facts = detailsBlock(dept);
+  const facts = detailsBlock(dept, s);
   const badges = [
     dept.departmentMaintained ? '<span class="badge-dept-maintained"><span class="chip-icon" aria-hidden="true"></span>Department maintained</span>' : '',
     confChip(s.confidence), freshChip(s.freshness)
@@ -281,8 +281,14 @@ ${heroStat}
 }
 
 function salaryCards(s) {
+  // `sub` is escaped here rather than at each call site: one of them carries the
+  // shift schedule, which has been contributor-supplied free text ever since the
+  // form grew an "Other / modified — describe" box, and an unescaped
+  // `24/72 modified"><img src=x onerror=...>` executed on every visitor's page.
+  // `val` is left raw because callers pass markup into it (e.g. `<em>yr</em>`);
+  // every value passed there is derived from a number, never from typed text.
   const card = (lab, val, sub) => (val == null ? '' :
-    `<article><span>${lab}</span><strong>${val}</strong>${sub ? `<small>${sub}</small>` : ''}</article>`);
+    `<article><span>${lab}</span><strong>${val}</strong>${sub ? `<small>${esc(sub)}</small>` : ''}</article>`);
   // An admin-locked field (js/admin.js's "Lock a field" tool) is pinned by
   // js/derive.js regardless of what community consensus would otherwise show —
   // called out here so a visitor isn't left wondering why it never changes.
@@ -295,7 +301,7 @@ function salaryCards(s) {
     ${card('Years to top pay', s.yearsToTop != null ? `${s.yearsToTop} <em>yr</em>` : null, s.singleRatePlan ? 'Single-rate plan reported' : 'Reported')}
     ${card(s.annualHoursKnown ? 'Reported annual hours' : 'Assumed annual hours',
            s.annualHours ? s.annualHours.toLocaleString() : null,
-           s.annualHoursKnown ? (s.scheduleType || '') : `${s.scheduleType ? esc(s.scheduleType) + ' — ' : ''}hours not reported`)}
+           s.annualHoursKnown ? (s.scheduleType || '') : `${s.scheduleType ? s.scheduleType + ' — ' : ''}hours not reported`)}
     ${card('Effective hourly (entry)', hourly(s.effectiveHourlyEntry),
            s.annualHoursKnown ? 'Base ÷ scheduled hours' : 'Base ÷ assumed hours')}
   </div>`;
@@ -328,7 +334,7 @@ function supplementalSection(s, dept) {
     </div>
     <p class="dept-section-intro">Community-reported pay <strong>on top of</strong> base salary — certifications, education, incentives. Eligibility varies by person, so these are never added into the base figures above.</p>
     <div class="table-scroll">
-      <table class="pay-table">
+      <table class="data pay-table">
         <thead><tr><th scope="col">Pay item</th><th class="num" scope="col">Reported amount</th><th class="num" scope="col">Per year</th></tr></thead>
         <tbody>${rows}</tbody>
       </table>
@@ -398,13 +404,21 @@ function payStepTable(s) {
 }
 function monthsLabel(m) { if (m === 0) return 'Start'; const y = Math.floor(m / 12); const mo = m % 12; return (y ? `${y} yr` : '') + (mo ? ` ${mo} mo` : '') || `${m} mo`; }
 
-function detailsBlock(dept) {
+// "2026-01-15" -> "01/15/2026", by pattern rather than by Date parsing: an ISO
+// day string parses as UTC midnight, so formatting it in local time renders the
+// previous day west of Greenwich.
+function fmtDate(iso) { const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso || ''); return m ? `${m[2]}/${m[3]}/${m[1]}` : (iso || null); }
+
+function detailsBlock(dept, s) {
   // Numeric/short facts get the big mono stat treatment (matches salary
   // cards); longer text facts (dept type, retirement system name) use the
   // smaller sans "detail-text" style instead of trying to force them into
   // the same oversized mono numerals.
   const rows = [
     ['Shift schedule', dept.scheduleType, false], ['Scheduled annual hours', dept.annualScheduledHours ? dept.annualScheduledHours.toLocaleString() : null, false],
+    // Read off the derived summary, not the seed record, so a date supplied by a
+    // community submission is the one shown.
+    ['Pay plan effective', s ? fmtDate(s.effectiveDate) : null, false],
     ['Number of stations', dept.stations, false], ['Ambulance transport', dept.transportStatus === 'transport' ? 'Transports patients' : (dept.transportStatus === 'non-transport' ? 'Non-transport' : null), true],
     ['Civil service', dept.civilService == null ? null : (dept.civilService ? 'Yes' : 'No'), false],
     ['Retirement system', dept.retirementSystem, true], ['Department type', TYPE_LABELS[dept.departmentType], true],

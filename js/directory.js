@@ -39,7 +39,19 @@
     var sel = document.getElementById('sort-select');
     if (sel) {
       sel.innerHTML = SORTS.map(function (s) { return '<option value="' + s[0] + '"' + (state.sort === s[0] ? ' selected' : '') + '>' + s[1] + '</option>'; }).join('');
-      sel.addEventListener('change', function () { state.sort = sel.value; onChange(); });
+      sel.addEventListener('change', function () {
+        state.sort = sel.value;
+        // "Most recently updated" and "Most confirmations" name their own
+        // direction, so picking one has to set it — otherwise the list opens on
+        // the oldest and least-confirmed departments, the exact opposite of the
+        // label. Other sorts keep whichever direction is already showing.
+        if (F.defaultDirFor && F.defaultDirFor(state.sort) === 'desc') {
+          state.dir = 'desc';
+          var dirBtn = document.getElementById('sort-dir');
+          if (dirBtn) setDirLabel(dirBtn);
+        }
+        onChange();
+      });
     }
     var dir = document.getElementById('sort-dir');
     if (dir) {
@@ -131,7 +143,9 @@
         '<td class="num">' + (s.hasSalary ? UI.money(s.entry) : '—') + '</td>' +
         '<td class="num">' + (s.hasSalary && s.topBase ? UI.money(s.topBase) : '—') + '</td>' +
         '<td class="num">' + (s.yearsToTop != null && s.yearsToTop > 0 ? s.yearsToTop + ' yr' : '—') + '</td>' +
-        '<td>' + (d.scheduleType || '—') + '</td>' +
+        // Contributor-supplied free text since the form began accepting a
+        // described "Other / modified" schedule — never interpolate it raw.
+        '<td>' + UI.esc(d.scheduleType || '—') + '</td>' +
         '<td>' + (s.confidence ? UI.confidenceChip(s.confidence) : '') + '</td>' +
         '<td class="num"><button class="btn btn-ghost btn-sm add-compare" data-slug="' + UI.esc(d.slug) + '" aria-label="Add ' + UI.esc(d.name) + ' to comparison">' + (CS.has(d.slug) ? '✓ Added' : '＋ Compare') + '</button></td>' +
       '</tr>';
