@@ -2,10 +2,19 @@ name = "texas-fire-salaries-refresh"
 main = "index.js"
 compatibility_date = "2026-02-24"
 
-# Cadence for the automatic refresh. Default: top of every hour.
-# Examples: "0 */6 * * *" = every 6 hours ; "0 12 * * *" = once daily at 12:00 UTC.
+# The real refresh schedule. Cloudflare honours this; GitHub's identical
+# `*/5 * * * *` in .github/workflows/refresh-and-deploy.yml does not — see the
+# header comment in index.js for the measured behaviour.
 [triggers]
-crons = ["0 * * * *"]
+crons = ["*/5 * * * *"]
 
-# The Pages deploy-hook URL is stored as a secret, not here:
-#   wrangler secret put PAGES_DEPLOY_HOOK
+# Non-secret config. Which workflow, in which repo, on which branch.
+[vars]
+GITHUB_OWNER = "Texaspolicesalaries"
+GITHUB_REPO = "texas-fire-salaries"
+WORKFLOW_FILE = "refresh-and-deploy.yml"
+GIT_REF = "main"
+
+# Secrets live in Cloudflare, never in this file:
+#   npx wrangler secret put GITHUB_TOKEN   fine-grained PAT, Actions: Read and write
+#   npx wrangler secret put TRIGGER_KEY    optional; enables the on-demand URL

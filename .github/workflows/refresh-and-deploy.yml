@@ -5,12 +5,19 @@ on:
     branches:
       - main
   schedule:
-    # Every 5 minutes — GitHub's shortest allowed interval. The job takes about a
-    # minute, so a submission normally shows up on the site within a few minutes.
-    # This is a floor, not a guarantee: GitHub delays scheduled runs under load
-    # and drops them entirely during an Actions outage. js/submit.js's success
-    # message is therefore worded not to promise a specific time — deliberately,
-    # so a CI problem never turns it into a visibly broken promise.
+    # BACKSTOP ONLY — this is not what keeps the site fresh.
+    #
+    # GitHub does not honour a 5-minute schedule. Measured 2026-08-06/07, runs
+    # from this cron actually landed every two to three HOURS, and twice failed
+    # after 15 minutes with "The job was not acquired by Runner of type hosted":
+    # high-frequency schedules get throttled and dropped. Every fast refresh in
+    # the run history came from a push, so on a day with submissions but no
+    # commits, new departments stayed invisible for hours.
+    #
+    # The real schedule now lives in workers/refresh-cron (a Cloudflare cron
+    # trigger, which does fire on time) and reaches this workflow through the
+    # workflow_dispatch trigger below. This entry is kept as a safety net for
+    # when that Worker is down or not yet deployed.
     - cron: "*/5 * * * *"
   workflow_dispatch:
 
