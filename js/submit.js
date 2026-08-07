@@ -60,6 +60,12 @@
   // Which step (if any) is currently showing a non-blocking warning awaiting a
   // second "Continue" click to confirm past it — see wireNav()/validateStep().
   var _pendingWarnStep = null;
+  // ...and the exact message they were shown. Confirming past one warning must
+  // not wave through a DIFFERENT one: fix an unrecognized ZIP into a Texas ZIP
+  // that belongs to another city and the second click would have proceeded
+  // without ever showing the mismatch, because only the step number was
+  // remembered.
+  var _pendingWarnMsg = null;
 
   document.addEventListener('DOMContentLoaded', function () {
     D.load().then(function () {
@@ -334,9 +340,15 @@
     // click that triggered it).
     var next = document.getElementById('wiz-next'); if (next) next.onclick = function () {
       var result = validateStep();
-      if (result === false) { _pendingWarnStep = null; return; }
-      if (result === 'warn' && _pendingWarnStep !== st.step) { _pendingWarnStep = st.step; return; }
-      _pendingWarnStep = null;
+      if (result === false) { _pendingWarnStep = null; _pendingWarnMsg = null; return; }
+      if (result === 'warn') {
+        var shown = (document.getElementById('form-status') || {}).textContent || '';
+        if (_pendingWarnStep !== st.step || _pendingWarnMsg !== shown) {
+          _pendingWarnStep = st.step; _pendingWarnMsg = shown;
+          return;
+        }
+      }
+      _pendingWarnStep = null; _pendingWarnMsg = null;
       goStep(st.step + 1);
     };
     var submit = document.getElementById('wiz-submit'); if (submit) submit.onclick = onSubmit;
@@ -362,7 +374,7 @@
         '<div class="grid cols-2">' + field('Department name', txt('f-name', 'e.g. Sample Fire Department'), null, 'f-name') + field('City', txt('f-city'), null, 'f-city') + '</div>' +
         '<div class="grid cols-3">' +
           field('County *', txt('f-county'), null, 'f-county') +
-          field('ZIP *', '<input id="f-zip" type="text" inputmode="numeric" maxlength="5">', 'Required — this is how we place the department on the map.', 'f-zip') +
+          field('ZIP *', '<input id="f-zip" type="text" inputmode="numeric" maxlength="5"><span id="f-zip-resolved" class="field-hint" style="display:block;margin-top:.25rem"></span>', 'Required — this is how we place the department on the map.', 'f-zip') +
           // No pre-selected default: "Municipal" silently became the answer for
           // anyone who skipped the field, asserting a fact nobody stated.
           field('Type', selP('f-dtype', [['municipal', 'Municipal'], ['esd', 'Emergency services district'], ['county', 'County'], ['university', 'University'], ['airport', 'Airport'], ['fire-rescue-district', 'Fire-rescue district'], ['combination', 'Combination'], ['other', 'Other']], 'Select type…'), null, 'f-dtype') + '</div>' +
@@ -722,6 +734,14 @@
     document.querySelectorAll('#mode-single input.money, #mode-range input.money').forEach(function (el) { el.addEventListener('input', function () { commaFmt(el); }); });
     var pr = document.getElementById('p-recruit'); if (pr) pr.addEventListener('input', function () { commaFmt(pr); });
     ['c-flat-sched', 'c-sched', 'p-sched'].forEach(wireSchedule);
+
+    var zipBox = document.getElementById('f-zip');
+    if (zipBox) {
+      ['input', 'change'].forEach(function (ev) { zipBox.addEventListener(ev, renderZipResolved); });
+      var cityBox = document.getElementById('f-city');
+      if (cityBox) ['input', 'change'].forEach(function (ev) { cityBox.addEventListener(ev, renderZipResolved); });
+      renderZipResolved();
+    }
 
     // dept search
     var ds = document.getElementById('f-dept-search');
@@ -1100,7 +1120,12 @@
         if (!v('f-county')) return fail('Enter the county.');
         if (!/^\d{5}$/.test(v('f-zip'))) return fail('Enter a valid 5-digit ZIP code — it’s how this department gets placed on the map.');
         if (v('f-web') && !Lib.safeUrl(v('f-web'))) return fail('The website must be a full link starting with http:// or https:// — or leave it blank.');
-        if (isDuplicateDept(v('f-name'), v('f-city'))) return warnOk(['This looks similar to a department already listed — if it’s the same one, use "Update a department" instead. You can still continue; an admin will double-check before it’s added to the map.']);
+        // Both checks are non-blocking and both can be true at once, so they
+        // are collected rather than returned one at a time.
+        var addWarns = [];
+        if (isDuplicateDept(v('f-name'), v('f-city'))) addWarns.push('This looks similar to a department already listed — if it’s the same one, use "Update a department" instead. You can still continue; an admin will double-check before it’s added to the map.');
+        addWarns = addWarns.concat(locationWarning(locationProblem()));
+        if (addWarns.length) return warnOk(addWarns);
       }
       // A slug from the URL (?dept=…) is trusted blindly otherwise. If it
       // matches no department, the submission publishes keyed to a slug nothing
@@ -1368,6 +1393,13 @@
     if (st.type === 'add') {
       Object.assign(base, { name: v('f-name'), city: v('f-city'), county: v('f-county'), zip: v('f-zip'), departmentType: v('f-dtype') || undefined, website: Lib.safeUrl(v('f-web')) || undefined });
       base.possibleDuplicate = isDuplicateDept(base.name, base.city);
+      // Why this one needs a human to place it (see locationProblem). Absent
+      // when the ZIP resolves and agrees with the city, which is the normal case.
+      var loc = locationProblem();
+      if (loc) {
+        base.locationReview = loc.kind;
+        base.zipResolvedCity = loc.zipCity || undefined;
+      }
     }
     else base.departmentSlug = st.dept;
 
@@ -1527,7 +1559,17 @@
       // the moment trust matters most. What is always true is that the
       // submission is stored safely and will appear at the next refresh --
       // that reassures without asserting a deadline nothing here controls.
-      var msg = flagged
+      // A held submission must NOT be told it will appear at the next refresh:
+      // it will not appear at all until an admin acts on it, and a contributor
+      // who believes otherwise just resubmits.
+      var held = payload.status === 'location_review' || payload.status === 'possible_duplicate';
+      var msg = held
+        ? '<strong>Thank you — your submission was received and saved.</strong> ' +
+          (payload.status === 'location_review'
+            ? 'We could not confirm this department’s location from its ZIP code, so an admin will place it on the map before it appears.'
+            : 'It looks similar to a department already listed, so an admin will check it before it appears.') +
+          ' Nothing further is needed from you.'
+        : flagged
         ? '<strong>Thank you — your submission was received</strong> and is preserved as a revision, but one or more figures look unusual (' + UI.esc(payload.automatedFlags.join('; ')) + '), so it needs a quick admin review before it appears on the site.'
         : '<strong>Thank you — your submission is saved.</strong> It is stored safely and preserved as a revision, and will appear on the department page the next time the site refreshes its community data — usually within a few minutes. There’s no need to send it again if you don’t see it straight away.';
       if (fileUploadFailed) msg += ' <strong>Note:</strong> the attached file could not be uploaded, so it was saved without it — you can add the file later with a follow-up submission.';
@@ -1570,6 +1612,62 @@
   // isAdmin() to update a doc's status, and the export script deliberately runs
   // with zero credentials. A brand-new request can set its OWN initial status
   // freely, so the check belongs here, not there.
+  // ── Where is this department, really? ──────────────────────────────────────
+  // The Texas ZIP centroid table (window.TexasZipCentroids, loaded by
+  // submit.html) is the only thing tying a new department to Texas:
+  // scripts/export-overlay.js refuses to place one whose ZIP it cannot resolve,
+  // and cross-checks nothing else. That left two failures. A real Texas
+  // department with an unrecognized ZIP was dropped in silence, after being
+  // told its submission was saved. And a department that is not in Texas at all
+  // published happily as long as some Texas ZIP was typed in the box — name,
+  // city and county are free text nothing compares against anything.
+  //
+  // Both are settled here, at CREATE time, because the export runs with zero
+  // credentials and cannot re-status a document — the same constraint that put
+  // isDuplicateDept() on this side of the wire.
+  function zipInfo(zip) {
+    var table = window.TexasZipCentroids;
+    if (!table || !/^\d{5}$/.test(String(zip || ''))) return null;
+    var row = table[zip];
+    return row ? { lat: row[0], lng: row[1], city: row[2] || '' } : null;
+  }
+  function normCity(s) { return String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim(); }
+  // Returns null when the location looks consistent, otherwise what is off.
+  // A city mismatch is NOT proof of anything: Texas departments routinely sit
+  // in unincorporated areas, ESDs and districts whose post-office city is a
+  // neighbouring town, so this can never block a submission — it routes it to
+  // an admin who can confirm the pin before it reaches the map.
+  function locationProblem() {
+    // No table (blocked, still loading, file renamed) — never guess.
+    if (!window.TexasZipCentroids) return null;
+    var zip = v('f-zip'), city = v('f-city');
+    var info = zipInfo(zip);
+    if (!info) return { kind: 'unknown-zip', zip: zip };
+    if (!city || !info.city) return null;
+    var a = normCity(city), b = normCity(info.city);
+    if (a === b || a.indexOf(b) !== -1 || b.indexOf(a) !== -1) return null;
+    return { kind: 'city-mismatch', zip: zip, zipCity: info.city, city: city };
+  }
+  function locationWarning(loc) {
+    if (!loc) return [];
+    if (loc.kind === 'unknown-zip') {
+      return ['ZIP ' + loc.zip + ' isn\u2019t in our Texas ZIP list, so this department can\u2019t be placed on the map automatically. You can still submit it \u2014 an admin will position it by hand \u2014 but it is worth double-checking the ZIP first.'];
+    }
+    return ['ZIP ' + loc.zip + ' is ' + loc.zipCity + ', not ' + loc.city + '. If that\u2019s right (a district or unincorporated area often shares a neighbouring town\u2019s post-office city) go ahead \u2014 an admin will confirm the location before it appears on the map.'];
+  }
+  // Echoes the ZIP back as the contributor types it. Catching a typo here, while
+  // they can still see what they meant, beats every downstream remedy.
+  function renderZipResolved() {
+    var host = document.getElementById('f-zip-resolved');
+    if (!host) return;
+    var zip = v('f-zip');
+    if (!/^\d{5}$/.test(zip)) { host.textContent = ''; return; }
+    if (!window.TexasZipCentroids) { host.textContent = ''; return; }
+    var info = zipInfo(zip);
+    if (!info) { host.innerHTML = '<span class="field-error">Not a Texas ZIP we recognize \u2014 check it, or submit and an admin will place it.</span>'; return; }
+    host.textContent = '\u2713 ' + info.city + ', TX';
+  }
+
   function normDeptName(s) {
     return String(s || '').toLowerCase()
       .replace(/[^a-z0-9]+/g, ' ')
@@ -1633,6 +1731,14 @@
     payload.automatedFlags = payload.automatedFlags || [];
     if (payload.submissionType === 'add' && payload.possibleDuplicate) {
       payload.status = 'possible_duplicate';
+    } else if (payload.submissionType === 'add' && payload.locationReview) {
+      // Held for admin placement instead of published. An unresolvable ZIP
+      // could never have been promoted anyway (it would just have vanished);
+      // a ZIP that disagrees with the city is how a department outside Texas
+      // would otherwise land on the map at a real Texas department's
+      // coordinates. firestore.rules keeps a non-published request readable
+      // only by an admin, so it waits in the queue rather than going live.
+      payload.status = 'location_review';
     } else {
       payload.status = payload.automatedFlags.length ? 'flagged' : 'published';
     }

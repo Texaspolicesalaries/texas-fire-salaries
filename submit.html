@@ -135,6 +135,11 @@
   <script src="/js/data.js?v=22b65854"></script>
   <script src="/js/ui.js?v=9209fa74"></script>
   <script src="/js/nav-20260729.js?v=9d1e6c8c"></script>
-  <script src="/js/submit.js?v=fdddb554"></script>
+  <!-- Texas ZIP centroids. This table is what ties a new department to Texas:
+       scripts/export-overlay.js will not place one whose ZIP it cannot resolve,
+       so the "Add a department" form checks the ZIP here, while the contributor
+       can still fix it. Deferred, and the same file the map already ships. -->
+  <script defer src="/js/texas-zips-20260730.js?v=d2372992"></script>
+  <script src="/js/submit.js?v=60ddc684"></script>
 </body>
 </html>

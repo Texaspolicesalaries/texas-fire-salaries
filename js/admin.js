@@ -124,6 +124,7 @@
       '<div id="ac-status" class="field-hint" style="margin-top:.5rem"></div>' +
       '</div>' +
       q('q-dupes', 'Possible duplicate departments', 'Suggested merges from contributors.') +
+      q('q-location', 'Departments needing a location check', 'The ZIP could not be resolved to a Texas place, or it belongs to a different city than the one entered. Nothing here is on the map yet.') +
       suspendedCard() + deptOverrideCard() + fieldLockCard() + approvedDomainsCard();
   }
 
@@ -419,6 +420,7 @@
     await fillActiveClaimsQueue(F);
     wireAddClaimForm(F);
     await fillDupesQueue(F);
+    await fillLocationQueue(F);
     await fillSuspendedQueue(F);
     wireSuspendForm(F);
     wireDeptOverrideForm(F);
@@ -685,6 +687,46 @@
       el.innerHTML = rows.join('');
       el.querySelectorAll('[data-dupe-id]').forEach(function (btn) {
         btn.addEventListener('click', function () { resolveDupe(F, btn.getAttribute('data-dupe-id'), btn.getAttribute('data-dupe-action'), btn); });
+      });
+    } catch (e) { el.innerHTML = '<p class="field-hint">Queue unavailable: ' + UI.esc(e.message) + '</p>'; }
+  }
+
+  // New departments whose ZIP could not be resolved to a Texas place, or whose
+  // ZIP belongs to a different city than the one entered (js/submit.js's
+  // locationProblem, evaluated at create time — the credential-free export
+  // cannot re-status a document). Neither case is proof of anything: a genuine
+  // department can sit in an unincorporated area whose post-office city is a
+  // neighbouring town, and a brand-new ZIP may simply postdate our table. But
+  // an unresolvable ZIP means the export cannot place a pin at all, and a
+  // mismatched one is how a department outside Texas would land on the map at
+  // some real Texas department's coordinates. So both wait here.
+  //
+  // Publishing an unresolvable ZIP will still not put it on the map — the
+  // export needs coordinates it does not have. Fix the ZIP in Firestore, or add
+  // the department to the seed, before publishing that case.
+  async function fillLocationQueue(F) {
+    var el = document.getElementById('q-location'); if (!el) return;
+    try {
+      var qy = F.query(F.collection(window.FireDB.db, 'department_requests'), F.where('status', '==', 'location_review'), F.limit(25));
+      var snap = await F.getDocs(qy);
+      if (snap.empty) { el.innerHTML = '<p class="field-hint">Nothing in this queue. ✓</p>'; return; }
+      var rows = [];
+      snap.forEach(function (doc) {
+        var d = doc.data();
+        var why = d.locationReview === 'unknown-zip'
+          ? 'ZIP ' + UI.esc(d.zip || '?') + ' is not in the Texas ZIP table'
+          : 'ZIP ' + UI.esc(d.zip || '?') + ' is ' + UI.esc(d.zipResolvedCity || 'elsewhere') + ', not ' + UI.esc(d.city || '?');
+        rows.push('<div class="feed-item"><span>' + UI.esc(d.name || '(unnamed)') +
+          ' — ' + UI.esc([d.city, d.county].filter(Boolean).join(', ')) +
+          '<br><small class="muted">' + why + '</small></span>' +
+          '<span class="feed-when">' +
+          '<button class="btn btn-secondary btn-sm" data-loc-id="' + UI.esc(doc.id) + '" data-loc-action="publish">Location is right — publish</button> ' +
+          '<button class="btn btn-outline btn-sm" data-loc-id="' + UI.esc(doc.id) + '" data-loc-action="reject">Reject</button>' +
+          '</span></div>');
+      });
+      el.innerHTML = rows.join('');
+      el.querySelectorAll('[data-loc-id]').forEach(function (btn) {
+        btn.addEventListener('click', function () { resolveDupe(F, btn.getAttribute('data-loc-id'), btn.getAttribute('data-loc-action'), btn); });
       });
     } catch (e) { el.innerHTML = '<p class="field-hint">Queue unavailable: ' + UI.esc(e.message) + '</p>'; }
   }
