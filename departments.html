@@ -15,7 +15,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/css/tokens-20260729b.css?v=6238e844">
   <link rel="stylesheet" href="/css/base-20260729b.css?v=8dbfe73c">
-  <link rel="stylesheet" href="/css/components-20260729b.css?v=f0e142d5">
+  <link rel="stylesheet" href="/css/components-20260729b.css?v=6aba0e2f">
   <style>
     .dir-grid { display: grid; grid-template-columns: 280px 1fr; gap: 2rem; align-items: start; }
     /* On desktop the filter drawer becomes a static sticky rail (single panel, no duplication). */
@@ -86,9 +86,11 @@
             <button type="button" data-layout="list" aria-label="List view">☰ List</button>
           </div>
           <div class="spacer"></div>
-          <label for="sort-select" class="visually-hidden">Sort by</label>
-          <select id="sort-select" style="width:auto"></select>
-          <button class="btn btn-outline btn-sm" id="sort-dir">↑ Low→High</button>
+          <div class="sort-group">
+            <label for="sort-select" class="sort-label">Sort by</label>
+            <select id="sort-select" style="width:auto"></select>
+            <button class="btn btn-outline btn-sm" id="sort-dir">↑ Low→High</button>
+          </div>
         </div>
         <div class="grid cols-2" id="dept-grid" style="gap:1rem"><p class="muted">Loading departments…</p></div>
         <div id="load-more-wrap" style="margin-top:1.25rem;text-align:center"></div>
@@ -123,6 +125,6 @@
   <script src="/js/filters.js?v=235abb8c"></script>
   <script src="/js/filters-ui.js?v=1a0e7ec5"></script>
   <script src="/js/nav-20260729.js?v=9d1e6c8c"></script>
-  <script src="/js/directory.js?v=b38041e8"></script>
+  <script src="/js/directory.js?v=865157dd"></script>
 </body>
 </html>

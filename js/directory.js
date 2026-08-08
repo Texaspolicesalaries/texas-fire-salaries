@@ -16,7 +16,7 @@
   try { layout = localStorage.getItem('fireDirLayout') || 'cards'; } catch (e) {}
 
   var SORTS = [
-    ['name', 'Department name'], ['entry', 'Entry pay'],
+    ['name', 'Alphabetical (A–Z)'], ['entry', 'Entry pay'],
     ['top', 'Top pay'], ['ytt', 'Years to top'], ['hourly', 'Effective hourly'],
     ['distance', 'Distance'], ['updated', 'Most recently updated'], ['confirmations', 'Most confirmations']
   ];
@@ -45,11 +45,9 @@
         // direction, so picking one has to set it — otherwise the list opens on
         // the oldest and least-confirmed departments, the exact opposite of the
         // label. Other sorts keep whichever direction is already showing.
-        if (F.defaultDirFor && F.defaultDirFor(state.sort) === 'desc') {
-          state.dir = 'desc';
-          var dirBtn = document.getElementById('sort-dir');
-          if (dirBtn) setDirLabel(dirBtn);
-        }
+        if (F.defaultDirFor && F.defaultDirFor(state.sort) === 'desc') state.dir = 'desc';
+        var dirBtn = document.getElementById('sort-dir');
+        if (dirBtn) setDirLabel(dirBtn);
         onChange();
       });
     }
@@ -59,7 +57,14 @@
       dir.addEventListener('click', function () { state.dir = state.dir === 'asc' ? 'desc' : 'asc'; setDirLabel(dir); onChange(); });
     }
   }
-  function setDirLabel(btn) { btn.textContent = state.dir === 'desc' ? '↓ High→Low' : '↑ Low→High'; }
+  // The direction wording follows the sort: an alphabetical list reads A→Z /
+  // Z→A, while every numeric sort reads Low→High / High→Low.
+  function setDirLabel(btn) {
+    var alpha = state.sort === 'name';
+    btn.textContent = state.dir === 'desc'
+      ? (alpha ? '↓ Z→A' : '↓ High→Low')
+      : (alpha ? '↑ A→Z' : '↑ Low→High');
+  }
 
   function wireChrome() {
     var openBtn = document.getElementById('open-filters');

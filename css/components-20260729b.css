@@ -154,7 +154,10 @@
 .feed-item .feed-when { margin-left: auto; color: var(--text-faint); font-size: var(--fs-xs); white-space: nowrap; }
 
 /* ---------------- Map + list explorer ---------------- */
-.explorer { display: grid; grid-template-columns: 1fr 420px; gap: 0; height: calc(100vh - var(--nav-h)); }
+/* dvh (with a vh fallback for older browsers) so the pane ends at the visible
+   viewport on phones — with vh alone, the browser's collapsing URL bar pushed
+   the bottom of the map (legend, attribution, zoom) below the fold. */
+.explorer { display: grid; grid-template-columns: 1fr 420px; gap: 0; height: calc(100vh - var(--nav-h)); height: calc(100dvh - var(--nav-h)); }
 .explorer .map-pane { position: relative; }
 .explorer #map { position: absolute; inset: 0; }
 .explorer .list-pane { border-left: 1px solid var(--border); background: var(--bg); overflow-y: auto; display: flex; flex-direction: column; }
@@ -170,10 +173,18 @@
 .view-toggle button.active { background: var(--accent); color: #fff; }
 
 @media (max-width: 860px) {
-  .explorer { grid-template-columns: 1fr; height: calc(100vh - var(--nav-h)); }
+  .explorer { grid-template-columns: 1fr; height: calc(100vh - var(--nav-h)); height: calc(100dvh - var(--nav-h)); }
   .explorer .list-pane { border-left: 0; }
   .explorer.show-list .map-pane { display: none; }
   .explorer.show-map .list-pane { display: none; }
+}
+@media (max-width: 640px) {
+  /* The fixed bottom Map/List/Filters bar overlays the last 57px of the
+     viewport (8px padding ×2 + 40px buttons + 1px border), which buried the
+     legend and Leaflet's attribution/zoom behind it. End the pane above the
+     bar so everything anchored to the map's bottom edge stays visible. */
+  .explorer { height: calc(100vh - var(--nav-h) - 57px); height: calc(100dvh - var(--nav-h) - 57px); }
+  .map-legend { padding: var(--sp-2) var(--sp-3); }
 }
 
 /* Marker cluster + pin visuals (custom, not stock Leaflet blue) */
@@ -196,6 +207,11 @@
 .filter-chips { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
 .toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-3); margin-bottom: var(--sp-4); }
 .toolbar .spacer { flex: 1; }
+.toolbar .sort-label { font-size: var(--fs-sm); font-weight: 600; color: var(--text-soft); white-space: nowrap; }
+/* Label + select + direction wrap as one unit, so on narrow screens the row
+   reads "Sort by [select] [A→Z]" instead of stranding the button alone. */
+.toolbar .sort-group { display: flex; align-items: center; gap: var(--sp-2); min-width: 0; }
+.toolbar .sort-group select { min-width: 0; flex: 1; text-overflow: ellipsis; }
 .result-count { font-size: var(--fs-sm); color: var(--text-soft); font-weight: 600; }
 
 /* Off-canvas filter drawer (mobile full-screen) */
