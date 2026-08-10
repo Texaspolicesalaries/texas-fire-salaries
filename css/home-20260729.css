@@ -172,14 +172,15 @@ a.home-stat:focus-visible .home-stat-lab::after {
   align-items: center;
   gap: 7px;
 }
-.map-dot {
-  width: 9px;
-  height: 9px;
-  border-radius: 50%;
+/* Key markers are .fire-pin.mini glyph pins (components css) — the three
+   muted status colors are indistinguishable as bare dots, so the key leans on
+   the same glyphs the real map uses. inline-grid keeps the rotated teardrop
+   sitting on the text baseline. */
+.home-map-key .fire-pin {
+  display: inline-grid;
+  flex: 0 0 auto;
+  font-style: normal;
 }
-.map-dot.current { background: var(--teal-500); }
-.map-dot.strong { background: var(--teal-700); }
-.map-dot.missing { background: var(--ink-400); }
 .home-map-card {
   position: relative;
   min-height: 350px;

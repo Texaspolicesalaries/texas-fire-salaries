@@ -210,6 +210,11 @@
 /* Marker cluster + pin visuals (custom, not stock Leaflet blue) */
 .fire-pin { display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); border: 2px solid #fff; box-shadow: var(--shadow-sm); font-size: 11px; }
 .fire-pin span { transform: rotate(45deg); font-weight: 800; color: #fff; }
+/* Small variant for the homepage's decorative preview map and its key. The
+   three muted statuses (current / strong / missing) are near-identical dark
+   slates as bare color dots — the glyph is what tells them apart, exactly as
+   on the real map, so any miniature must keep it. */
+.fire-pin.mini { width: 16px; height: 16px; border-width: 1.5px; font-size: 8px; }
 .pin-current   { background: var(--teal-500); }
 .pin-strong    { background: var(--teal-700); }
 .pin-outdated  { background: #B98A2E; }

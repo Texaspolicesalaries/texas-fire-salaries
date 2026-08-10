@@ -144,29 +144,19 @@
       subdomains: 'abcd'
     }).addTo(map);
 
-    // The same colors the real map's pins wear (the .pin-* rules in
-    // css/components-20260729b.css) — the preview is a promise of what the map
-    // page looks like, so it must not tell a brighter color story than the map.
-    var colors = {
-      current: '#39455B',   /* --teal-500 */
-      strong: '#101827',    /* --teal-700 */
-      outdated: '#B98A2E',
-      conflict: '#E84A3A',  /* --ember-600 */
-      dept: '#174A7E',
-      missing: '#5A6774'    /* --ink-400 */
-    };
+    // Miniatures of the real map's pins — same .pin-* colors AND the same
+    // status glyphs. The three muted statuses (current / strong / missing) are
+    // near-identical dark slates as plain dots; the glyph is what tells them
+    // apart on the real map, so the preview keeps it too.
     var bounds = window.L.latLngBounds();
     window.FireData.all().forEach(function (d) {
       if (typeof d.lat !== 'number' || typeof d.lng !== 'number') return;
       var status = UI.pinStatus(d);
-      window.L.circleMarker([d.lat, d.lng], {
-        radius: status === 'missing' ? 4 : 5,
-        color: '#fff',
-        weight: 1.5,
-        fillColor: colors[status] || colors.current,
-        fillOpacity: .92,
-        interactive: false
-      }).addTo(map);
+      var icon = window.L.divIcon({
+        className: '', iconSize: [16, 16], iconAnchor: [8, 16],
+        html: '<div class="fire-pin mini pin-' + status + '"><span>' + (UI.PIN_GLYPH[status] || '●') + '</span></div>'
+      });
+      window.L.marker([d.lat, d.lng], { icon: icon, interactive: false, keyboard: false }).addTo(map);
       bounds.extend([d.lat, d.lng]);
     });
     if (bounds.isValid()) map.fitBounds(bounds, { padding: [24, 24], maxZoom: 8, animate: false });
