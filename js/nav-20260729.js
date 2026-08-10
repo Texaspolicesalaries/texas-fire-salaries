@@ -38,7 +38,7 @@
     '<header class="site-header">' +
       '<nav class="nav" aria-label="Primary">' +
         '<a class="brand" href="/">' + BRAND_MARK +
-          '<span>Texas Fire Salaries<small>Community pay atlas</small></span>' +
+          '<span>Texas Fire Salaries<small>Powered by the Community</small></span>' +
         '</a>' +
         '<button class="nav-toggle" aria-expanded="false" aria-controls="nav-links" aria-label="Menu">☰</button>' +
         '<div class="nav-links" id="nav-links">' + links +
