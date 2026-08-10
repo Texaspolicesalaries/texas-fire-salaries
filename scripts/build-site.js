@@ -264,7 +264,6 @@ ${heroStat}
         ${stepTable}
         ${supplementalSection(s, dept)}
 
-        <section id="earnings"></section>
         <section id="history" class="dept-section${s.hasSalary ? '' : ' first'}">
           <div class="dept-section-heading compact"><div><span class="section-kicker">Record</span><h2>History</h2></div></div>
           <div id="salary-history"></div>
@@ -313,6 +312,9 @@ function salaryCards(s) {
     ${card('Firefighter entry', money(s.entry), lockedSub('Base salary', s.entryLocked))}
     ${card('Midpoint pay', s.midpoint != null ? money(s.midpoint) : null, lockedSub('Base salary', s.midpointLocked))}
     ${card('Top firefighter pay', money(s.topBase), lockedSub('Base salary', s.topLocked))}
+    ${(s.entry != null && s.topBase != null && s.topBase > s.entry)
+      ? card('Top pay premium', `+${money(s.topBase - s.entry)}`, `+${Math.round((s.topBase / s.entry - 1) * 1000) / 10}% over starting pay`)
+      : ''}
     ${card('Years to top pay', s.yearsToTop != null ? `${s.yearsToTop} <em>yr</em>` : null, s.singleRatePlan ? 'Single-rate plan reported' : 'Reported')}
     ${card(s.annualHoursKnown ? 'Reported annual hours' : 'Assumed annual hours',
            s.annualHours ? s.annualHours.toLocaleString() : null,
@@ -370,8 +372,11 @@ function compExplanation(s, slug) {
   const warn = s.includesScheduledOvertime
     ? `<div class="notice warn" style="margin-top:1rem"><span class="notice-icon" aria-hidden="true">⚠</span><div>This department's reported annual compensation may include <strong>scheduled overtime</strong>. Compare base salary and annual hours before comparing it with departments that report base pay only.</div></div>`
     : '';
+  // Worded without presuming a step plan exists: for many small departments a
+  // single rate IS the whole pay structure, and permanently begging for steps
+  // nobody can supply would present a complete page as an unfinished one.
   const singleRate = s.singleRatePlan
-    ? `<div class="notice warn" style="margin-top:1rem"><span class="notice-icon" aria-hidden="true">ⓘ</span><div><strong>No progression data reported.</strong> Only a single pay rate has been submitted for this department — "years to top pay" and entry/top figures reflect that one rate, not a real step plan. <a href="/submit.html?dept=${esc(slug || '')}&mode=step">Add the full pay-step plan →</a></div></div>`
+    ? `<div class="notice warn" style="margin-top:1rem"><span class="notice-icon" aria-hidden="true">ⓘ</span><div><strong>Single pay rate on file.</strong> One rate has been reported for this department — that may be its whole pay structure, or a step plan that just hasn't been submitted yet. <a href="/submit.html?dept=${esc(slug || '')}&mode=step">Know the pay steps? Add them →</a></div></div>`
     : '';
   return `<div class="dept-context-note">
     <span class="note-icon" aria-hidden="true">i</span>

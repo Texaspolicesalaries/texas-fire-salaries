@@ -167,11 +167,19 @@
       if (s.singleRatePlan || s.yearsToTop == null) return '—';
       return s.yearsToTop + ' yr';
     }, 'low');
+    // Career-earnings projections were removed deliberately: a step-plan
+    // department and a start/mid/max department can't be projected with the
+    // same methodology, so ranking their totals in one row compared apples to
+    // invented oranges. The premium below is the honest replacement — pure
+    // arithmetic on today's published figures, computable identically for
+    // every department that reports entry and top.
+    rows += plainRow('Top pay premium (base)', depts, function (s) {
+      if (s.entry == null || s.topBase == null || s.topBase <= s.entry) return '—';
+      var pct = Math.round((s.topBase / s.entry - 1) * 1000) / 10;
+      return '+' + UI.money(s.topBase - s.entry) + ' · +' + pct + '%';
+    }, 'high');
     rows += plainRow('Annual scheduled hours', depts, function (s) { return s.annualHours ? s.annualHours.toLocaleString() : '—'; });
     rows += plainRow('Effective hourly (entry)', depts, function (s) { return UI.hourly(s.effectiveHourlyEntry); }, 'high');
-    rows += careerRow('5-year career earnings', depts, 5);
-    rows += careerRow('10-year career earnings', depts, 10);
-    rows += careerRow('20-year career earnings', depts, 20);
     rows += plainRowD('Shift schedule', depts, function (d) { return UI.esc(d.scheduleType || '—'); });
     rows += flagRow('Paramedic incentive', depts, 'paramedicIncentive');
     rows += flagRow('Certification pay', depts, 'certPay');
@@ -183,7 +191,7 @@
 
     return '<div class="table-scroll"><table class="data compare-table"><thead><tr><th scope="col" class="row-label">Metric</th>' + cols + '</tr></thead><tbody>' + rows + '</tbody></table></div>' +
       '<p class="scroll-hint" aria-hidden="true">← Swipe the table to see more departments →</p>' +
-      '<p class="muted" style="font-size:.82rem;margin-top:.75rem">Career earnings assume the step in effect at the start of each service year; where a plan\'s final step is bounded, the final submitted step is carried forward. Base and reported-total figures are kept separate — switch the metric toggle to compare like with like.</p>';
+      '<p class="muted" style="font-size:.82rem;margin-top:.75rem">Base and reported-total figures are kept separate — switch the metric toggle to compare like with like.</p>';
   }
 
   // ---- Row builders ----
@@ -201,22 +209,6 @@
       return '<td class="num"' + hi + '>' + cell + '</td>';
     }).join('') + '</tr>';
   }
-  function careerRow(label, depts, years) {
-    var vals = depts.map(function (d) {
-      var s = d.summary; if (!s.hasSalary || !s.steps) return null;
-      var field = mode === 'reported' ? 'reportedAnnualCompensation' : 'baseAnnualSalary';
-      var steps = Lib.stepsForField(s.steps, field);
-      var r = Lib.projectEarnings(steps, years);
-      return r.total;
-    });
-    var best = bestNumeric(vals);
-    return '<tr><th scope="row" class="row-label">' + label + (mode === 'reported' ? ' (reported)' : ' (base)') + '</th>' +
-      depts.map(function (d, i) {
-        var v = vals[i];
-        var hi = (best != null && v === best && depts.length > 1) ? ' style="color:var(--accent);font-weight:700"' : '';
-        return '<td class="num"' + hi + '>' + (v == null ? '—' : UI.money(v)) + '</td>';
-      }).join('') + '</tr>';
-  }
   // `best` picks which value (if any) gets the winner highlight the pay rows
   // use: 'high' when a bigger number is better, 'low' when a smaller one is
   // (years to top), omitted where there is no better — annual hours and
@@ -231,7 +223,7 @@
     }).join('') + '</tr>';
   }
   // All data cells share the same class="num" (right-aligned) treatment as
-  // salaryRow/plainRow/careerRow above — mixing left- and right-aligned rows
+  // salaryRow/plainRow above — mixing left- and right-aligned rows
   // in the same column made it hard to scan a department's values straight
   // down the column.
   function plainRowD(label, depts, fn) {

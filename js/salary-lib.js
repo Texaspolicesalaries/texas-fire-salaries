@@ -264,84 +264,6 @@ function scheduleHours(scheduleName) {
   return Object.prototype.hasOwnProperty.call(SCHEDULE_HOURS, key) ? SCHEDULE_HOURS[key] : null;
 }
 
-// ── Step-plan projection / career earnings ──────────────────────────────────
-//
-// steps: ordered array of { minMonths:Number, maxMonths:Number|null, value:Number }
-//   value is whichever field the caller chose (base OR reported comp) — never both.
-//   maxMonths null/undefined means "open-ended top step".
-// years: whole years of service to project (e.g. 5, 10, 20).
-// opts.carryForward: when the plan runs out before `years`, repeat the final
-//   step's value for the remaining years (clearly labeled by the returned flag).
-//
-// Assumption (documented to the user on the page): the step in effect at the
-// START of each service year is used for that whole year.
-function projectEarnings(steps, years, opts) {
-  opts = opts || {};
-  var carryForward = opts.carryForward !== false; // default true
-  if (!Array.isArray(steps) || steps.length === 0 || !(years > 0)) {
-    return { total: null, perYear: [], coveredYears: 0, assumedCarryForward: false };
-  }
-  var ordered = steps
-    .filter(function (s) { return s && typeof s.value === 'number' && isFinite(s.value); })
-    .slice()
-    .sort(function (a, b) { return (a.minMonths || 0) - (b.minMonths || 0); });
-  if (ordered.length === 0) {
-    return { total: null, perYear: [], coveredYears: 0, assumedCarryForward: false };
-  }
-  var last = ordered[ordered.length - 1];
-  var perYear = [];
-  var assumedCarryForward = false;
-  var coveredYears = 0;
-
-  for (var y = 1; y <= years; y++) {
-    var monthAtStart = (y - 1) * 12;
-    var match = null;
-    for (var i = 0; i < ordered.length; i++) {
-      var s = ordered[i];
-      var min = s.minMonths || 0;
-      var max = (s.maxMonths == null) ? Infinity : s.maxMonths;
-      if (monthAtStart >= min && monthAtStart < max) { match = s; break; }
-    }
-    if (match) {
-      perYear.push(match.value);
-      coveredYears++;
-    } else if (monthAtStart < (ordered[0].minMonths || 0)) {
-      // Before the first defined step — treat as the first step.
-      perYear.push(ordered[0].value);
-      coveredYears++;
-    } else {
-      // Past the end of the defined plan.
-      if (carryForward) {
-        perYear.push(last.value);
-        coveredYears++;
-        assumedCarryForward = true;
-      } else {
-        perYear.push(0);
-      }
-    }
-  }
-
-  var total = perYear.reduce(function (a, b) { return a + b; }, 0);
-  return { total: total, perYear: perYear, coveredYears: coveredYears, assumedCarryForward: assumedCarryForward };
-}
-
-// Convenience: turn raw pay-step docs into the {minMonths,maxMonths,value} shape
-// for a chosen field. field: 'baseAnnualSalary' | 'reportedAnnualCompensation' | ...
-function stepsForField(payStepDocs, field) {
-  if (!Array.isArray(payStepDocs)) return [];
-  return payStepDocs
-    .map(function (d) {
-      var value = parseMoney(d[field]);
-      if (value == null) return null;
-      return {
-        minMonths: parseNumber(d.minimumMonths) || 0,
-        maxMonths: d.maximumMonths == null ? null : parseNumber(d.maximumMonths),
-        value: value
-      };
-    })
-    .filter(Boolean);
-}
-
 // Years-to-top: months where the top (open-ended / highest-min) step begins.
 function yearsToTop(payStepDocs) {
   if (!Array.isArray(payStepDocs) || payStepDocs.length === 0) return null;
@@ -425,8 +347,6 @@ var FireSalaryLib = {
   effectiveHourly: effectiveHourly,
   scheduleHours: scheduleHours,
   SCHEDULE_HOURS: SCHEDULE_HOURS,
-  projectEarnings: projectEarnings,
-  stepsForField: stepsForField,
   yearsToTop: yearsToTop,
   planSummary: planSummary,
   stepIncreases: stepIncreases,

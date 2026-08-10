@@ -74,15 +74,14 @@
           var was = btn.textContent;
           btn.textContent = 'Link copied ✓';
           setTimeout(function () { btn.textContent = was; }, 2000);
-        }).catch(function () { window.prompt('Copy this link:', url); });
+        }).catch(function () { try { window.prompt('Copy this link:', url); } catch (e) { /* no prompt available */ } });
         return;
       }
-      window.prompt('Copy this link:', url);
+      try { window.prompt('Copy this link:', url); } catch (e) { /* no prompt available */ }
     });
   }
 
   function renderAll() {
-    renderCareer();
     renderHistory();
     renderConfidence();
     renderRevisions();
@@ -214,48 +213,6 @@
       });
       if (notices.length) host.innerHTML = notices.join('');
     } catch (e) { /* nice-to-have only — never block the page over it */ }
-  }
-
-  // ---- Career earnings ----
-  function renderCareer() {
-    var host = document.getElementById('earnings');
-    if (!host || !summary.hasSalary || !summary.steps) { if (host) { host.innerHTML = ''; host.className = ''; } return; }
-    host.className = 'dept-section';
-    // A single reported rate has no real progression to project — showing
-    // exact 5/10/20-year totals off one flat number reads as far more
-    // precise than the underlying data actually supports.
-    if (summary.singleRatePlan) {
-      host.innerHTML =
-        '<div class="dept-section-heading compact"><div><span class="section-kicker">Projection</span><h2>Career earnings</h2></div></div>' +
-        '<p class="dept-section-intro">Not shown yet — only a single pay rate has been reported for this department, with no step progression to project. ' +
-        '<a href="/submit.html?dept=' + UI.esc(dept.slug) + '&mode=step">Add the full pay-step plan →</a></p>';
-      return;
-    }
-    var baseSteps = Lib.stepsForField(summary.steps, 'baseAnnualSalary');
-    var repSteps = Lib.stepsForField(summary.steps, 'reportedAnnualCompensation');
-    var years = [5, 10, 20];
-    function totals(steps) { return years.map(function (y) { return Lib.projectEarnings(steps, y); }); }
-    var baseTotals = totals(baseSteps);
-    var anyCF = baseTotals.some(function (r) { return r.assumedCarryForward; }) ||
-      (repSteps.length && totals(repSteps).some(function (r) { return r.assumedCarryForward; }));
-    function barsFor(label, rows) {
-      var max = Math.max.apply(null, rows.map(function (r) { return r.total || 0; })) || 1;
-      return '<div class="earnings-card">' + years.map(function (y, i) {
-        var r = rows[i];
-        var pct = r.total == null ? 0 : Math.max(4, Math.round((r.total / max) * 100));
-        return '<div class="earnings-row"><span class="years">' + y + ' <small>years</small></span>' +
-          '<div class="earnings-bar-track"><span style="width:' + pct + '%"></span></div>' +
-          '<strong>' + (r.total == null ? '—' : UI.money(r.total)) + '</strong></div>';
-      }).join('') + '</div>';
-    }
-    host.innerHTML =
-      '<div class="dept-section-heading compact"><div><span class="section-kicker">Projection</span><h2>Career earnings</h2></div></div>' +
-      '<p class="dept-section-intro">Illustrative earnings at the current reported pay plan — not a forecast. <strong>Base salary</strong> and <strong>reported total compensation</strong> are kept separate — do not add them together.</p>' +
-      barsFor('Base salary', baseTotals) +
-      (repSteps.length ? '<p class="field-hint" style="margin:1rem 0 .5rem">Reported total compensation</p>' + barsFor('Reported total compensation', totals(repSteps)) : '') +
-      '<p class="dept-fine-print">Assumes the step in effect at the start of each service year.' +
-        (anyCF ? ' Where the plan\'s final step is bounded, it assumes the final submitted step continues for later years.' : '') +
-        ' Excludes raises, promotions, actual overtime worked, and benefits.</p>';
   }
 
   // ---- Salary history (SVG chart + table) ----
