@@ -160,6 +160,29 @@
     if (bounds.isValid()) map.fitBounds(bounds, { padding: [24, 24], maxZoom: 8, animate: false });
   }
 
+  // The entry figure's raw report history, oldest → newest, reduced to "what
+  // it was" and "what it is now". Only distinct values count as a change —
+  // a confirmation of the same number isn't news. Values come from the same
+  // merged report list derive.js reads, so the "now" matches the site.
+  function entryTrail(d) {
+    var Lib = window.FireSalaryLib;
+    var reps = ((d.salary && d.salary.reports) || [])
+      .map(function (r) {
+        var v = r ? Lib.parseMoney(r.entry) : null;
+        if (v == null) return null;
+        var t = (typeof r.submittedAt === 'number') ? r.submittedAt : Date.parse(r.submittedAt || '');
+        return { v: v, at: isNaN(t) ? 0 : t };
+      })
+      .filter(Boolean)
+      .sort(function (a, b) { return a.at - b.at; });
+    if (!reps.length) return null;
+    // Distinct means distinct in whole dollars — the figures render rounded, so
+    // a cents-level difference would show as "$76,208 → $76,208", a non-change.
+    var now = reps[reps.length - 1].v, prev = null;
+    for (var i = reps.length - 2; i >= 0; i--) { if (Math.round(reps[i].v) !== Math.round(now)) { prev = reps[i].v; break; } }
+    return { now: now, prev: prev };
+  }
+
   function renderFeed() {
     var all = window.FireData.all();
     var events = [];
@@ -178,9 +201,22 @@
     feed.innerHTML = events.slice(0, 5).map(function (e) {
       var iso = new Date(e.when).toISOString();
       var label = new Intl.DateTimeFormat('en-US', { month: 'short', year: 'numeric' }).format(new Date(e.when));
+      // The number IS the story: an entry-salary update shows before → after
+      // when a prior distinct value exists; everything else shows the current
+      // figure so the feed line carries real information, not just a headline.
+      var s = e.dept.summary || {};
+      var trail = entryTrail(e.dept);
+      var delta = '';
+      if (e.kind === 'Updated entry salary' && trail && trail.prev != null) {
+        delta = UI.money(trail.prev) + ' → ' + UI.money(trail.now) + ' entry';
+      } else if (s.hasSalary && s.entry != null) {
+        delta = UI.money(s.entry) + ' entry' +
+          (e.kind === 'New step plan' && s.topBase ? ' · ' + UI.money(s.topBase) + ' top' : '');
+      }
       return '<div class="feed-item">' +
         '<span class="feed-kind">' + UI.esc(e.kind) + '</span>' +
         '<a href="/departments/' + UI.esc(e.dept.slug) + '/">' + UI.esc(e.dept.name) + '</a>' +
+        (delta ? '<span class="feed-delta">' + UI.esc(delta) + '</span>' : '') +
         '<time class="feed-when" datetime="' + iso + '">' + UI.esc(label) + '</time>' +
       '</div>';
     }).join('') +

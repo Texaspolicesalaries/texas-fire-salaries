@@ -21,6 +21,11 @@
 
   document.addEventListener('DOMContentLoaded', function () {
     state = F.fromURL();
+    // The legend ships expanded (markup carries `open` so it needs no JS on
+    // desktop), but on a phone it would cover a third of the map — collapse it
+    // to its summary pill there and let the reader tap it open.
+    var legend = document.getElementById('map-legend');
+    if (legend && window.matchMedia && window.matchMedia('(max-width: 640px)').matches) legend.removeAttribute('open');
     initMap();
     wireChrome();
     window.FireData.load().then(function () {

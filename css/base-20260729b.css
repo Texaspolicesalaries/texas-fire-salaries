@@ -136,9 +136,13 @@ img { max-width: 100%; height: auto; }
   .nav-cta { margin: var(--sp-2) 0 0; }
 }
 
-/* ---- Mobile bottom bar (map/list & quick actions on small screens) ---- */
+/* ---- Mobile bottom bar (map/list & quick actions on small screens) ----
+   Shown all the way to 900px, not just phone widths: the directory page hides
+   its filter rail below 901px and the map page goes single-pane below 861px,
+   so this bar is the only route to Filters / the List at tablet widths too.
+   (The map page hides it again at 861-900px — see the map stylesheet.) */
 .mobile-bar { display: none; }
-@media (max-width: 640px) {
+@media (max-width: 900px) {
   .mobile-bar {
     display: flex; position: fixed; bottom: 0; left: 0; right: 0; z-index: 90;
     background: var(--bg-raised); border-top: 1px solid var(--border);

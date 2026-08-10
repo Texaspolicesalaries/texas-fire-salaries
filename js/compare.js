@@ -71,7 +71,18 @@
     var wrap = document.getElementById('compare-wrap');
     var depts = slugs.map(function (s) { return window.FireData.get(s); }).filter(Boolean);
     if (!depts.length) {
-      wrap.innerHTML = '<div class="empty-state">No departments selected yet. Use the search above, or add departments from the <a href="/map.html">map</a> or <a href="/departments.html">directory</a>.</div>';
+      // Ready-made comparisons so a first-time visitor sees the payoff in one
+      // tap instead of an empty table. Plain ?d= links (the same format shared
+      // URLs use), so they survive copy/paste too. Slugs must exist in
+      // data/departments.seed.json.
+      wrap.innerHTML = '<div class="empty-state">' +
+        '<p>No departments selected yet. Use the search above, or add departments from the <a href="/map.html">map</a> or <a href="/departments.html">directory</a>.</p>' +
+        '<p style="margin-top:1rem"><strong>Or start from an example:</strong></p>' +
+        '<div class="compare-examples">' +
+          '<a class="btn btn-outline btn-sm" href="/compare.html?d=dallas-fd,fort-worth-fd,arlington-fd">Dallas vs Fort Worth vs Arlington</a>' +
+          '<a class="btn btn-outline btn-sm" href="/compare.html?d=plano-fd,frisco-fd,mckinney-fd">Plano vs Frisco vs McKinney</a>' +
+          '<a class="btn btn-outline btn-sm" href="/compare.html?d=dallas-fd,irving-fd,addison-fd">Dallas vs Irving vs Addison</a>' +
+        '</div></div>';
       return;
     }
     syncModeButtons(depts);

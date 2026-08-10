@@ -116,6 +116,19 @@ body[data-page="map"] .mobile-bar {
   z-index: 1500;
 }
 
+/* The shared bar shows to 900px (the directory needs it that wide), but this
+   page is back to its two-pane layout above 860px — both panes are visible and
+   the Map/List toggle would do nothing, so hide the bar for that sliver. */
+@media (min-width: 861px) {
+  body[data-page="map"] .mobile-bar {
+    display: none;
+  }
+
+  body[data-page="map"].has-mobile-bar {
+    padding-bottom: 0;
+  }
+}
+
 @media (max-width: 860px) {
   body[data-page="map"] .nav-links {
     max-height: calc(100dvh - var(--nav-h));

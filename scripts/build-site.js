@@ -120,6 +120,10 @@ const HEAD = (title, desc, canonical, extra = '') => `<!DOCTYPE html>
   <meta property="og:title" content="${esc(title)}">
   <meta property="og:description" content="${esc(desc)}">
   <meta property="og:type" content="website">
+  <meta property="og:image" content="${SITE}/assets/branding/og-card.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta name="twitter:card" content="summary_large_image">
   <link rel="icon" href="/assets/branding/favicon.ico" sizes="any">
   <link rel="icon" type="image/png" sizes="32x32" href="/assets/branding/favicon-32.png">
   <link rel="icon" type="image/png" sizes="192x192" href="/assets/branding/favicon-192.png">

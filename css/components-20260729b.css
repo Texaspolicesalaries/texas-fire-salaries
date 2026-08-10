@@ -148,7 +148,8 @@
 .progress-bar > span { display: block; height: 100%; background: linear-gradient(90deg, var(--ember-600), var(--teal-500)); border-radius: var(--r-pill); }
 
 /* Recent updates feed */
-.feed-item { display: flex; gap: var(--sp-3); padding: var(--sp-3) 0; border-bottom: 1px solid var(--border); align-items: baseline; }
+.feed-item { display: flex; flex-wrap: wrap; gap: var(--sp-2) var(--sp-3); padding: var(--sp-3) 0; border-bottom: 1px solid var(--border); align-items: baseline; }
+.feed-item .feed-delta { font-family: var(--font-mono); font-size: var(--fs-xs); color: var(--text-soft); white-space: nowrap; }
 .feed-item:last-child { border-bottom: 0; }
 .feed-item .feed-kind { font-size: var(--fs-xs); font-weight: 700; color: var(--accent-2); text-transform: uppercase; letter-spacing: .05em; flex: 0 0 auto; min-width: 130px; }
 .feed-item .feed-when { margin-left: auto; color: var(--text-faint); font-size: var(--fs-xs); white-space: nowrap; }
@@ -165,25 +166,33 @@
 .list-pane-body { padding: var(--sp-3) var(--sp-4); display: flex; flex-direction: column; gap: var(--sp-3); }
 .map-controls { position: absolute; top: var(--sp-3); right: var(--sp-3); z-index: 500; display: flex; flex-direction: column; gap: var(--sp-2); }
 .map-legend { position: absolute; bottom: var(--sp-3); left: var(--sp-3); z-index: 500; background: color-mix(in srgb, var(--bg-raised) 92%, transparent); border: 1px solid var(--border); border-radius: var(--r-md); padding: var(--sp-3); font-size: var(--fs-xs); box-shadow: var(--shadow-sm); }
+.map-legend summary { cursor: pointer; font-weight: 700; list-style: none; }
+.map-legend summary::-webkit-details-marker { display: none; }
+.map-legend summary::after { content: "▸"; margin-left: 6px; color: var(--text-soft); }
+.map-legend[open] summary { margin-bottom: .3rem; }
+.map-legend[open] summary::after { content: "▾"; }
 .map-legend .leg { display: flex; align-items: center; gap: 8px; padding: 2px 0; }
-.map-legend .leg .swatch { width: 16px; text-align: center; }
+/* Each swatch is a miniature of the real map pin — same teardrop shape and the
+   same pin-* status color the marker itself wears — so the legend can be
+   matched to the map at a glance instead of by symbol alone. */
+.map-legend .leg .swatch { flex: 0 0 auto; display: grid; place-items: center; width: 15px; height: 15px; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); border: 1.5px solid #fff; box-shadow: var(--shadow-sm); }
+.map-legend .leg .swatch span { transform: rotate(45deg); font-size: 7px; font-weight: 800; color: #fff; line-height: 1; }
 
 .view-toggle { display: inline-flex; border: 1px solid var(--border-strong); border-radius: var(--r-pill); overflow: hidden; }
 .view-toggle button { background: transparent; border: 0; padding: var(--sp-2) var(--sp-4); font-weight: 650; font-size: var(--fs-sm); cursor: pointer; color: var(--text-soft); }
 .view-toggle button.active { background: var(--accent); color: #fff; }
 
 @media (max-width: 860px) {
-  .explorer { grid-template-columns: 1fr; height: calc(100vh - var(--nav-h)); height: calc(100dvh - var(--nav-h)); }
+  /* The fixed bottom Map/List/Filters bar overlays the last 57px of the
+     viewport (8px padding ×2 + 40px buttons + 1px border), which buried the
+     legend and Leaflet's attribution/zoom behind it. End the pane above the
+     bar so everything anchored to the map's bottom edge stays visible. */
+  .explorer { grid-template-columns: 1fr; height: calc(100vh - var(--nav-h) - 57px); height: calc(100dvh - var(--nav-h) - 57px); }
   .explorer .list-pane { border-left: 0; }
   .explorer.show-list .map-pane { display: none; }
   .explorer.show-map .list-pane { display: none; }
 }
 @media (max-width: 640px) {
-  /* The fixed bottom Map/List/Filters bar overlays the last 57px of the
-     viewport (8px padding ×2 + 40px buttons + 1px border), which buried the
-     legend and Leaflet's attribution/zoom behind it. End the pane above the
-     bar so everything anchored to the map's bottom edge stays visible. */
-  .explorer { height: calc(100vh - var(--nav-h) - 57px); height: calc(100dvh - var(--nav-h) - 57px); }
   .map-legend { padding: var(--sp-2) var(--sp-3); }
 }
 
@@ -308,6 +317,7 @@ table.data tr.top-step td { font-weight: 700; }
 .tag-row { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
 .kbd { font-family: var(--font-mono); font-size: var(--fs-xs); background: var(--bg-inset); border: 1px solid var(--border); border-radius: 4px; padding: 1px 5px; }
 .empty-state { text-align: center; padding: var(--sp-8) var(--sp-4); color: var(--text-soft); }
+.compare-examples { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--sp-2); margin-top: var(--sp-3); }
 .spinner { width: 22px; height: 22px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.7s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 

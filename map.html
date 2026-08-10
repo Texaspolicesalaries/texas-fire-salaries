@@ -6,6 +6,10 @@
   <title>Interactive Texas Fire Department Map | Texas Fire Salaries</title>
   <meta name="description" content="Find Texas fire departments on an interactive map, filter by pay, schedule, and data freshness, and compare community-reported firefighter salaries.">
   <link rel="canonical" href="https://texasfiresalaries.com/map">
+  <meta property="og:image" content="https://texasfiresalaries.com/assets/branding/og-card.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta name="twitter:card" content="summary_large_image">
   <link rel="icon" href="/assets/branding/favicon.ico" sizes="any">
   <link rel="icon" type="image/png" sizes="32x32" href="/assets/branding/favicon-32.png">
   <link rel="icon" type="image/png" sizes="192x192" href="/assets/branding/favicon-192.png">
@@ -16,9 +20,9 @@
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css">
   <link rel="stylesheet" href="/css/tokens-20260729b.css?v=6238e844">
-  <link rel="stylesheet" href="/css/base-20260729b.css?v=8dbfe73c">
-  <link rel="stylesheet" href="/css/components-20260729b.css?v=6aba0e2f">
-  <link rel="stylesheet" href="/css/map-20260730d.css?v=420ef3ef">
+  <link rel="stylesheet" href="/css/base-20260729b.css?v=a35e9b77">
+  <link rel="stylesheet" href="/css/components-20260729b.css?v=f47d2479">
+  <link rel="stylesheet" href="/css/map-20260730d.css?v=09376584">
   <style>
     html, body { height: 100%; }
     .fire-cluster-wrap { background: none; border: none; }
@@ -37,15 +41,15 @@
     <div class="explorer show-map">
       <div class="map-pane">
         <div id="map"></div>
-        <div class="map-legend" aria-label="Map legend">
-          <div style="font-weight:700;margin-bottom:.3rem">Data condition</div>
-          <div class="leg"><span class="swatch">●</span> Current community data</div>
-          <div class="leg"><span class="swatch">▲</span> Strong agreement</div>
-          <div class="leg"><span class="swatch">!</span> Possibly outdated</div>
-          <div class="leg"><span class="swatch">◧</span> Conflicting</div>
-          <div class="leg"><span class="swatch">◆</span> Department maintained</div>
-          <div class="leg"><span class="swatch">○</span> Salary data needed</div>
-        </div>
+        <details class="map-legend" id="map-legend" aria-label="Map legend" open>
+          <summary>Data condition</summary>
+          <div class="leg"><span class="swatch pin-current"><span>●</span></span> Current community data</div>
+          <div class="leg"><span class="swatch pin-strong"><span>▲</span></span> Strong agreement</div>
+          <div class="leg"><span class="swatch pin-outdated"><span>!</span></span> Possibly outdated</div>
+          <div class="leg"><span class="swatch pin-conflict"><span>◧</span></span> Conflicting</div>
+          <div class="leg"><span class="swatch pin-dept"><span>◆</span></span> Department maintained</div>
+          <div class="leg"><span class="swatch pin-missing"><span>○</span></span> Salary data needed</div>
+        </details>
       </div>
 
       <aside class="list-pane" aria-label="Department results">
@@ -99,9 +103,9 @@
   <script src="/js/ui.js?v=9209fa74"></script>
   <script src="/js/compare-store.js?v=7abf36fd"></script>
   <script src="/js/texas-zips-20260730.js?v=d2372992"></script>
-  <script src="/js/filters-20260730.js?v=235abb8c"></script>
-  <script src="/js/filters-ui-20260730c.js?v=1a0e7ec5"></script>
+  <script src="/js/filters-20260730.js?v=dca1a096"></script>
+  <script src="/js/filters-ui-20260730c.js?v=4eeb89b6"></script>
   <script src="/js/nav-20260729.js?v=9d1e6c8c"></script>
-  <script src="/js/map-20260730d.js?v=5701cc25"></script>
+  <script src="/js/map-20260730d.js?v=ac683df7"></script>
 </body>
 </html>

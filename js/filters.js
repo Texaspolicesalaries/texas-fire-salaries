@@ -20,7 +20,7 @@
     'entryMin', 'topMin', 'maxYtt', 'hourlyMin',
     'hasSteps', 'hasMedic', 'hasCert', 'hasEdu', 'hasLongevity',
     'schedule', 'type', 'civil',
-    'fresh6', 'fresh12', 'deptMaint', 'hasSource', 'multiConfirm', 'complete', 'noDisputed',
+    'fresh6', 'fresh12', 'deptMaint', 'hasSource', 'multiConfirm', 'complete', 'noDisputed', 'needsData',
     'sort', 'dir', 'view'
   ];
 
@@ -31,7 +31,7 @@
       hasSteps: false, hasMedic: false, hasCert: false, hasEdu: false, hasLongevity: false,
       schedule: '', type: '', civil: '',
       fresh6: false, fresh12: false, deptMaint: false, hasSource: false,
-      multiConfirm: false, complete: false, noDisputed: false,
+      multiConfirm: false, complete: false, noDisputed: false, needsData: false,
       sort: 'name', dir: 'asc', view: 'map'
     };
   }
@@ -165,6 +165,9 @@
       if (st.multiConfirm && !(s.contributors >= 2)) return false;
       if (st.complete && !(s.hasSalary && s.steps && s.steps.length >= 2)) return false;
       if (st.noDisputed && s.hasConflict) return false;
+      // The inverse of every quality filter: ONLY departments still waiting on
+      // their first salary report — the contribution to-do list.
+      if (st.needsData && s.hasSalary) return false;
       return true;
     };
   }

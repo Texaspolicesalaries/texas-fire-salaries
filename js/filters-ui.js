@@ -85,7 +85,8 @@
         check('hasSource', 'Supported by a source', state) +
         check('multiConfirm', 'Confirmed by multiple contributors', state) +
         check('complete', 'Complete salary information', state) +
-        check('noDisputed', 'Exclude disputed records', state)
+        check('noDisputed', 'Exclude disputed records', state) +
+        check('needsData', 'Still needs salary data', state)
       );
   }
 
