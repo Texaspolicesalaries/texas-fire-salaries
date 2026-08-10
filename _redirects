@@ -4,6 +4,10 @@
 # to the new page and link equity is preserved. Example:
 # /departments/old-slug/  /departments/new-slug/  301
 
+# 2026-08-09: seed slug typo fixed (waxahachhie -> waxahachie); both URL forms.
+/departments/waxahachhie-fd/  /departments/waxahachie-fd/  301
+/departments/waxahachhie-fd  /departments/waxahachie-fd/  301
+
 # Cloudflare Pages serves root-level .html files at clean extensionless URLs
 # automatically. Do not redirect those clean routes back to .html or Pages will
 # canonicalize them again and create a loop.
