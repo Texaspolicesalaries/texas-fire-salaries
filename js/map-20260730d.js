@@ -25,7 +25,18 @@
     // desktop), but on a phone it would cover a third of the map — collapse it
     // to its summary pill there and let the reader tap it open.
     var legend = document.getElementById('map-legend');
-    if (legend && window.matchMedia && window.matchMedia('(max-width: 640px)').matches) legend.removeAttribute('open');
+    // The programmatic collapse below still fires a (queued) toggle event, which
+    // would log a phantom "closed" for every phone page-load — skip that one so
+    // the event stream only ever counts a reader's own taps.
+    var skipProgrammaticToggle = false;
+    if (legend && window.matchMedia && window.matchMedia('(max-width: 640px)').matches) {
+      skipProgrammaticToggle = true;
+      legend.removeAttribute('open');
+    }
+    if (legend) legend.addEventListener('toggle', function () {
+      if (skipProgrammaticToggle) { skipProgrammaticToggle = false; return; }
+      if (window.FireAnalytics) window.FireAnalytics.track('legend_toggle', { page: 'map', label: legend.open ? 'open' : 'closed' });
+    });
     initMap();
     wireChrome();
     window.FireData.load().then(function () {

@@ -109,7 +109,18 @@ function stampRootPages() {
 function confChip(c) { return c ? `<span class="chip ${CONF_CLASS[c.key] || 'needed'}"><span class="chip-icon" aria-hidden="true">${esc(c.icon)}</span>${esc(c.label)}</span>` : ''; }
 function freshChip(f) { return f ? `<span class="chip ${FRESH_CLASS[f.key] || 'needed'}"><span class="chip-icon" aria-hidden="true">${esc(f.icon)}</span>${esc(f.label)}</span>` : ''; }
 
-const HEAD = (title, desc, canonical, extra = '') => `<!DOCTYPE html>
+// A department with a pre-rendered share card (scripts/render-dept-cards.js,
+// committed PNGs) gets its own og:image; everything else shares the generic
+// brand card. Checked on disk so a newly promoted department that has no card
+// yet degrades gracefully instead of pointing at a 404.
+function ogImageFor(slug) {
+  if (slug && fs.existsSync(path.join(ROOT, 'assets', 'branding', 'dept-cards', slug + '.png'))) {
+    return `/assets/branding/dept-cards/${slug}.png`;
+  }
+  return '/assets/branding/og-card.png';
+}
+
+const HEAD = (title, desc, canonical, extra = '', ogImage = '/assets/branding/og-card.png') => `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
@@ -120,7 +131,7 @@ const HEAD = (title, desc, canonical, extra = '') => `<!DOCTYPE html>
   <meta property="og:title" content="${esc(title)}">
   <meta property="og:description" content="${esc(desc)}">
   <meta property="og:type" content="website">
-  <meta property="og:image" content="${SITE}/assets/branding/og-card.png">
+  <meta property="og:image" content="${SITE}${ogImage}">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
   <meta name="twitter:card" content="summary_large_image">
@@ -212,7 +223,7 @@ function departmentPage(dept) {
             <p class="dept-hero-empty">No salary information submitted yet — be the first to add it.</p>
           </div>`;
 
-  return HEAD(title, desc, canonical, `<link rel="stylesheet" href="/css/dept-20260805.css">${jsonLd}`) + `
+  return HEAD(title, desc, canonical, `<link rel="stylesheet" href="/css/dept-20260805.css">${jsonLd}`, ogImageFor(dept.slug)) + `
 <body data-page="departments">
   <div id="site-header"></div>
   <main id="main">

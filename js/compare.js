@@ -83,6 +83,11 @@
           '<a class="btn btn-outline btn-sm" href="/compare.html?d=plano-fd,frisco-fd,mckinney-fd">Plano vs Frisco vs McKinney</a>' +
           '<a class="btn btn-outline btn-sm" href="/compare.html?d=dallas-fd,irving-fd,addison-fd">Dallas vs Irving vs Addison</a>' +
         '</div></div>';
+      wrap.querySelectorAll('.compare-examples a').forEach(function (a) {
+        a.addEventListener('click', function () {
+          if (window.FireAnalytics) window.FireAnalytics.track('compare_example', { page: 'compare', label: a.textContent });
+        });
+      });
       return;
     }
     syncModeButtons(depts);

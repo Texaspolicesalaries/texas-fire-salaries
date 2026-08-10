@@ -15,6 +15,15 @@
       renderMapPreview();
       renderFeed();
     }).catch(function (e) { console.error(e); });
+    // Which stat tiles actually get clicked — best-effort like all events (a
+    // click that navigates may cut the write short; that loss is acceptable).
+    document.addEventListener('click', function (e) {
+      var tile = e.target.closest && e.target.closest('a.home-stat');
+      if (tile && window.FireAnalytics) {
+        var lab = tile.querySelector('.home-stat-lab');
+        window.FireAnalytics.track('home_stat_click', { page: 'home', label: lab ? lab.textContent : undefined });
+      }
+    });
   });
 
   function wireSearch() {
