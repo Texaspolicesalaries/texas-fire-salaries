@@ -194,6 +194,9 @@
 }
 @media (max-width: 640px) {
   .map-legend { padding: var(--sp-2) var(--sp-3); }
+  /* With departments selected, the compare tray docks 50px tall directly on
+     the legend's corner of the map — lift the legend above it while it's up. */
+  body.has-compare-tray .map-legend { bottom: calc(var(--sp-3) + 50px); }
 }
 
 /* Marker cluster + pin visuals (custom, not stock Leaflet blue) */
