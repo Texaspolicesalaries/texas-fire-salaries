@@ -39,6 +39,7 @@
     try { dept = JSON.parse(node.textContent); } catch (e) { console.error('bad dept-data', e); return; }
     summary = D.deriveSummary(dept);
     renderAll();
+    wireShare();
     if (window.FireAnalytics) window.FireAnalytics.trackDepartmentView(dept.slug);
     // Optional live overlay — off by default to keep visitor reads at zero.
     if (LIVE_OVERLAY) {
@@ -53,6 +54,32 @@
       if (summary.departmentMaintained) renderClaimedByMe();
     });
   });
+
+  // Native share sheet where one exists (phones — where this audience actually
+  // shares, into group texts), clipboard with visible feedback elsewhere. The
+  // shared URL carries the department's own og card, built at deploy time.
+  function wireShare() {
+    var btn = document.getElementById('share-dept');
+    if (!btn) return;
+    btn.addEventListener('click', function () {
+      var url = 'https://texasfiresalaries.com/departments/' + dept.slug + '/';
+      var title = dept.name + ' — community-reported firefighter pay';
+      if (window.FireAnalytics) window.FireAnalytics.track('share', { page: 'department', departmentSlug: dept.slug });
+      if (navigator.share) {
+        navigator.share({ title: title, url: url }).catch(function () { /* user closed the sheet */ });
+        return;
+      }
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(url).then(function () {
+          var was = btn.textContent;
+          btn.textContent = 'Link copied ✓';
+          setTimeout(function () { btn.textContent = was; }, 2000);
+        }).catch(function () { window.prompt('Copy this link:', url); });
+        return;
+      }
+      window.prompt('Copy this link:', url);
+    });
+  }
 
   function renderAll() {
     renderCareer();

@@ -1,0 +1,13 @@
+{
+  "name": "Texas Fire Salaries",
+  "short_name": "Fire Salaries",
+  "description": "Community-reported Texas firefighter pay, schedules, and career step plans.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#F4F1EA",
+  "theme_color": "#F4F1EA",
+  "icons": [
+    { "src": "/assets/branding/favicon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/assets/branding/texas-fire-icon.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}

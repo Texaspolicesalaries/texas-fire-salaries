@@ -60,19 +60,26 @@
         F.where('timestamp', '>=', cutoff), F.orderBy('timestamp', 'desc'), F.limit(500));
       var snap = await F.getDocs(qy);
       if (snap.empty) { host.innerHTML = '<p class="field-hint">No events recorded yet.</p>'; return; }
-      var byType = {}, byDept = {}, byQuery = {}, byDay = {};
+      var byType = {}, byDept = {}, byQuery = {}, byMiss = {}, byDay = {};
       snap.forEach(function (doc) {
         var d = doc.data();
         byType[d.type] = (byType[d.type] || 0) + 1;
         if (d.type === 'department_view' && d.departmentSlug) byDept[d.departmentSlug] = (byDept[d.departmentSlug] || 0) + 1;
-        if (d.type === 'search' && d.query) byQuery[d.query] = (byQuery[d.query] || 0) + 1;
+        if (d.type === 'search' && d.query) {
+          byQuery[d.query] = (byQuery[d.query] || 0) + 1;
+          // value === 0 is a search that found NOTHING — someone wanted a
+          // department the database doesn't have. Ranked below as the
+          // expansion to-do list. (Undefined value = count unknown, not a miss.)
+          if (d.value === 0) { var mq = String(d.query).toLowerCase().trim(); byMiss[mq] = (byMiss[mq] || 0) + 1; }
+        }
         if (d.date) byDay[d.date] = (byDay[d.date] || 0) + 1;
       });
       var top = function (obj, n) {
         return Object.keys(obj).map(function (k) { return { k: k, n: obj[k] }; })
           .sort(function (a, b) { return b.n - a.n; }).slice(0, n);
       };
-      var TYPE_LABELS = { department_view: 'Department views', search: 'Searches', compare_add: 'Added to comparison', submit_complete: 'Submissions completed' };
+      var TYPE_LABELS = { department_view: 'Department views', search: 'Searches', compare_add: 'Added to comparison', submit_complete: 'Submissions completed',
+        home_stat_click: 'Stat tile clicks', compare_example: 'Example comparisons', legend_toggle: 'Legend toggles', share: 'Department shares' };
       var typeStats = Object.keys(byType).map(function (t) {
         return '<div class="card stat-card"><div class="stat-val">' + byType[t] + '</div><div class="stat-lab">' + (TYPE_LABELS[t] || t) + '</div></div>';
       }).join('');
@@ -82,6 +89,9 @@
       var queryRows = top(byQuery, 8).map(function (row) {
         return '<div class="feed-item"><span>' + UI.esc(row.k) + '</span><span class="feed-when">' + row.n + '×</span></div>';
       }).join('') || '<p class="field-hint">No searches yet.</p>';
+      var missRows = top(byMiss, 10).map(function (row) {
+        return '<div class="feed-item"><span>' + UI.esc(row.k) + '</span><span class="feed-when">' + row.n + '×</span></div>';
+      }).join('') || '<p class="field-hint">Every search found something.</p>';
       var days = Object.keys(byDay).sort().slice(-14);
       var maxDay = Math.max.apply(null, days.map(function (d) { return byDay[d]; }).concat(1));
       var dayBars = days.map(function (d) {
@@ -95,6 +105,7 @@
         '<div class="grid cols-2">' +
           '<div class="card"><h3>Most-viewed departments</h3>' + deptRows + '</div>' +
           '<div class="card"><h3>Top searches</h3>' + queryRows + '</div>' +
+          '<div class="card"><h3>Searched but not found</h3><p class="field-hint" style="margin-top:0">Departments people wanted and couldn’t find — the expansion list.</p>' + missRows + '</div>' +
         '</div>' +
         '<div class="card" style="margin-top:1rem"><h3>Events per day</h3>' + dayBars + '</div>';
     } catch (e) {

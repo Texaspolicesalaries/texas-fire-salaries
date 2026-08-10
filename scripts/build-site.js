@@ -139,9 +139,8 @@ const HEAD = (title, desc, canonical, extra = '', ogImage = '/assets/branding/og
   <link rel="icon" type="image/png" sizes="32x32" href="/assets/branding/favicon-32.png">
   <link rel="icon" type="image/png" sizes="192x192" href="/assets/branding/favicon-192.png">
   <link rel="apple-touch-icon" href="/assets/branding/favicon-180.png">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="manifest" href="/manifest.json">
+  <link rel="stylesheet" href="/css/vendor/fonts.css">
   <link rel="stylesheet" href="/css/tokens-20260729b.css">
   <link rel="stylesheet" href="/css/base-20260729b.css">
   <link rel="stylesheet" href="/css/components-20260729b.css">
@@ -242,6 +241,7 @@ function departmentPage(dept) {
               ${Lib.safeUrl(s.sourceUrl) ? `<a class="btn btn-light" href="${esc(Lib.safeUrl(s.sourceUrl))}" rel="nofollow noopener" target="_blank">View pay plan <span aria-hidden="true">↗</span></a>` : `<a class="btn btn-light" href="/submit.html?dept=${esc(dept.slug)}&mode=update">Update information</a>`}
               <a class="btn btn-ghost-dark" href="/compare.html?d=${esc(dept.slug)}">Add to comparison <span aria-hidden="true">＋</span></a>
               ${Lib.safeUrl(dept.careersUrl) ? `<a class="btn btn-ghost-dark" href="${esc(Lib.safeUrl(dept.careersUrl))}" rel="nofollow noopener" target="_blank">Careers page ↗</a>` : ''}
+              <button class="btn btn-ghost-dark" id="share-dept" type="button">Share</button>
             </div>
           </div>
 ${heroStat}
