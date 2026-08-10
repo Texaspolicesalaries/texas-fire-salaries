@@ -145,21 +145,52 @@
     }).addTo(map);
 
     // Miniatures of the real map's pins — same .pin-* colors AND the same
-    // status glyphs. The three muted statuses (current / strong / missing) are
-    // near-identical dark slates as plain dots; the glyph is what tells them
-    // apart on the real map, so the preview keeps it too.
+    // status glyphs, because the muted statuses are indistinguishable as bare
+    // dots. But 50+ pins around DFW at statewide zoom is a solid blob, so
+    // neighbors collapse into a numbered cluster badge exactly like the real
+    // map's — computed here once (the preview never zooms or pans, so a static
+    // grouping is all the clustering it needs; no MarkerCluster download).
+    var all = window.FireData.all().filter(function (d) { return typeof d.lat === 'number' && typeof d.lng === 'number'; });
     var bounds = window.L.latLngBounds();
-    window.FireData.all().forEach(function (d) {
-      if (typeof d.lat !== 'number' || typeof d.lng !== 'number') return;
+    all.forEach(function (d) { bounds.extend([d.lat, d.lng]); });
+    if (bounds.isValid()) map.fitBounds(bounds, { padding: [24, 24], maxZoom: 8, animate: false });
+
+    // Greedy pixel-space grouping at the (now final) zoom: anything within
+    // ~28px of a group's running centroid joins it.
+    var groups = [];
+    all.forEach(function (d) {
+      var p = map.latLngToContainerPoint([d.lat, d.lng]);
+      var g = null;
+      for (var i = 0; i < groups.length; i++) {
+        if (Math.hypot(groups[i].cx - p.x, groups[i].cy - p.y) < 28) { g = groups[i]; break; }
+      }
+      if (g) {
+        g.items.push(d);
+        g.cx += (p.x - g.cx) / g.items.length;
+        g.cy += (p.y - g.cy) / g.items.length;
+      } else {
+        groups.push({ items: [d], cx: p.x, cy: p.y });
+      }
+    });
+
+    groups.forEach(function (g) {
+      if (g.items.length > 1) {
+        var ll = map.containerPointToLatLng([g.cx, g.cy]);
+        var badge = window.L.divIcon({
+          className: '', iconSize: [26, 26], iconAnchor: [13, 13],
+          html: '<div class="home-cluster">' + g.items.length + '</div>'
+        });
+        window.L.marker(ll, { icon: badge, interactive: false, keyboard: false }).addTo(map);
+        return;
+      }
+      var d = g.items[0];
       var status = UI.pinStatus(d);
       var icon = window.L.divIcon({
         className: '', iconSize: [16, 16], iconAnchor: [8, 16],
         html: '<div class="fire-pin mini pin-' + status + '"><span>' + (UI.PIN_GLYPH[status] || '●') + '</span></div>'
       });
       window.L.marker([d.lat, d.lng], { icon: icon, interactive: false, keyboard: false }).addTo(map);
-      bounds.extend([d.lat, d.lng]);
     });
-    if (bounds.isValid()) map.fitBounds(bounds, { padding: [24, 24], maxZoom: 8, animate: false });
   }
 
   // The entry figure's raw report history, oldest → newest, reduced to "what

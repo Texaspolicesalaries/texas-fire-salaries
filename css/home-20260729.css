@@ -181,6 +181,21 @@ a.home-stat:focus-visible .home-stat-lab::after {
   flex: 0 0 auto;
   font-style: normal;
 }
+/* Preview cluster badge — the real map's .fire-cluster at two-thirds scale,
+   so a dense metro reads as a count instead of a blob of overlapping pins. */
+.home-cluster {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: color-mix(in srgb, var(--ember-600) 88%, transparent);
+  color: #fff;
+  font-weight: 700;
+  font-size: 0.75rem;
+  border: 2px solid color-mix(in srgb, var(--teal-500) 70%, #fff);
+  box-shadow: var(--shadow-sm);
+}
 .home-map-card {
   position: relative;
   min-height: 350px;
