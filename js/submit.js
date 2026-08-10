@@ -615,6 +615,15 @@
     var pv = payload.proposedValues || {};
     var rows = [];
     var kv = function (k, val) { return '<div class="rv-row"><span class="rv-k">' + k + '</span><span class="rv-new">' + val + '</span></div>'; };
+    // NEW-side money: exactly the figure that will be recorded. Typed cents stay
+    // visible — $98,500.75 must not review as "$98,501" (and a $2.50/hr add-on
+    // must not review as "$3/hr"). Old-side values keep UI.money, mirroring what
+    // the site currently displays.
+    var mx = function (n) {
+      return (n % 1)
+        ? '$' + Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+        : UI.money(n);
+    };
     // The OLD side is escaped here, not at each call site: it carries the
     // department's current shift schedule, which is contributor-supplied free
     // text. Every caller already escapes the new side.
@@ -626,14 +635,14 @@
     if (payload.mode === 'plan') {
       var pl = payload.plan || {};
       rows.push(kv('Number of steps', (pv.steps || []).length));
-      rows.push(arrow('Entry pay', cur.entry != null ? UI.money(cur.entry) : null, pv.entry != null ? UI.money(pv.entry) : '—'));
-      rows.push(arrow('Top pay', cur.topBase != null ? UI.money(cur.topBase) : null, pv.top != null ? UI.money(pv.top) : '—'));
-      if (pv.recruit != null) rows.push(arrow('Recruit / academy pay', cur.recruit != null ? UI.money(cur.recruit) : null, UI.money(pv.recruit)));
+      rows.push(arrow('Entry pay', cur.entry != null ? UI.money(cur.entry) : null, pv.entry != null ? mx(pv.entry) : '—'));
+      rows.push(arrow('Top pay', cur.topBase != null ? UI.money(cur.topBase) : null, pv.top != null ? mx(pv.top) : '—'));
+      if (pv.recruit != null) rows.push(arrow('Recruit / academy pay', cur.recruit != null ? UI.money(cur.recruit) : null, mx(pv.recruit)));
       if (pl.yearsToTop != null) rows.push(kv('Years to top', pl.yearsToTop + ' yr'));
     } else if (pv.entry != null || pv.midpoint != null || pv.top != null || pv.reportedEntry != null || pv.reportedMidpoint != null || pv.reportedTop != null || pv.recruit != null) {
       var isTotal = pv.basis === 'total';
       var posLabel = 'Firefighter — ' + periodLabel(pv.payPeriod);
-      if (pv.recruit != null) rows.push(arrow('Recruit / academy pay', cur.recruit != null ? UI.money(cur.recruit) : null, UI.money(pv.recruit) + ' — ' + periodLabel(pv.payPeriod)));
+      if (pv.recruit != null) rows.push(arrow('Recruit / academy pay', cur.recruit != null ? UI.money(cur.recruit) : null, mx(pv.recruit) + ' — ' + periodLabel(pv.payPeriod)));
       // Entry/midpoint/top each get their own row, compared against the matching
       // career point AND the matching kind of figure — a midpoint amount is never
       // diffed against entry or top, and a "reported total compensation" amount is
@@ -641,17 +650,17 @@
       var newEntry = pv.entry != null ? pv.entry : pv.reportedEntry;
       if (newEntry != null) {
         var oldEntry = isTotal ? cur.reportedEntry : cur.entry;
-        rows.push(arrow(posLabel + ' (entry)', oldEntry != null ? UI.money(oldEntry) : null, UI.money(newEntry) + basisSuffix(pv.basis)));
+        rows.push(arrow(posLabel + ' (entry)', oldEntry != null ? UI.money(oldEntry) : null, mx(newEntry) + basisSuffix(pv.basis)));
       }
       var newMid = pv.midpoint != null ? pv.midpoint : pv.reportedMidpoint;
       if (newMid != null) {
         var oldMid = isTotal ? cur.reportedMidpoint : cur.midpoint;
-        rows.push(arrow(posLabel + ' (midpoint)', oldMid != null ? UI.money(oldMid) : null, UI.money(newMid) + basisSuffix(pv.basis)));
+        rows.push(arrow(posLabel + ' (midpoint)', oldMid != null ? UI.money(oldMid) : null, mx(newMid) + basisSuffix(pv.basis)));
       }
       var newTop = pv.top != null ? pv.top : pv.reportedTop;
       if (newTop != null) {
         var oldTop = isTotal ? cur.reportedTop : cur.topBase;
-        rows.push(arrow(posLabel + ' (top)', oldTop != null ? UI.money(oldTop) : null, UI.money(newTop) + basisSuffix(pv.basis)));
+        rows.push(arrow(posLabel + ' (top)', oldTop != null ? UI.money(oldTop) : null, mx(newTop) + basisSuffix(pv.basis)));
       }
     }
 
@@ -677,7 +686,7 @@
           '<span class="rv-old">Removed from this department</span>'));
         return;
       }
-      var shown = s.unit === 'pct' ? (s.amount + '% of base') : (UI.money(s.amount) + '/' + unitLabel(s.unit));
+      var shown = s.unit === 'pct' ? (s.amount + '% of base') : (mx(s.amount) + '/' + unitLabel(s.unit));
       rows.push(kv(UI.esc(Lib.supplementalLabel(s.type, s.label)), shown));
     });
     // readSupp() silently drops a row missing either half, so a contributor who
@@ -692,7 +701,7 @@
     var stepsList = '';
     if (payload.mode === 'plan' && (pv.steps || []).length) {
       stepsList = '<div class="rv-steps"><div class="rv-steps-title">Steps</div>' + pv.steps.map(function (s) {
-        return '<div class="rv-step"><span>' + UI.esc(s.label || '—') + (s.isTopStep ? ' · top' : '') + '</span><span>' + Math.round((s.startMonths || 0) / 12 * 10) / 10 + ' yr</span><span>' + UI.money(s.basePay) + '</span></div>';
+        return '<div class="rv-step"><span>' + UI.esc(s.label || '—') + (s.isTopStep ? ' · top' : '') + '</span><span>' + Math.round((s.startMonths || 0) / 12 * 10) / 10 + ' yr</span><span>' + mx(s.basePay) + '</span></div>';
       }).join('') + '</div>';
     }
 
@@ -815,7 +824,12 @@
     var d = D.get(st.dept);
     if (!d) return;
     var s = d.summary || {};
-    var money = function (n) { return n == null ? '' : Lib.formatMoneyInput(String(n)); };
+    // Whole dollars, like every figure the site displays — a stored 101592.45
+    // prefilled as "101,592.45" next to an entry showing "97,529" read as two
+    // different kinds of number. Rounding only changes what the eye sees:
+    // dv() keeps an untouched field out of the submission either way, and a
+    // contributor who edits the field asserts their own figure.
+    var money = function (n) { return n == null ? '' : Lib.formatMoneyInput(String(Math.round(n))); };
 
     // Single mode shows one flat rate; entry is the honest starting point since
     // that is the figure a flat rate would replace.

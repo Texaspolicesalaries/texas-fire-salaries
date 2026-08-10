@@ -135,13 +135,16 @@
       subdomains: 'abcd'
     }).addTo(map);
 
+    // The same colors the real map's pins wear (the .pin-* rules in
+    // css/components-20260729b.css) — the preview is a promise of what the map
+    // page looks like, so it must not tell a brighter color story than the map.
     var colors = {
-      current: '#3D8178',
-      strong: '#23645C',
+      current: '#39455B',   /* --teal-500 */
+      strong: '#101827',    /* --teal-700 */
       outdated: '#B98A2E',
-      conflict: '#B93F1B',
+      conflict: '#E84A3A',  /* --ember-600 */
       dept: '#174A7E',
-      missing: '#7D8790'
+      missing: '#5A6774'    /* --ink-400 */
     };
     var bounds = window.L.latLngBounds();
     window.FireData.all().forEach(function (d) {
