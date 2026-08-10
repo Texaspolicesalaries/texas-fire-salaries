@@ -135,6 +135,14 @@
 .search-results a:last-child { border-bottom: 0; }
 .search-results a:hover, .search-results a.active { background: var(--bg-sunken); text-decoration: none; }
 .search-results .r-loc { color: var(--text-faint); font-size: var(--fs-sm); }
+/* Option rows can also be <button>s (the submit page picks a department rather
+   than navigating) — same row look as the anchor results above. Scoped to
+   [role=option] so a .btn inside the empty state keeps its button styling. */
+.search-results button[role="option"] { display: flex; width: 100%; justify-content: space-between; align-items: baseline; gap: var(--sp-3); padding: var(--sp-3) var(--sp-4); color: var(--text); background: none; border: 0; border-bottom: 1px solid var(--border); font: inherit; text-align: left; cursor: pointer; }
+.search-results button[role="option"]:last-child { border-bottom: 0; }
+.search-results button[role="option"]:hover, .search-results button[role="option"].active { background: var(--bg-sunken); }
+.search-empty { padding: var(--sp-3) var(--sp-4) var(--sp-4); font-size: var(--fs-sm); color: var(--text-soft); }
+.search-empty p { margin: 0 0 var(--sp-2); }
 
 /* Stat / summary cards */
 .stat-card { text-align: left; position: relative; overflow: hidden; }

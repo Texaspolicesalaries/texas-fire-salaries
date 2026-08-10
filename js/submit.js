@@ -380,10 +380,18 @@
           field('Type', selP('f-dtype', [['municipal', 'Municipal'], ['esd', 'Emergency services district'], ['county', 'County'], ['university', 'University'], ['airport', 'Airport'], ['fire-rescue-district', 'Fire-rescue district'], ['combination', 'Combination'], ['other', 'Other']], 'Select type…'), null, 'f-dtype') + '</div>' +
         field('Website or careers URL', '<input id="f-web" type="url" placeholder="https://">', null, 'f-web');
     }
+    // Same live-search dropdown as the homepage's "Find a department" box —
+    // suggestions with city and entry pay, keyboard navigation, and an explicit
+    // pick. The old <datalist> opened a browser dropdown of all 56 departments
+    // and resolved free text by loose substring, so the selection flapped
+    // between departments while the contributor was still typing.
     return '<h2>Which department?</h2>' + typeToggle +
       field('Search for a department',
-        '<input id="f-dept-search" type="text" list="dept-list" autocomplete="off" placeholder="Type a department, city, or county…">' +
-        '<datalist id="dept-list">' + D.all().map(function (d) { return '<option value="' + UI.esc(d.name + ' — ' + d.city) + '"></option>'; }).join('') + '</datalist>',
+        '<div class="searchbox" style="max-width:none">' +
+          '<span class="search-icon" aria-hidden="true">⌕</span>' +
+          '<input id="f-dept-search" type="search" autocomplete="off" placeholder="Type a department, city, or county…">' +
+          '<div class="search-results" id="dept-search-results" role="listbox" aria-label="Matching departments"></div>' +
+        '</div>',
         'Start typing — ' + D.all().length + ' departments listed.', 'f-dept-search') +
       '<div id="current-values"></div>';
   }
@@ -752,13 +760,17 @@
       renderZipResolved();
     }
 
-    // dept search
+    // dept search — live suggestion dropdown; the department is set ONLY by an
+    // explicit pick (click/Enter) or by text that exactly equals a listed
+    // "Name — City" (which is what a ?dept= deep link puts in the box). Loose
+    // substring matching mid-typing is exactly what made the old picker flap.
     var ds = document.getElementById('f-dept-search');
-    if (ds) {
+    var dsResults = document.getElementById('dept-search-results');
+    if (ds && dsResults) {
       if (st.dept) { var d0 = D.get(st.dept); if (d0) ds.value = d0.name + ' — ' + d0.city; }
       renderCurrent();
-      ds.addEventListener('input', function () {
-        var m = matchDept(ds.value), next = m ? m.slug : '';
+      var dsActive = -1;
+      var applyDept = function (next) {
         if (next === st.dept) return;
         st.dept = next;
         renderCurrent();
@@ -772,6 +784,66 @@
         prefillCurrentValues();
         if (st.mode === 'plan' && !st.steps.length) st.steps.push(blankStep(0, 'Entry'));
         renderEditor();
+      };
+      var closeResults = function () { dsResults.classList.remove('open'); dsResults.innerHTML = ''; dsActive = -1; };
+      var pick = function (slug) {
+        var d = D.get(slug);
+        if (!d) return;
+        ds.value = d.name + ' — ' + d.city;
+        closeResults();
+        applyDept(slug);
+      };
+      var renderResults = function (list, q) {
+        dsActive = -1;
+        if (!list.length) {
+          if (!q) { closeResults(); return; }
+          // The same dead-end-to-contribution turn the homepage search makes,
+          // except here "add it" is one click away on this very page.
+          dsResults.innerHTML = '<div class="search-empty"><p><strong>' + UI.esc(q) + '</strong> isn’t in the database yet.</p>' +
+            '<button type="button" class="btn btn-outline btn-sm" id="ds-switch-add">Add it as a new department →</button></div>';
+          dsResults.classList.add('open');
+          var sw = document.getElementById('ds-switch-add');
+          if (sw) sw.addEventListener('click', function () {
+            var addBtn = document.querySelector('#type-seg [data-type="add"]');
+            if (addBtn) addBtn.click();
+          });
+          return;
+        }
+        dsResults.innerHTML = list.map(function (d) {
+          var s = d.summary || {};
+          return '<button type="button" role="option" data-slug="' + UI.esc(d.slug) + '"><span>' + UI.esc(d.name) +
+            '</span><span class="r-loc">' + UI.esc(d.city) + ', ' + UI.esc(d.county) + ' Co. · ' +
+            (s.hasSalary ? UI.money(s.entry) + ' entry' : 'needs data') + '</span></button>';
+        }).join('');
+        dsResults.classList.add('open');
+      };
+      ds.addEventListener('input', function () {
+        var q = ds.value.trim();
+        var exact = D.all().find(function (d) { return (d.name + ' — ' + d.city).toLowerCase() === q.toLowerCase(); });
+        if (exact) applyDept(exact.slug);
+        else if (st.dept) applyDept('');
+        renderResults(exact || !q ? [] : window.FireData.search(q), q);
+      });
+      dsResults.addEventListener('click', function (e) {
+        var b = e.target.closest('button[data-slug]');
+        if (b) pick(b.getAttribute('data-slug'));
+      });
+      ds.addEventListener('keydown', function (e) {
+        var opts = Array.prototype.slice.call(dsResults.querySelectorAll('button[data-slug]'));
+        if (!opts.length) return;
+        if (e.key === 'ArrowDown') { e.preventDefault(); dsActive = Math.min(dsActive + 1, opts.length - 1); }
+        else if (e.key === 'ArrowUp') { e.preventDefault(); dsActive = Math.max(dsActive - 1, 0); }
+        else if (e.key === 'Enter') {
+          e.preventDefault();
+          if (dsActive >= 0) pick(opts[dsActive].getAttribute('data-slug'));
+          else if (opts.length === 1) pick(opts[0].getAttribute('data-slug'));
+          return;
+        } else if (e.key === 'Escape') { closeResults(); return; }
+        else return;
+        opts.forEach(function (o, i) { o.classList.toggle('active', i === dsActive); });
+      });
+      document.addEventListener('click', function (e) {
+        if (!dsResults.contains(e.target) && e.target !== ds) closeResults();
       });
     }
 
@@ -1097,12 +1169,6 @@
     });
   }
   function renderCurrent() { var host = document.getElementById('current-values'); if (!host) return; var d = st.dept ? D.get(st.dept) : null; host.innerHTML = d ? currentValuesCard(d) : ''; }
-  function matchDept(text) {
-    text = String(text || '').toLowerCase().trim(); if (!text) return null;
-    var all = D.all();
-    return all.find(function (d) { return (d.name + ' — ' + d.city).toLowerCase() === text; }) ||
-      all.find(function (d) { return d.name.toLowerCase().indexOf(text) !== -1 || (d.city && d.city.toLowerCase().indexOf(text) !== -1) || (d.county && d.county.toLowerCase().indexOf(text) !== -1); });
-  }
   function deptName() { var d = D.get(st.dept); return d ? d.name : 'this department'; }
 
   // Has the contributor typed anything worth protecting from a destructive
