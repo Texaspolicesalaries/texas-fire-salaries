@@ -470,6 +470,10 @@
               revisionSourceLink(r) +
               (isCurrent && hasStepPlan ? '<a href="#step-plan">Full ' + summary.steps.length + '-step pay plan ↑</a>' : '') +
             '</div>' +
+            // The admin's stated reason for a correction. Collected by the
+            // admin form ("shown next to the figure"), stored, exported onto
+            // the report — and then never rendered anywhere until here.
+            (r.note ? '<div class="history-note">' + UI.esc(r.note) + '</div>' : '') +
           '</div>' +
         '</div>';
       }).join('') +

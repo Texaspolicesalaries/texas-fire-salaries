@@ -637,7 +637,7 @@
         '<div class="field"><label for="fl-dept">Department</label><input id="fl-dept" type="text" list="fl-dept-list" autocomplete="off" placeholder="Type a department, city, or county…"><datalist id="fl-dept-list"></datalist></div>' +
         '<div class="field"><label for="fl-field">Field</label><select id="fl-field"><option value="entry">Entry pay</option><option value="midpoint">Midpoint pay</option><option value="top">Top pay</option></select></div>' +
         '<div class="field"><label for="fl-value">Corrected amount</label><input id="fl-value" type="number" inputmode="numeric" placeholder="$"></div>' +
-        '<div class="field"><label for="fl-note">Note (shown next to the figure)</label><input id="fl-note" type="text" placeholder="e.g. Verified against the FY26 pay ordinance"></div>' +
+        '<div class="field"><label for="fl-note">Note (public — locks show it beside the figure, corrections on their history card)</label><input id="fl-note" type="text" placeholder="e.g. Verified against the FY26 pay ordinance"></div>' +
       '</div>' +
       '<div class="checkline" style="margin-bottom:.75rem"><input type="checkbox" id="fl-lock"><label for="fl-lock">Lock — keep this value fixed until I unlock it</label></div>' +
       '<button class="btn btn-outline btn-sm" id="fl-save">Save</button>' +

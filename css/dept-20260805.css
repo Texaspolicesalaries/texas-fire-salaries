@@ -237,3 +237,6 @@
    three narrow columns fit a phone comfortably, so the floor is dropped rather
    than forcing a pointless sideways scroll. */
 #supplemental table.pay-table { min-width: 0; }
+
+/* An admin correction's stated reason, under the card's change chips. */
+.history-note { margin-top: var(--sp-3); color: var(--text-soft); font-size: 13px; font-style: italic; line-height: 1.45; }
