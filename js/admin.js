@@ -218,6 +218,8 @@
   var _events = null;       // normalized, newest first
   var _eventsError = null;
   var _actWindow = '24h';
+  var _subs = null;         // recent submissions, newest first
+  var _subsError = null;
 
   async function fetchEvents(F) {
     var cutoff = new Date(Date.now() - WINDOWS['30d'].ms);
@@ -322,6 +324,107 @@
       .sort(function (a, b) { return b.n - a.n; }).slice(0, n);
   }
 
+  // ---- Recent submissions: what each one changed vs what the site showed ----
+  // Mirrors scripts/export-overlay.js's toReport() field mapping so the diff
+  // here matches what the public revision history will show after the next
+  // refresh — including the quick-update `amount`/`salaryType` routing.
+  function fetchRecentSubmissions(F) {
+    var qy = F.query(F.collection(window.FireDB.db, 'submissions'),
+      F.orderBy('submittedAt', 'desc'), F.limit(10));
+    return F.getDocs(qy).then(function (snap) {
+      var out = [];
+      snap.forEach(function (doc) {
+        var d = doc.data();
+        var pv = d.proposedValues || {};
+        var plan = d.plan || {};
+        var ms = d.submittedAt && typeof d.submittedAt.toMillis === 'function' ? d.submittedAt.toMillis() : 0;
+        var report = {
+          contributorId: d.contributorId || null,
+          submittedAt: ms ? new Date(ms).toISOString().slice(0, 10) : null,
+          entry: pv.entry != null ? pv.entry : null,
+          top: pv.top != null ? pv.top : null,
+          midpoint: pv.midpoint != null ? pv.midpoint : null,
+          recruit: pv.recruit != null ? pv.recruit : null,
+          reportedEntry: pv.reportedEntry != null ? pv.reportedEntry : null,
+          reportedTop: pv.reportedTop != null ? pv.reportedTop : null,
+          reportedMidpoint: pv.reportedMidpoint != null ? pv.reportedMidpoint : null,
+          supplemental: pv.supplemental || [],
+          schedule: plan.schedule || pv.schedule || null,
+          hoursAnnual: plan.hoursAnnual != null ? plan.hoursAnnual : (pv.hoursAnnual != null ? pv.hoursAnnual : null),
+          effectiveDate: plan.effectiveDate || pv.effectiveDate || null
+        };
+        // Quick updates carry one figure as amount + salaryType (see
+        // metricFromType in the export): top types → top, hourly → skip.
+        if (pv.amount != null) {
+          var t = String(pv.salaryType || '');
+          if (report.top == null && (t === 'top-ff' || t === 'top-ff-medic')) report.top = pv.amount;
+          else if (report.entry == null && t !== 'hourly-base') report.entry = pv.amount;
+        }
+        out.push({
+          id: doc.id, slug: d.departmentSlug || null, name: d.name || null, city: d.city || null,
+          status: d.status, mode: d.mode, submissionType: d.submissionType,
+          contributorType: d.contributorType, contributorId: d.contributorId || null,
+          ms: ms, sourceUrl: d.sourceUrl || null, sourceFile: d.sourceFile || null,
+          report: report
+        });
+      });
+      return out;
+    });
+  }
+
+  // The report this submission should be diffed against: the newest earlier
+  // non-confirmation report on the department (seed import included), skipping
+  // the overlay's copy of this same submission (same contributor, same day).
+  function prevReportFor(sub) {
+    var dept = sub.slug ? D.get(sub.slug) : null;
+    var reports = (dept && dept.salary && dept.salary.reports) || [];
+    var best = null;
+    reports.forEach(function (r) {
+      if (r.confirmation) return;
+      if (r.contributorId === sub.contributorId && r.submittedAt === sub.report.submittedAt) return;
+      if (sub.report.submittedAt && r.submittedAt && String(r.submittedAt) > sub.report.submittedAt) return;
+      if (!best || String(r.submittedAt || '') > String(best.submittedAt || '')) best = r;
+    });
+    return best;
+  }
+
+  var MODE_LABELS = { single: 'quick update', range: 'range form', plan: 'step-plan form' };
+  function submissionsBody() {
+    if (_subsError) return '<p class="field-hint">Submissions unavailable: ' + UI.esc(_subsError) + '</p>';
+    if (!_subs) return '<p class="field-hint">Loading…</p>';
+    if (!_subs.length) return '<p class="field-hint">No community submissions yet.</p>';
+    return _subs.map(function (s) {
+      var prev = prevReportFor(s);
+      var changes = Lib.describeRevisionChanges(s.report, prev);
+      var chips = changes.map(function (c) {
+        var fmt = function (v) { return c.kind === 'money' ? UI.money(v) : UI.esc(String(v)); };
+        // "new" marks a figure the site didn't show before — except a removal
+        // (to === 'Removed'), where the pair would read as a contradiction.
+        return '<span class="diff-chip"><small>' + UI.esc(c.label) + '</small>' +
+          (c.from == null
+            ? fmt(c.to) + (c.to === 'Removed' ? '' : ' <span class="pill">new</span>')
+            : '<span class="diff-old">' + fmt(c.from) + '</span> → ' + fmt(c.to)) +
+          '</span>';
+      }).join('') || '<span class="field-hint">No figure changes — confirmation or note only.</span>';
+      var who = s.contributorType === 'department' ? 'Department representative' : 'Community contributor';
+      var dept = s.slug ? deptLink(s.slug)
+        : UI.esc([s.name, s.city].filter(Boolean).join(', ') || 'unknown department');
+      var src = Lib.safeUrl(s.sourceUrl || s.sourceFile);
+      var flagged = s.status === 'flagged' ? ' <span class="pill warn">flagged — in Moderation</span>' : '';
+      var baseline = prev
+        ? (/-import$/.test(String(prev.contributorId || '')) ? 'vs official import' : 'vs previous report')
+        : 'first report';
+      return '<div class="sub-item">' +
+        '<div class="sub-head"><strong>' + dept + '</strong>' +
+        ' <span class="pill">' + UI.esc(who) + '</span>' +
+        ' <span class="pill">' + UI.esc(MODE_LABELS[s.mode] || s.mode || 'update') + '</span>' +
+        ' <span class="pill">' + baseline + '</span>' + flagged +
+        '<span class="feed-when">' + (src ? '<a href="' + UI.esc(src) + '" target="_blank" rel="nofollow noopener">Source ↗</a> · ' : '') + agoShort(s.ms) + '</span></div>' +
+        '<div class="sub-diffs">' + chips + '</div>' +
+        '</div>';
+    }).join('');
+  }
+
   function renderActivity() {
     var host = document.getElementById('act-body'); if (!host) return;
     if (_eventsError) { host.innerHTML = '<p class="field-hint">Analytics unavailable: ' + UI.esc(_eventsError) + '</p>'; return; }
@@ -357,6 +460,10 @@
     var chartCard = '<div class="card" style="margin-bottom:1rem"><h3>' +
       (_actWindow === '24h' ? 'Events by hour' : 'Events by day') + '</h3>' + activityChart(ev) + '</div>';
 
+    var subsCard = '<div class="card" style="margin-bottom:1rem"><h3>Recent submissions</h3>' +
+      '<p class="field-hint" style="margin-top:0">The latest 10 regardless of the window above — each shows what it changed against what the site displayed before it.</p>' +
+      submissionsBody() + '</div>';
+
     var searchRows = searches.slice(0, 30).map(function (e) {
       return '<div class="feed-item"><span>' + eventDesc(e) + '</span><span class="feed-when">' + agoShort(e.ms) + '</span></div>';
     }).join('') || '<p class="field-hint">No searches in this window.</p>';
@@ -382,7 +489,7 @@
       return '<div class="feed-item"><span>' + (TYPE_LABELS[row.k] || UI.esc(row.k)) + '</span><span class="feed-when">' + row.n + '</span></div>';
     }).join('') || '<p class="field-hint">No events yet.</p>';
 
-    host.innerHTML = tiles + chartCard +
+    host.innerHTML = tiles + chartCard + subsCard +
       '<div class="grid cols-2" style="margin-bottom:1rem">' +
       '<div class="card"><h3>Recent searches</h3>' + searchNote + searchRows + '</div>' +
       '<div class="card"><h3>Recent activity</h3>' + feedRows + '</div>' +
@@ -705,6 +812,11 @@
       _events = await fetchEvents(F); _eventsError = null;
     } catch (e) {
       _events = null; _eventsError = e.message;
+    }
+    try {
+      _subs = await fetchRecentSubmissions(F); _subsError = null;
+    } catch (e) {
+      _subs = null; _subsError = e.message;
     }
     renderActivity();
     renderOverviewActivity();

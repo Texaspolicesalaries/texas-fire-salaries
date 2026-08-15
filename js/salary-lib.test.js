@@ -252,12 +252,40 @@ test('describeRevisionChanges treats a first-time schedule as added, not changed
   assert.strictEqual(out[0].to, '48/96');
 });
 
-test('describeRevisionChanges counts supplemental items as their own change', () => {
+// The old bare count ("Supplemental pay items 0 → 1") hid what pay changed and
+// by how much — each item now diffs by name and amount.
+test('describeRevisionChanges names each supplemental item it added or changed', () => {
   const out = L.describeRevisionChanges(
-    { entry: 60000, supplemental: [1, 2, 3] },
-    { entry: 60000 }
+    { entry: 60000, supplemental: [
+      { type: 'paramedic-incentive', amount: 1800, unit: 'yr' },   // added
+      { type: 'longevity', amount: 150, unit: 'mo' },              // changed
+      { type: 'emt', amount: 500, unit: 'yr' }                     // unchanged
+    ] },
+    { entry: 60000, supplemental: [
+      { type: 'longevity', amount: 100, unit: 'mo' },
+      { type: 'emt', amount: 500, unit: 'yr' }
+    ] }
   );
-  assert.deepStrictEqual(out, [{ label: 'Supplemental pay items', from: 0, to: 3, kind: 'count' }]);
+  assert.deepStrictEqual(out, [
+    { label: 'Paramedic incentive', from: null, to: '$1,800/yr', kind: 'text' },
+    { label: 'Longevity pay', from: '$100/mo', to: '$150/mo', kind: 'text' }
+  ]);
+});
+
+test('describeRevisionChanges shows a supplemental removal as Removed', () => {
+  const out = L.describeRevisionChanges(
+    { supplemental: [{ type: 'longevity', removed: true }] },
+    { supplemental: [{ type: 'longevity', amount: 500, unit: 'yr' }] }
+  );
+  assert.deepStrictEqual(out, [{ label: 'Longevity pay', from: '$500/yr', to: 'Removed', kind: 'text' }]);
+});
+
+test('describeRevisionChanges keys custom "other" items by their own name', () => {
+  const out = L.describeRevisionChanges(
+    { supplemental: [{ type: 'other', label: 'Dive team pay', amount: 2, unit: 'pct' }] },
+    { supplemental: [{ type: 'other', label: 'Hazmat stipend', amount: 1200, unit: 'yr' }] }
+  );
+  assert.deepStrictEqual(out, [{ label: 'Dive team pay', from: null, to: '2% of base', kind: 'text' }]);
 });
 
 test('fmtMoney formats and guards', () => {

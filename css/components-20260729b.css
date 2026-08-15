@@ -396,3 +396,14 @@ body.has-compare-tray { padding-bottom: 136px; }
 
 /* Amber pill for "this search found nothing" / degraded states. */
 .pill.warn { color: var(--f-update-fg); background: var(--f-update-bg); border-color: color-mix(in srgb, var(--f-update-fg) 30%, transparent); }
+
+/* Admin "Recent submissions": one block per submission, its changes as chips
+   with old value struck through so submitted-vs-previous reads at a glance. */
+.sub-item { padding: var(--sp-3) 0; border-bottom: 1px solid var(--border); }
+.sub-item:last-child { border-bottom: 0; }
+.sub-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--sp-2); }
+.sub-head .feed-when { margin-left: auto; color: var(--text-faint); font-size: var(--fs-xs); white-space: nowrap; }
+.sub-diffs { display: flex; flex-wrap: wrap; gap: var(--sp-2); margin-top: var(--sp-2); }
+.diff-chip { display: inline-flex; align-items: baseline; gap: 6px; font-size: var(--fs-sm); background: var(--bg-sunken); border: 1px solid var(--border); border-radius: var(--r-md); padding: 2px 8px; }
+.diff-chip small { text-transform: uppercase; letter-spacing: .04em; font-size: var(--fs-xs); color: var(--text-faint); }
+.diff-old { color: var(--text-faint); text-decoration: line-through; }

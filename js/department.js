@@ -438,9 +438,15 @@
       '<div class="history-timeline">' +
       reports.map(function (r, i) {
         var isCurrent = i === 0;
+        // The seed baseline (contributorId like 'dfw-fire-import') is the
+        // site's own import from the official pay plan, not a community
+        // submission — labelling it "Community contributor" made it impossible
+        // to tell what the site started with vs what people later changed.
         var type = r.confirmation ? 'Community confirmation'
           : r.adminCorrection ? 'Admin correction'
-          : r.departmentMaintained ? 'Department representative' : 'Community contributor';
+          : r.departmentMaintained ? 'Department representative'
+          : /-import$/.test(String(r.contributorId || '')) ? 'Official pay-plan import'
+          : 'Community contributor';
         var when = revDate(r.submittedAt);
         // Diffed against the previous report in time (the list is newest-first).
         // The oldest report has no predecessor, so everything it carries reads

@@ -229,12 +229,42 @@ function describeRevisionChanges(newer, older) {
     var oEff = (older && older.effectiveDate) || null;
     if (oEff !== nEff) out.push({ label: 'Effective date', from: oEff, to: nEff, kind: 'text' });
   }
-  var nSupp = ((newer.supplemental) || []).length;
-  var oSupp = older ? ((older.supplemental) || []).length : 0;
-  if (nSupp && nSupp !== oSupp) {
-    out.push({ label: 'Supplemental pay items', from: older ? oSupp : null, to: nSupp, kind: 'count' });
-  }
+  // Supplemental pay, one chip per item, named and priced. The old bare count
+  // ("Supplemental pay items 0 → 1") told the reader a thing changed while
+  // hiding the only detail that matters — what pay, and how much.
+  var oldSupp = {};
+  ((older && older.supplemental) || []).forEach(function (s) {
+    if (s && s.type && !s.removed) oldSupp[supplementalKey(s.type, s.label)] = s;
+  });
+  ((newer.supplemental) || []).forEach(function (s) {
+    if (!s || !s.type) return;
+    var label = supplementalLabel(s.type, s.label);
+    var prev = oldSupp[supplementalKey(s.type, s.label)];
+    if (s.removed) {
+      // A removal is a contributor saying "this department does not pay this".
+      // Shown even without a prior report of the item, since the prior report
+      // is only one revision back and the item may predate it.
+      out.push({ label: label, from: prev ? fmtSupplementalAmount(prev) : null, to: 'Removed', kind: 'text' });
+      return;
+    }
+    var to = fmtSupplementalAmount(s);
+    if (to == null) return;                        // no parseable amount — nothing to show
+    var from = prev ? fmtSupplementalAmount(prev) : null;
+    if (from === to) return;                       // carried forward unchanged — not a change
+    out.push({ label: label, from: from, to: to, kind: 'text' });
+  });
   return out;
+}
+
+// A supplemental item's amount with its unit spelled out ("$1,800/yr",
+// "$150/mo", "2% of base") — the display form the revision diff uses.
+function fmtSupplementalAmount(item) {
+  var a = parseMoney(item && item.amount);
+  if (a == null) return null;
+  if (item.unit === 'pct') return a + '% of base';
+  if (item.unit === 'hr') return fmtMoney(a, { cents: a % 1 !== 0 }) + '/hr';
+  if (item.unit === 'mo') return fmtMoney(a) + '/mo';
+  return fmtMoney(a) + '/yr';
 }
 
 // ── Effective hourly ────────────────────────────────────────────────────────
@@ -343,6 +373,7 @@ var FireSalaryLib = {
   consolidateSupplemental: consolidateSupplemental,
   supplementalAnnual: supplementalAnnual,
   describeRevisionChanges: describeRevisionChanges,
+  fmtSupplementalAmount: fmtSupplementalAmount,
   fmtMoney: fmtMoney,
   effectiveHourly: effectiveHourly,
   scheduleHours: scheduleHours,
