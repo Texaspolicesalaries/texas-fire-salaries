@@ -4,6 +4,9 @@ A statewide, **community-maintained** firefighter compensation map and compariso
 database for Texas. Verified contributors submit, confirm, and dispute pay; consensus
 and freshness are computed automatically so the owner mainly moderates — not researches.
 
+Running the site day to day (corrections, sheet imports, moderation, what the
+alert emails mean): see **[OWNER-GUIDE.md](OWNER-GUIDE.md)**.
+
 Built to match the sibling **Texas Police Salaries** stack for easy service-sharing:
 vanilla HTML/JS · Firebase (Auth + Firestore + Storage) · Leaflet + MarkerCluster maps ·
 Cloudflare Pages/Functions. Business logic is pure and unit-tested, separate from the UI.
