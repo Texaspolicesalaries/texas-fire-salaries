@@ -48,11 +48,19 @@
     var input = document.getElementById('add-dept');
     var results = document.getElementById('add-results');
     if (!input) return;
+    // Same executed-search debounce as the homepage (js/home-20260729b.js) —
+    // one event per settled query, not one per keystroke. Compare searches
+    // were invisible to the admin's miss list before this.
+    var searchTrackTimer = null;
     input.addEventListener('input', function () {
       var q = input.value.trim();
       var list = q ? window.FireData.search(q).filter(function (d) { return slugs.indexOf(d.slug) === -1; }) : [];
       results.innerHTML = list.map(function (d) { return '<a href="#" data-slug="' + UI.esc(d.slug) + '"><span>' + UI.esc(d.name) + '</span><span class="r-loc">' + UI.esc(d.city) + '</span></a>'; }).join('');
       results.classList.toggle('open', list.length > 0);
+      if (window.FireAnalytics) {
+        clearTimeout(searchTrackTimer);
+        if (q) searchTrackTimer = setTimeout(function () { window.FireAnalytics.trackSearch('compare', q, list.length); }, 600);
+      }
     });
     results.addEventListener('click', function (e) {
       var a = e.target.closest('a'); if (!a) return; e.preventDefault();

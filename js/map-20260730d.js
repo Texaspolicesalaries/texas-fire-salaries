@@ -177,6 +177,13 @@
         map.setView([origin.lat, origin.lng], 9, { animate: false });
       }
       refresh(fitResults !== false && !!state.radius);
+      // The map's search IS the ZIP lookup — track it like the other pages'
+      // searches so it shows in the admin activity view. Only a user-entered
+      // ZIP that resolved counts ('init' = arriving via a shared URL, and an
+      // unknown ZIP isn't a department miss, so neither is recorded).
+      if (origin && changedKey === 'zip' && window.FireAnalytics) {
+        window.FireAnalytics.trackSearch('map', zip, lastList.length);
+      }
     }).catch(function () {
       if (requestId !== zipRequestId) return;
       setZipStatus('ZIP lookup is temporarily unavailable. Please try again.', 'is-error');

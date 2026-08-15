@@ -96,6 +96,21 @@
     if (el) el.textContent = n > 0 ? String(n) : '';
   }
 
+  // Badges + the attention card render from _counts, and every successful
+  // queue action decrements its counter — so resolving the last item clears
+  // the badge immediately instead of it lying until the next full reload.
+  function applyCounts() {
+    if (!_counts) return;
+    var sum = function (a, b) { return (a || 0) + (b || 0); };
+    setBadge('moderation', [_counts.flagged, _counts.disputes, _counts.dupes, _counts.location].reduce(sum, 0));
+    setBadge('claims', _counts.claims || 0);
+    renderAttention(_counts);
+  }
+
+  function decrementCount(key) {
+    if (_counts && _counts[key] > 0) { _counts[key]--; applyCounts(); }
+  }
+
   // ---- Panels --------------------------------------------------------------
   var PANELS = {
     overview: function () {
@@ -220,6 +235,8 @@
   var _actWindow = '24h';
   var _subs = null;         // recent submissions, newest first
   var _subsError = null;
+  var _daily = null;        // { 'YYYY-MM-DD': { total, sessions } } from daily_stats
+  var _counts = null;       // live queue counts backing the badges + attention card
 
   async function fetchEvents(F) {
     var cutoff = new Date(Date.now() - WINDOWS['30d'].ms);
@@ -235,6 +252,78 @@
         slug: d.departmentSlug, label: d.label, session: d.sessionId });
     });
     return out;
+  }
+
+  // ---- Daily rollups: activity history that survives the events TTL ----
+  // Raw events self-delete at ~90 days (TTL policy on `expiresAt`). Each
+  // admin visit folds every COMPLETE day in the fetched window into a
+  // daily_stats doc (admin-write, public-read per rules) — write-once per
+  // day, so repeat visits cost nothing. Days are UTC to match the events'
+  // own `date` convention. Returns the merged map for the history card.
+  async function rollupDailyStats(F) {
+    var today = new Date().toISOString().slice(0, 10);
+    var byDay = {};
+    (_events || []).forEach(function (e) {
+      if (!e.ms) return;
+      var day = new Date(e.ms).toISOString().slice(0, 10);
+      if (day >= today) return;                    // today is still accruing
+      var d = byDay[day] = byDay[day] || { total: 0, byType: {}, sessions: {} };
+      d.total++;
+      d.byType[e.type] = (d.byType[e.type] || 0) + 1;
+      if (e.session) d.sessions[e.session] = true;
+    });
+    // The events fetch caps at 500; at the cap the oldest fetched day is
+    // probably partial — drop it rather than freeze an undercount forever.
+    if (_events && _events.length >= 500) {
+      var oldest = Object.keys(byDay).sort()[0];
+      if (oldest) delete byDay[oldest];
+    }
+    var merged = {};
+    var snap = await F.getDocs(F.query(F.collection(window.FireDB.db, 'daily_stats'), F.limit(400)));
+    snap.forEach(function (doc) {
+      var d = doc.data();
+      merged[doc.id] = { total: d.total || 0, sessions: d.sessions || 0 };
+    });
+    var missing = Object.keys(byDay).filter(function (day) { return !merged[day]; });
+    await Promise.all(missing.map(function (day) {
+      var d = byDay[day];
+      merged[day] = { total: d.total, sessions: Object.keys(d.sessions).length };
+      return F.setDoc(F.doc(window.FireDB.db, 'daily_stats', day), {
+        date: day, total: d.total, sessions: Object.keys(d.sessions).length,
+        byType: d.byType, updatedAt: F.serverTimestamp()
+      });
+    }));
+    return merged;
+  }
+
+  // All-time daily totals from daily_stats — the view that outlives the
+  // 90-day raw-event retention. Independent of the window toggle.
+  function historyCard() {
+    if (!_daily) return '';
+    var days = Object.keys(_daily).sort();
+    if (!days.length) return '';
+    var totalAll = days.reduce(function (s, d) { return s + _daily[d].total; }, 0);
+    var DAY = 86400000;
+    var end = new Date(); end.setUTCHours(0, 0, 0, 0);
+    var endMs = end.getTime() - DAY;               // yesterday: last complete day
+    var n = Math.min(90, Math.max(1, Math.round((endMs - Date.parse(days[0])) / DAY) + 1));
+    var startMs = endMs - (n - 1) * DAY;
+    var counts = [];
+    for (var i = 0; i < n; i++) {
+      var day = new Date(startMs + i * DAY).toISOString().slice(0, 10);
+      counts.push(_daily[day] ? _daily[day].total : 0);
+    }
+    var max = Math.max.apply(null, counts.concat(1));
+    var cols = counts.map(function (c, i) {
+      return '<div class="act-col' + (c ? '' : ' is-zero') + '" style="height:' + Math.max(Math.round((c / max) * 100), 3) + '%" title="' +
+        UI.esc(dayLabel(startMs + i * DAY)) + ' — ' + c + ' event' + (c === 1 ? '' : 's') + '"></div>';
+    }).join('');
+    return '<div class="card" style="margin-top:1rem"><h3>Daily history</h3>' +
+      '<p class="field-hint" style="margin-top:0">Rolled up on each admin visit and kept in <span class="mono">daily_stats</span>, so it outlives the 90-day raw-event retention. ' +
+      totalAll + ' events across ' + days.length + ' recorded day' + (days.length === 1 ? '' : 's') + ' since ' + UI.esc(days[0]) + '.</p>' +
+      '<div class="act-chart" role="img" aria-label="Events per day, all time">' + cols + '</div>' +
+      '<div class="act-chart-axis"><span>' + UI.esc(dayLabel(startMs)) + '</span><span>' + UI.esc(dayLabel(endMs)) + '</span></div>' +
+      '</div>';
   }
 
   function wireActivityToggle() {
@@ -443,10 +532,13 @@
     return UI.esc(p.displayName || 'Contributor') + (bits.length ? ' (' + bits.join(' · ') + ')' : '') + ' · ' + uidShort;
   }
 
-  // Fills every "by …" placeholder rendered before profiles resolved.
+  // Fills every "by …" placeholder rendered before profiles resolved. The
+  // suspended list sets data-cid-prefix="" — there the person IS the row, so
+  // a "by" would read wrong.
   function applyContributorLabels() {
     document.querySelectorAll('[data-cid]').forEach(function (el) {
-      el.innerHTML = 'by ' + contributorLabel(el.getAttribute('data-cid'));
+      var prefix = el.hasAttribute('data-cid-prefix') ? el.getAttribute('data-cid-prefix') : 'by ';
+      el.innerHTML = prefix + contributorLabel(el.getAttribute('data-cid'));
     });
   }
   function contributorLine(id) {
@@ -558,7 +650,8 @@
       '<div class="grid cols-2">' +
       '<div class="card"><h3>Most-viewed departments</h3>' + deptRows + '</div>' +
       '<div class="card"><h3>Events by type</h3>' + typeRows + '</div>' +
-      '</div>';
+      '</div>' +
+      historyCard();
   }
 
   // ---- Suspend / restore contributors ----
@@ -584,13 +677,19 @@
       var rows = [];
       snap.forEach(function (doc) {
         var d = doc.data();
-        rows.push('<div class="feed-item"><span>' + UI.esc(doc.id) + (d.reason ? ' — ' + UI.esc(d.reason) : '') + '</span>' +
+        // Doc id IS the uid; resolve it to a name like every other queue.
+        // Empty prefix — this list's rows ARE the person, "by" would read wrong.
+        rows.push('<div class="feed-item"><span><span data-cid="' + UI.esc(doc.id) + '" data-cid-prefix=""><span class="mono">' + UI.esc(doc.id.slice(0, 8)) + '…</span></span>' +
+          (d.reason ? ' — ' + UI.esc(d.reason) : '') + '</span>' +
           '<span class="feed-when"><button class="btn btn-outline btn-sm" data-restore-id="' + UI.esc(doc.id) + '">Restore</button></span></div>');
       });
       el.innerHTML = rows.join('');
       el.querySelectorAll('[data-restore-id]').forEach(function (btn) {
         btn.addEventListener('click', function () { restoreContributor(F, btn.getAttribute('data-restore-id'), btn); });
       });
+      // Self-resolving (rather than relying on loadQueues' batch) keeps names
+      // working when the suspend form re-renders this list later.
+      resolveContributors(F, snap.docs.map(function (doc) { return doc.id; })).then(applyContributorLabels);
     } catch (e) { el.innerHTML = '<p class="field-hint">Queue unavailable: ' + UI.esc(e.message) + '</p>'; }
   }
 
@@ -861,14 +960,17 @@
     wireFieldLockForm(F);
     await fillApprovedDomainsQueue(F);
     wireApprovedDomainsForm(F);
-    renderAttention(counts);
-    var sum = function (a, b) { return (a || 0) + (b || 0); };
-    setBadge('moderation', [counts.flagged, counts.disputes, counts.dupes, counts.location].reduce(sum, 0));
-    setBadge('claims', counts.claims || 0);
+    _counts = counts;
+    applyCounts();
     try {
       _events = await fetchEvents(F); _eventsError = null;
     } catch (e) {
       _events = null; _eventsError = e.message;
+    }
+    try {
+      _daily = await rollupDailyStats(F);
+    } catch (e) {
+      _daily = null; // history card simply doesn't render
     }
     try {
       _subs = await fetchRecentSubmissions(F); _subsError = null;
@@ -975,6 +1077,7 @@
       }
     }
     if (item) item.remove();
+    decrementCount('claims');
   }
 
   // "Remove" for an approved claim. Also expires automatically after 18
@@ -1139,7 +1242,7 @@
       });
       el.innerHTML = rows.join('');
       el.querySelectorAll('[data-dupe-id]').forEach(function (btn) {
-        btn.addEventListener('click', function () { resolveDupe(F, btn.getAttribute('data-dupe-id'), btn.getAttribute('data-dupe-action'), btn); });
+        btn.addEventListener('click', function () { resolveDupe(F, btn.getAttribute('data-dupe-id'), btn.getAttribute('data-dupe-action'), btn, 'dupes'); });
       });
       return snap.size;
     } catch (e) { el.innerHTML = '<p class="field-hint">Queue unavailable: ' + UI.esc(e.message) + '</p>'; return null; }
@@ -1180,19 +1283,20 @@
       });
       el.innerHTML = rows.join('');
       el.querySelectorAll('[data-loc-id]').forEach(function (btn) {
-        btn.addEventListener('click', function () { resolveDupe(F, btn.getAttribute('data-loc-id'), btn.getAttribute('data-loc-action'), btn); });
+        btn.addEventListener('click', function () { resolveDupe(F, btn.getAttribute('data-loc-id'), btn.getAttribute('data-loc-action'), btn, 'location'); });
       });
       return snap.size;
     } catch (e) { el.innerHTML = '<p class="field-hint">Queue unavailable: ' + UI.esc(e.message) + '</p>'; return null; }
   }
 
-  async function resolveDupe(F, id, action, btn) {
+  async function resolveDupe(F, id, action, btn, countKey) {
     var item = btn.closest('.feed-item');
     var buttons = item ? item.querySelectorAll('button') : [btn];
     buttons.forEach(function (b) { b.disabled = true; });
     try {
       await F.updateDoc(F.doc(window.FireDB.db, 'department_requests', id), { status: action === 'publish' ? 'published' : 'rejected' });
       if (item) item.remove();
+      if (countKey) decrementCount(countKey);
     } catch (e) {
       buttons.forEach(function (b) { b.disabled = false; });
       var err = document.createElement('div');
@@ -1276,6 +1380,7 @@
     try {
       await F.updateDoc(F.doc(window.FireDB.db, 'submissions', id), { status: 'published' });
       if (item) item.remove();
+      decrementCount('flagged');
     } catch (e) {
       btn.disabled = false; btn.textContent = oldLabel;
       var err = document.createElement('div');
@@ -1329,6 +1434,7 @@
         status: 'resolved', resolvedAt: F.serverTimestamp(), resolvedBy: (A && A.user && A.user.uid) || null
       });
       if (item) item.remove();
+      decrementCount('disputes');
     } catch (e) {
       btn.disabled = false; btn.textContent = oldLabel;
       var err = document.createElement('div');

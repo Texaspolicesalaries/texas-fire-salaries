@@ -1465,7 +1465,10 @@
     // javascript:/data:/etc before the value can ever reach an href, and
     // dropping non-URLs here also stops "asdf" from earning the Sourced chip.
     base.sourceUrl = Lib.safeUrl(v('src-url'));
-    base.sourceStatus = ((prov && SOURCED_PROVENANCE[prov]) || base.sourceUrl) ? 'sourced' : 'provisional';
+    // An uploaded document (pay stub, plan page photo) is evidence at least as
+    // strong as a pasted link — counting only the URL left a contributor who
+    // attached their pay stub labeled "Provisional" at the review step.
+    base.sourceStatus = ((prov && SOURCED_PROVENANCE[prov]) || base.sourceUrl || base.hasFile) ? 'sourced' : 'provisional';
     base.hasFile = hasFile();
     var civil = dv('c-civil');
     if (civil === 'yes') base.civilService = true;
