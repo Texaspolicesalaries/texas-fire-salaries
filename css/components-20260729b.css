@@ -407,3 +407,5 @@ body.has-compare-tray { padding-bottom: 136px; }
 .diff-chip { display: inline-flex; align-items: baseline; gap: 6px; font-size: var(--fs-sm); background: var(--bg-sunken); border: 1px solid var(--border); border-radius: var(--r-md); padding: 2px 8px; }
 .diff-chip small { text-transform: uppercase; letter-spacing: .04em; font-size: var(--fs-xs); color: var(--text-faint); }
 .diff-old { color: var(--text-faint); text-decoration: line-through; }
+.sub-who { font-size: var(--fs-xs); color: var(--text-soft); margin-top: 2px; }
+.sub-who .mono, [data-cid] .mono { font-size: 11px; }

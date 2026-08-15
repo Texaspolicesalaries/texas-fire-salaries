@@ -388,6 +388,49 @@
     return best;
   }
 
+  // ---- Contributor identity (admin-only) ----
+  // Submissions store only the Firebase uid; users/{uid} (admin-readable per
+  // firestore.rules) has displayName/trust/counts but NO email — Firebase Auth
+  // holds emails and is unreachable client-side without the Admin SDK. To see
+  // an email, search the uid under Firebase console → Authentication.
+  var _profileCache = {};
+  async function resolveContributors(F, ids) {
+    var pending = ids.filter(function (id, i) {
+      return id && ids.indexOf(id) === i && !(id in _profileCache) &&
+        id.indexOf('admin:') !== 0 && !/-import$/.test(id);
+    });
+    await Promise.all(pending.map(async function (id) {
+      try {
+        var snap = await F.getDoc(F.doc(window.FireDB.db, 'users', id));
+        _profileCache[id] = snap.exists() ? snap.data() : null;
+      } catch (e) { _profileCache[id] = null; }
+    }));
+  }
+
+  function contributorLabel(id) {
+    if (!id) return 'unknown contributor';
+    if (id.indexOf('admin:') === 0) return UI.esc(id.slice(6)) + ' (admin)';
+    if (/-import$/.test(id)) return 'official import';
+    var p = _profileCache[id];
+    var uidShort = '<span class="mono" title="' + UI.esc(id) + '">' + UI.esc(id.slice(0, 8)) + '…</span>';
+    if (!p) return uidShort;
+    var bits = [];
+    if (p.suspended) bits.push('suspended');
+    if (p.trustStatus === 'trusted') bits.push('trusted');
+    if (p.submissionCount != null) bits.push(p.submissionCount + ' submission' + (p.submissionCount === 1 ? '' : 's'));
+    return UI.esc(p.displayName || 'Contributor') + (bits.length ? ' (' + bits.join(' · ') + ')' : '') + ' · ' + uidShort;
+  }
+
+  // Fills every "by …" placeholder rendered before profiles resolved.
+  function applyContributorLabels() {
+    document.querySelectorAll('[data-cid]').forEach(function (el) {
+      el.innerHTML = 'by ' + contributorLabel(el.getAttribute('data-cid'));
+    });
+  }
+  function contributorLine(id) {
+    return id ? '<br><small class="muted" data-cid="' + UI.esc(id) + '">by <span class="mono">' + UI.esc(id.slice(0, 8)) + '…</span></small>' : '';
+  }
+
   var MODE_LABELS = { single: 'quick update', range: 'range form', plan: 'step-plan form' };
   function submissionsBody() {
     if (_subsError) return '<p class="field-hint">Submissions unavailable: ' + UI.esc(_subsError) + '</p>';
@@ -420,6 +463,7 @@
         ' <span class="pill">' + UI.esc(MODE_LABELS[s.mode] || s.mode || 'update') + '</span>' +
         ' <span class="pill">' + baseline + '</span>' + flagged +
         '<span class="feed-when">' + (src ? '<a href="' + UI.esc(src) + '" target="_blank" rel="nofollow noopener">Source ↗</a> · ' : '') + agoShort(s.ms) + '</span></div>' +
+        (s.contributorId ? '<div class="sub-who" data-cid="' + UI.esc(s.contributorId) + '">by ' + contributorLabel(s.contributorId) + '</div>' : '') +
         '<div class="sub-diffs">' + chips + '</div>' +
         '</div>';
     }).join('');
@@ -818,6 +862,12 @@
     } catch (e) {
       _subs = null; _subsError = e.message;
     }
+    // Resolve who: every contributor rendered in the queues above plus the
+    // recent submissions, in one batch, then patch the placeholders.
+    var cids = (_subs || []).map(function (s) { return s.contributorId; });
+    document.querySelectorAll('[data-cid]').forEach(function (el) { cids.push(el.getAttribute('data-cid')); });
+    await resolveContributors(F, cids);
+    applyContributorLabels();
     renderActivity();
     renderOverviewActivity();
   }
@@ -1155,7 +1205,7 @@
         var d = doc.data();
         var dept = d.departmentSlug ? deptLink(d.departmentSlug) : 'unknown department';
         var reasons = (d.automatedFlags || []).join('; ') || 'flagged';
-        rows.push('<div class="feed-item"><span>' + dept + ' — ' + UI.esc(reasons) + '</span>' +
+        rows.push('<div class="feed-item"><span>' + dept + ' — ' + UI.esc(reasons) + contributorLine(d.contributorId) + '</span>' +
           '<span class="feed-when"><button class="btn btn-secondary btn-sm" data-approve-id="' + UI.esc(doc.id) + '">Approve</button>' +
           suspendButton(d.contributorId) + '</span></div>');
       });
@@ -1231,7 +1281,7 @@
       var rows = [];
       snap.forEach(function (doc) {
         var d = doc.data();
-        rows.push('<div class="feed-item"><span>' + disputeLabel(d) + '</span>' +
+        rows.push('<div class="feed-item"><span>' + disputeLabel(d) + contributorLine(d.contributorId) + '</span>' +
           '<span class="feed-when"><button class="btn btn-outline btn-sm" data-dispute-id="' + UI.esc(doc.id) + '">Resolve</button>' +
           suspendButton(d.contributorId) + '</span></div>');
       });
