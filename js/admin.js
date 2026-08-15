@@ -409,7 +409,9 @@
 
   function contributorLabel(id) {
     if (!id) return 'unknown contributor';
-    if (id.indexOf('admin:') === 0) return UI.esc(id.slice(6)) + ' (admin)';
+    // The overlay masks admin ids to 'admin:<hash>' so the public file carries
+    // no email; the full attribution stays on the admin_corrections doc.
+    if (id.indexOf('admin:') === 0) return 'site admin';
     if (/-import$/.test(id)) return 'official import';
     var p = _profileCache[id];
     var uidShort = '<span class="mono" title="' + UI.esc(id) + '">' + UI.esc(id.slice(0, 8)) + '…</span>';

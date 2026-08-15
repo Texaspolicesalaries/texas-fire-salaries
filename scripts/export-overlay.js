@@ -561,7 +561,12 @@ function adminCorrectionToReport(fields) {
   const value = money(fv(fields.value));
   if (!slug || !field || value == null || ['entry', 'top', 'midpoint'].indexOf(field) === -1) return null;
   const report = {
-    contributorId: 'admin:' + (fv(fields.createdBy) || 'unknown'),
+    // overlay.json is public, so the admin's email must not ride along as the
+    // contributorId. A short one-way hash keeps corrections from different
+    // admin accounts distinct (for contributor counting) without exposing
+    // who; the full email stays in the admin-only Firestore doc's createdBy.
+    contributorId: 'admin:' + require('crypto').createHash('sha1')
+      .update(String(fv(fields.createdBy) || 'unknown')).digest('hex').slice(0, 8),
     submittedAt: isoDay(fields.createdAt && fields.createdAt.timestampValue) || isoDay(Date.now()),
     hasSource: false,
     departmentMaintained: false,

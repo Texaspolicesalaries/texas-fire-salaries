@@ -676,7 +676,12 @@ test('adminCorrectionToReport shapes a one-time correction as an ordinary, label
   assert.strictEqual(parsed.slug, 'addison-fd');
   assert.strictEqual(parsed.report.top, 99000);
   assert.strictEqual(parsed.report.adminCorrection, true);
-  assert.strictEqual(parsed.report.contributorId, 'admin:fastford19@gmail.com');
+  // overlay.json is public: the id must be admin-prefixed for attribution but
+  // must NOT contain the email itself — only a short stable hash of it.
+  assert.match(parsed.report.contributorId, /^admin:[0-9a-f]{8}$/);
+  assert.ok(!parsed.report.contributorId.includes('fastford19'));
+  // Same admin → same id (distinct-contributor counting stays stable).
+  assert.strictEqual(M.adminCorrectionToReport(fields).report.contributorId, parsed.report.contributorId);
 });
 
 test('adminCorrectionToReport returns null with no usable value', () => {
