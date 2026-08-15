@@ -39,10 +39,10 @@ jobs:
       - name: Check out the site
         uses: actions/checkout@v6
 
-      - name: Use Node.js 20
+      - name: Use Node.js 24
         uses: actions/setup-node@v6
         with:
-          node-version: 20
+          node-version: 24
           cache: npm
 
       - name: Install dependencies
@@ -55,7 +55,7 @@ jobs:
         run: npm test
 
       - name: Deploy to Cloudflare Pages
-        uses: cloudflare/wrangler-action@v3
+        uses: cloudflare/wrangler-action@v4
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
