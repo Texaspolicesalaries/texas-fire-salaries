@@ -256,6 +256,19 @@ function describeRevisionChanges(newer, older) {
   return out;
 }
 
+// Does the displayed (consensus) entry pay disagree with the step table's own
+// first step? Happens when community reports or an admin correction move entry
+// pay past the imported pay plan — the page then leads with one figure while
+// the table below opens with another, and a reader sees a contradiction.
+// Returns the table's first-step base when they differ by more than 1%,
+// null when they agree (or either side is missing).
+function stepPlanEntryMismatch(entry, steps) {
+  var e = parseMoney(entry);
+  var first = steps && steps.length ? parseMoney(steps[0].baseAnnualSalary) : null;
+  if (e == null || first == null) return null;
+  return Math.abs(e - first) / first > 0.01 ? first : null;
+}
+
 // A supplemental item's amount with its unit spelled out ("$1,800/yr",
 // "$150/mo", "2% of base") — the display form the revision diff uses.
 function fmtSupplementalAmount(item) {
@@ -373,6 +386,7 @@ var FireSalaryLib = {
   consolidateSupplemental: consolidateSupplemental,
   supplementalAnnual: supplementalAnnual,
   describeRevisionChanges: describeRevisionChanges,
+  stepPlanEntryMismatch: stepPlanEntryMismatch,
   fmtSupplementalAmount: fmtSupplementalAmount,
   fmtMoney: fmtMoney,
   effectiveHourly: effectiveHourly,

@@ -24,6 +24,7 @@ on:
 permissions:
   contents: read
   deployments: write
+  issues: write   # queue watcher opens/updates the 'queue-alert' issue
 
 concurrency:
   group: texas-fire-salaries-production
@@ -61,3 +62,15 @@ jobs:
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           command: pages deploy . --project-name=texas-fire-salaries --branch=main --commit-dirty=true
           gitHubToken: ${{ secrets.GITHUB_TOKEN }}
+
+      # Queue watch — opens/updates a 'queue-alert' issue when anything needs
+      # the admin (flagged submissions, disputes, new submissions); GitHub's
+      # issue notification email is the alert channel, so no mail secrets.
+      # Never blocks the deploy: the site being fresh matters more than a
+      # missed ping, and the next pass retries anyway.
+      - name: Notify on queue changes
+        if: github.repository == 'Texaspolicesalaries/texas-fire-salaries'
+        continue-on-error: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/notify-queues.js

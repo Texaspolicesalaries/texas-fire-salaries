@@ -410,6 +410,15 @@ function payStepTable(s) {
   const disputeNotice = s.stepPlanDisputed
     ? `<div class="notice warn" style="margin-top:.75rem"><span class="notice-icon" aria-hidden="true">⚠</span><div>Disputed — flagged as possibly incorrect by ${s.stepPlanDisputeCount} community member${s.stepPlanDisputeCount === 1 ? '' : 's'}. It will be reverted to the prior data if enough others agree.</div></div>`
     : '';
+  // The page's headline entry (consensus, corrections included) can move past
+  // this table's first step — without a note the page leads with one figure
+  // and the table opens with another, reading as a contradiction rather than
+  // as newer data superseding an older pay plan (e.g. reports that the plan's
+  // "entry" step is really the academy rate).
+  const staleFirstStep = Lib.stepPlanEntryMismatch(s.entry, s.steps);
+  const outdatedNotice = staleFirstStep != null
+    ? `<div class="notice warn" style="margin-top:.75rem"><span class="notice-icon" aria-hidden="true">i</span><div>Newer community reports put entry pay at <strong>${money(s.entry)}</strong>, while this table's first step is ${money(staleFirstStep)} — the step schedule below may be from an older pay plan.</div></div>`
+    : '';
   // Only a live community submission has an ID to flag against — seed/starter
   // data has nothing to target, so no button renders for it.
   const flag = s.stepPlanId ? `<div style="margin-top:.6rem">
@@ -419,7 +428,7 @@ function payStepTable(s) {
   return `<section id="step-plan" class="dept-section">
     <div class="dept-section-heading"><div><span class="section-kicker">Pay-step plan</span><h2>Full pay schedule</h2></div></div>
     <p class="dept-section-intro">Reported step schedule${s.classification ? ` for the ${esc(s.classification)} classification` : ''}. Only submitted columns are shown.</p>
-    ${disputeNotice}
+    ${disputeNotice}${outdatedNotice}
     <div class="table-scroll"><table class="data"><caption class="visually-hidden">Pay steps</caption><thead><tr>${head}</tr></thead><tbody>${rows}</tbody></table></div>${planNotes(s)}${flag}</section>`;
 }
 function monthsLabel(m) { if (m === 0) return 'Start'; const y = Math.floor(m / 12); const mo = m % 12; return (y ? `${y} yr` : '') + (mo ? ` ${mo} mo` : '') || `${m} mo`; }

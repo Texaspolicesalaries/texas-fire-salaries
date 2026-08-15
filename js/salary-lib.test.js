@@ -288,6 +288,18 @@ test('describeRevisionChanges keys custom "other" items by their own name', () =
   assert.deepStrictEqual(out, [{ label: 'Dive team pay', from: null, to: '2% of base', kind: 'text' }]);
 });
 
+// The page headline can outrun the imported step table (community reports or
+// an admin correction move entry) — the table needs to flag its own staleness.
+test('stepPlanEntryMismatch flags a first step that disagrees with consensus entry', () => {
+  const steps = [{ baseAnnualSalary: 63860 }, { baseAnnualSalary: 72100 }];
+  assert.strictEqual(L.stepPlanEntryMismatch(72100, steps), 63860);
+  assert.strictEqual(L.stepPlanEntryMismatch(63860, steps), null);        // agrees
+  assert.strictEqual(L.stepPlanEntryMismatch(64200, steps), null);        // within 1% tolerance
+  assert.strictEqual(L.stepPlanEntryMismatch(null, steps), null);
+  assert.strictEqual(L.stepPlanEntryMismatch(72100, []), null);
+  assert.strictEqual(L.stepPlanEntryMismatch(72100, [{ }]), null);        // step without a base
+});
+
 test('fmtMoney formats and guards', () => {
   assert.strictEqual(L.fmtMoney(74356), '$74,356');
   assert.strictEqual(L.fmtMoney(null), '—');

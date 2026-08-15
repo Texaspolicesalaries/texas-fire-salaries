@@ -328,6 +328,35 @@
   // Mirrors scripts/export-overlay.js's toReport() field mapping so the diff
   // here matches what the public revision history will show after the next
   // refresh — including the quick-update `amount`/`salaryType` routing.
+  function submissionToReport(d) {
+    var pv = d.proposedValues || {};
+    var plan = d.plan || {};
+    var ms = d.submittedAt && typeof d.submittedAt.toMillis === 'function' ? d.submittedAt.toMillis() : 0;
+    var report = {
+      contributorId: d.contributorId || null,
+      submittedAt: ms ? new Date(ms).toISOString().slice(0, 10) : null,
+      entry: pv.entry != null ? pv.entry : null,
+      top: pv.top != null ? pv.top : null,
+      midpoint: pv.midpoint != null ? pv.midpoint : null,
+      recruit: pv.recruit != null ? pv.recruit : null,
+      reportedEntry: pv.reportedEntry != null ? pv.reportedEntry : null,
+      reportedTop: pv.reportedTop != null ? pv.reportedTop : null,
+      reportedMidpoint: pv.reportedMidpoint != null ? pv.reportedMidpoint : null,
+      supplemental: pv.supplemental || [],
+      schedule: plan.schedule || pv.schedule || null,
+      hoursAnnual: plan.hoursAnnual != null ? plan.hoursAnnual : (pv.hoursAnnual != null ? pv.hoursAnnual : null),
+      effectiveDate: plan.effectiveDate || pv.effectiveDate || null
+    };
+    // Quick updates carry one figure as amount + salaryType (see
+    // metricFromType in the export): top types → top, hourly → skip.
+    if (pv.amount != null) {
+      var t = String(pv.salaryType || '');
+      if (report.top == null && (t === 'top-ff' || t === 'top-ff-medic')) report.top = pv.amount;
+      else if (report.entry == null && t !== 'hourly-base') report.entry = pv.amount;
+    }
+    return { ms: ms, report: report };
+  }
+
   function fetchRecentSubmissions(F) {
     var qy = F.query(F.collection(window.FireDB.db, 'submissions'),
       F.orderBy('submittedAt', 'desc'), F.limit(10));
@@ -335,41 +364,32 @@
       var out = [];
       snap.forEach(function (doc) {
         var d = doc.data();
-        var pv = d.proposedValues || {};
-        var plan = d.plan || {};
-        var ms = d.submittedAt && typeof d.submittedAt.toMillis === 'function' ? d.submittedAt.toMillis() : 0;
-        var report = {
-          contributorId: d.contributorId || null,
-          submittedAt: ms ? new Date(ms).toISOString().slice(0, 10) : null,
-          entry: pv.entry != null ? pv.entry : null,
-          top: pv.top != null ? pv.top : null,
-          midpoint: pv.midpoint != null ? pv.midpoint : null,
-          recruit: pv.recruit != null ? pv.recruit : null,
-          reportedEntry: pv.reportedEntry != null ? pv.reportedEntry : null,
-          reportedTop: pv.reportedTop != null ? pv.reportedTop : null,
-          reportedMidpoint: pv.reportedMidpoint != null ? pv.reportedMidpoint : null,
-          supplemental: pv.supplemental || [],
-          schedule: plan.schedule || pv.schedule || null,
-          hoursAnnual: plan.hoursAnnual != null ? plan.hoursAnnual : (pv.hoursAnnual != null ? pv.hoursAnnual : null),
-          effectiveDate: plan.effectiveDate || pv.effectiveDate || null
-        };
-        // Quick updates carry one figure as amount + salaryType (see
-        // metricFromType in the export): top types → top, hourly → skip.
-        if (pv.amount != null) {
-          var t = String(pv.salaryType || '');
-          if (report.top == null && (t === 'top-ff' || t === 'top-ff-medic')) report.top = pv.amount;
-          else if (report.entry == null && t !== 'hourly-base') report.entry = pv.amount;
-        }
+        var shaped = submissionToReport(d);
         out.push({
           id: doc.id, slug: d.departmentSlug || null, name: d.name || null, city: d.city || null,
           status: d.status, mode: d.mode, submissionType: d.submissionType,
           contributorType: d.contributorType, contributorId: d.contributorId || null,
-          ms: ms, sourceUrl: d.sourceUrl || null, sourceFile: d.sourceFile || null,
-          report: report
+          ms: shaped.ms, sourceUrl: d.sourceUrl || null, sourceFile: d.sourceFile || null,
+          report: shaped.report
         });
       });
       return out;
     });
+  }
+
+  // One chip per change, old value struck through. Shared by the Activity
+  // tab's Recent submissions and the Moderation tab's flagged queue.
+  function diffChips(changes) {
+    return changes.map(function (c) {
+      var fmt = function (v) { return c.kind === 'money' ? UI.money(v) : UI.esc(String(v)); };
+      // "new" marks a figure the site didn't show before — except a removal
+      // (to === 'Removed'), where the pair would read as a contradiction.
+      return '<span class="diff-chip"><small>' + UI.esc(c.label) + '</small>' +
+        (c.from == null
+          ? fmt(c.to) + (c.to === 'Removed' ? '' : ' <span class="pill">new</span>')
+          : '<span class="diff-old">' + fmt(c.from) + '</span> → ' + fmt(c.to)) +
+        '</span>';
+    }).join('');
   }
 
   // The report this submission should be diffed against: the newest earlier
@@ -441,16 +461,7 @@
     return _subs.map(function (s) {
       var prev = prevReportFor(s);
       var changes = Lib.describeRevisionChanges(s.report, prev);
-      var chips = changes.map(function (c) {
-        var fmt = function (v) { return c.kind === 'money' ? UI.money(v) : UI.esc(String(v)); };
-        // "new" marks a figure the site didn't show before — except a removal
-        // (to === 'Removed'), where the pair would read as a contradiction.
-        return '<span class="diff-chip"><small>' + UI.esc(c.label) + '</small>' +
-          (c.from == null
-            ? fmt(c.to) + (c.to === 'Removed' ? '' : ' <span class="pill">new</span>')
-            : '<span class="diff-old">' + fmt(c.from) + '</span> → ' + fmt(c.to)) +
-          '</span>';
-      }).join('') || '<span class="field-hint">No figure changes — confirmation or note only.</span>';
+      var chips = diffChips(changes) || '<span class="field-hint">No figure changes — confirmation or note only.</span>';
       var who = s.contributorType === 'department' ? 'Department representative' : 'Community contributor';
       var dept = s.slug ? deptLink(s.slug)
         : UI.esc([s.name, s.city].filter(Boolean).join(', ') || 'unknown department');
@@ -1207,9 +1218,22 @@
         var d = doc.data();
         var dept = d.departmentSlug ? deptLink(d.departmentSlug) : 'unknown department';
         var reasons = (d.automatedFlags || []).join('; ') || 'flagged';
-        rows.push('<div class="feed-item"><span>' + dept + ' — ' + UI.esc(reasons) + contributorLine(d.contributorId) + '</span>' +
-          '<span class="feed-when"><button class="btn btn-secondary btn-sm" data-approve-id="' + UI.esc(doc.id) + '">Approve</button>' +
-          suspendButton(d.contributorId) + '</span></div>');
+        // Same full diff view as the Activity tab's Recent submissions —
+        // approving used to be a blind click on a slug plus a flag reason,
+        // with the submitted values and evidence nowhere in sight.
+        var shaped = submissionToReport(d);
+        var sub = { slug: d.departmentSlug || null, contributorId: d.contributorId || null, report: shaped.report };
+        var chips = diffChips(Lib.describeRevisionChanges(shaped.report, prevReportFor(sub))) ||
+          '<span class="field-hint">No figure changes.</span>';
+        var src = Lib.safeUrl(d.sourceUrl || d.sourceFile);
+        rows.push('<div class="sub-item">' +
+          '<div class="sub-head"><strong>' + dept + '</strong> <span class="pill warn">' + UI.esc(reasons) + '</span>' +
+          '<span class="feed-when">' + (src ? '<a href="' + UI.esc(src) + '" target="_blank" rel="nofollow noopener">Source ↗</a> · ' : '') + agoShort(shaped.ms) + '</span></div>' +
+          (d.contributorId ? '<div class="sub-who" data-cid="' + UI.esc(d.contributorId) + '">by <span class="mono">' + UI.esc(String(d.contributorId).slice(0, 8)) + '…</span></div>' : '') +
+          '<div class="sub-diffs">' + chips + '</div>' +
+          '<div style="margin-top:.5rem"><button class="btn btn-secondary btn-sm" data-approve-id="' + UI.esc(doc.id) + '">Approve</button>' +
+          suspendButton(d.contributorId) + '</div>' +
+          '</div>');
       });
       el.innerHTML = rows.join('');
       el.querySelectorAll('[data-approve-id]').forEach(function (btn) {
@@ -1246,7 +1270,7 @@
   }
 
   async function approveSubmission(F, id, btn) {
-    var item = btn.closest('.feed-item');
+    var item = btn.closest('.sub-item, .feed-item');
     var oldLabel = btn.textContent;
     btn.disabled = true; btn.textContent = 'Approving…';
     try {
