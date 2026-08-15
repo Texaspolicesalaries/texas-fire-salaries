@@ -52,7 +52,13 @@
         type: type,
         sessionId: sessionId(),
         date: new Date().toISOString().slice(0, 10),
-        timestamp: F.serverTimestamp()
+        timestamp: F.serverTimestamp(),
+        // Firestore's TTL policy (console setting on the `events` collection
+        // group, field `expiresAt`) garbage-collects each event ~90 days out.
+        // The admin dashboard reads at most 30 days back, so older events are
+        // pure storage cost. TTL needs a FUTURE timestamp — `timestamp` above
+        // is the creation time and would delete everything immediately.
+        expiresAt: new Date(Date.now() + 90 * 24 * 3600 * 1000)
       }, data || {});
       F.addDoc(F.collection(db.db, 'events'), doc).catch(function () { /* best-effort only */ });
     });

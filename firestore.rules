@@ -194,12 +194,19 @@ service cloud.firestore {
       allow create: if true
         && request.resource.data.keys().hasOnly([
              'type', 'sessionId', 'date', 'timestamp', 'page',
-             'departmentSlug', 'query', 'filterSummary', 'value', 'label'])
+             'departmentSlug', 'query', 'filterSummary', 'value', 'label',
+             'expiresAt'])
         && request.resource.data.type is string
         && request.resource.data.type.size() <= 40
         && request.resource.data.timestamp is timestamp
         && request.resource.data.timestamp > request.time - duration.value(24, 'h')
         && request.resource.data.timestamp < request.time + duration.value(1, 'h')
+        // TTL field (js/analytics.js sets ~90 days; the console TTL policy on
+        // `expiresAt` deletes past-due events). Optional so pre-TTL cached
+        // clients keep writing, bounded so nobody plants an immortal event.
+        && (!('expiresAt' in request.resource.data)
+            || request.resource.data.expiresAt is timestamp
+            && request.resource.data.expiresAt < request.time + duration.value(100, 'd'))
         && (!('query' in request.resource.data)
             || request.resource.data.query is string
             && request.resource.data.query.size() <= 300);
