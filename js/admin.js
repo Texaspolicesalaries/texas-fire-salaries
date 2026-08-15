@@ -1,11 +1,12 @@
 /*
- * admin.js — Low-maintenance admin dashboard (SCAFFOLD).
+ * admin.js — Tabbed admin dashboard.
  *
- * Phase 1 renders the overview counts from seed + Firestore and lays out the
- * moderation queues so the owner mainly handles spam/abuse/claims — routine
- * submissions never queue here. Queue actions (merge, lock, restore, suspend)
- * are stubbed with clear "Phase 3" markers; the data model + rules already
- * support them. Access is gated to the admin role.
+ * Five tabs instead of one long scroll: Overview (health + what needs
+ * attention), Activity (site analytics with a 24h/7d/30d window), Moderation
+ * (flagged/disputes/dupes/location + suspensions), Claims (department
+ * ownership), and Data tools (overrides, field locks). Everything still loads
+ * in one pass — the tabs only show/hide sections, so switching is instant and
+ * costs no extra Firestore reads. Access is gated to the admin role.
  */
 (function () {
   'use strict';
@@ -20,24 +21,144 @@
     var host = document.getElementById('admin-body');
     if (!host) return;
     if (!window.FireDB || !window.FireDB.configured) {
-      host.innerHTML = card('Connect Firebase', '<p class="muted">The admin dashboard reads live moderation data from Firestore. Add your Firebase config to <span class="mono">js/firebase-init.js</span> to enable it. Overview metrics below use seed data as a preview.</p>') + overview();
+      host.innerHTML = card('Connect Firebase', '<p class="muted">The admin dashboard reads live moderation data from Firestore. Add your Firebase config to <span class="mono">js/firebase-init.js</span> to enable it. Overview metrics below use seed data as a preview.</p>') + deptStats();
       return;
     }
     if (!(A && A.isAdmin())) {
       host.innerHTML = '<div class="notice warn"><span class="notice-icon">🔒</span><div>Admin access only. <a href="/sign-in.html">Sign in</a> with an administrator account.</div></div>';
       return;
     }
-    host.innerHTML = overview() + analyticsCard() + queues();
+    host.innerHTML = layout();
+    wireTabs(host);
+    wireActivityToggle();
     loadQueues();
   }
 
-  function overview() {
+  // ---- Tabs ----------------------------------------------------------------
+  var TABS = [
+    { id: 'overview', label: 'Overview' },
+    { id: 'activity', label: 'Activity' },
+    { id: 'moderation', label: 'Moderation' },
+    { id: 'claims', label: 'Claims' },
+    { id: 'data', label: 'Data tools' }
+  ];
+
+  function layout() {
+    var bar = '<div class="admin-tabs" role="tablist" aria-label="Admin sections">' + TABS.map(function (t) {
+      return '<button type="button" role="tab" id="tab-' + t.id + '" aria-controls="panel-' + t.id + '" aria-selected="false" tabindex="-1">' +
+        t.label + '<span class="tab-badge" id="badge-' + t.id + '"></span></button>';
+    }).join('') + '</div>';
+    var panels = TABS.map(function (t) {
+      return '<section role="tabpanel" id="panel-' + t.id + '" aria-labelledby="tab-' + t.id + '" hidden>' + PANELS[t.id]() + '</section>';
+    }).join('');
+    return bar + panels;
+  }
+
+  function wireTabs(host) {
+    var tabs = host.querySelectorAll('.admin-tabs [role="tab"]');
+    tabs.forEach(function (tab, i) {
+      tab.addEventListener('click', function () { selectTab(tab.id.replace(/^tab-/, '')); });
+      // Standard tablist keyboard pattern: arrows move + activate.
+      tab.addEventListener('keydown', function (e) {
+        var dir = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0;
+        if (!dir) return;
+        e.preventDefault();
+        var next = TABS[(i + dir + TABS.length) % TABS.length].id;
+        selectTab(next);
+        document.getElementById('tab-' + next).focus();
+      });
+    });
+    // "Review →" buttons and other cross-tab jumps anywhere in the dashboard.
+    host.addEventListener('click', function (e) {
+      var btn = e.target.closest('[data-goto-tab]');
+      if (btn) selectTab(btn.getAttribute('data-goto-tab'));
+    });
+    var initial = (location.hash || '').replace(/^#/, '');
+    selectTab(TABS.some(function (t) { return t.id === initial; }) ? initial : 'overview');
+  }
+
+  function selectTab(id) {
+    TABS.forEach(function (t) {
+      var tab = document.getElementById('tab-' + t.id);
+      var panel = document.getElementById('panel-' + t.id);
+      if (!tab || !panel) return;
+      var on = t.id === id;
+      tab.setAttribute('aria-selected', on ? 'true' : 'false');
+      tab.setAttribute('tabindex', on ? '0' : '-1');
+      panel.hidden = !on;
+    });
+    // Deep-linkable (#activity) without adding a history entry per click.
+    try { history.replaceState(null, '', '#' + id); } catch (e) { /* ignore */ }
+  }
+
+  function setBadge(id, n) {
+    var el = document.getElementById('badge-' + id);
+    if (el) el.textContent = n > 0 ? String(n) : '';
+  }
+
+  // ---- Panels --------------------------------------------------------------
+  var PANELS = {
+    overview: function () {
+      return '<h2>Overview</h2>' + deptStats() +
+        '<div class="grid cols-2">' +
+        '<div class="card"><h3>Needs attention</h3><div id="ov-attention"><p class="field-hint">Loading…</p></div></div>' +
+        '<div class="card"><h3>Last 24 hours</h3><div id="ov-activity"><p class="field-hint">Loading…</p></div></div>' +
+        '</div>';
+    },
+    activity: function () {
+      return '<div class="admin-panel-head"><h2>Site activity</h2>' +
+        '<div class="view-toggle" id="act-window" role="group" aria-label="Activity window">' +
+        Object.keys(WINDOWS).map(function (k) {
+          return '<button type="button" data-window="' + k + '"' + (k === _actWindow ? ' class="active"' : '') + '>' + WINDOWS[k].label + '</button>';
+        }).join('') + '</div></div>' +
+        '<p class="muted" style="margin-bottom:1rem">What visitors are doing — searches, page views, comparisons, submissions. Events are anonymous, session-capped, and kept for the dashboard\'s 30-day window.</p>' +
+        '<div id="act-body"><p class="field-hint">Loading events…</p></div>';
+    },
+    moderation: function () {
+      var q = function (id, title, hint) {
+        return '<div class="card" style="margin-bottom:1rem"><h3>' + title + '</h3><p class="muted" style="margin-bottom:.75rem">' + hint + '</p><div id="' + id + '"><p class="field-hint">Loading…</p></div></div>';
+      };
+      return '<h2>Moderation</h2>' +
+        '<p class="muted" style="margin-bottom:1rem">Routine salary submissions publish automatically and do <strong>not</strong> appear here — only automatically flagged items and reports do.</p>' +
+        q('q-flagged', 'Flagged submissions', 'Auto-flagged by the moderation rules (large jumps, out-of-range, placeholder data).') +
+        q('q-disputes', 'Disputes & abuse reports', 'Community-reported incorrect information and abuse reports.') +
+        q('q-dupes', 'Possible duplicate departments', 'Suggested merges from contributors.') +
+        q('q-location', 'Departments needing a location check', 'The ZIP could not be resolved to a Texas place, or it belongs to a different city than the one entered. Nothing here is on the map yet.') +
+        suspendedCard();
+    },
+    claims: function () {
+      return '<h2>Department claims</h2>' +
+        '<p class="muted" style="margin-bottom:1rem">Requests to manage a department page via an official email domain, plus the claims currently in force.</p>' +
+        '<div class="card" style="margin-bottom:1rem"><h3>Pending claims</h3><div id="q-claims"><p class="field-hint">Loading…</p></div></div>' +
+        '<div class="card" style="margin-bottom:1rem"><h3>Active department claims</h3>' +
+        '<p class="muted" style="margin-bottom:.75rem">Approved right now. A claim expires automatically after 18 months with no submission from the claimant — revoke here if it needs to happen sooner, or reassign it to a different department if it was granted by mistake.</p>' +
+        '<div id="q-active-claims"><p class="field-hint">Loading…</p></div>' +
+        '<div class="divider-label" style="margin:1rem 0">Grant a claim manually</div>' +
+        '<p class="field-hint" style="margin-bottom:.5rem">Only finds people who have submitted at least one claim before (even a rejected one) — there is no way to look up an arbitrary email that has never touched a claim.</p>' +
+        '<div class="grid cols-2">' +
+        '<div class="field"><label for="ac-dept">Department</label><input id="ac-dept" type="text" list="ac-dept-list" autocomplete="off" placeholder="Type a department, city, or county…"><datalist id="ac-dept-list"></datalist></div>' +
+        '<div class="field"><label for="ac-user">Claimant</label><select id="ac-user"><option value="">Loading…</option></select></div>' +
+        '</div>' +
+        '<button class="btn btn-outline btn-sm" id="ac-add">Grant claim</button>' +
+        '<div id="ac-status" class="field-hint" style="margin-top:.5rem"></div>' +
+        '</div>' +
+        approvedDomainsCard();
+    },
+    data: function () {
+      return '<h2>Data tools</h2>' +
+        '<p class="muted" style="margin-bottom:1rem">Manual corrections that override or sit alongside community data. Everything here takes effect on the next scheduled refresh.</p>' +
+        deptOverrideCard() + fieldLockCard();
+    }
+  };
+
+  // ---- Overview ------------------------------------------------------------
+  function deptStats() {
     var all = D.all();
     var withData = all.filter(function (d) { return d.summary.hasSalary; });
     var current = withData.filter(function (d) { return within(d.summary.lastUpdated, 12); });
     var conflicting = withData.filter(function (d) { return d.summary.hasConflict; });
     var stat = function (n, l) { return '<div class="card stat-card"><div class="stat-val">' + n + '</div><div class="stat-lab">' + l + '</div></div>'; };
-    return '<h2>Overview</h2><div class="grid cols-4" style="margin-bottom:2rem">' +
+    return '<div class="grid cols-4" style="margin-bottom:1rem">' +
       stat(all.length, 'Total departments') +
       stat(current.length, 'Departments with current data') +
       stat(all.length - withData.length, 'Departments needing updates') +
@@ -45,98 +166,235 @@
       '</div>';
   }
 
-  // ---- Analytics (js/analytics.js writes; last 30 days, admin-only read) ----
-  var ANALYTICS_WINDOW_DAYS = 30;
-  function analyticsCard() {
-    return '<h2>Analytics <span class="field-hint">(last ' + ANALYTICS_WINDOW_DAYS + ' days)</span></h2>' +
-      '<div id="analytics-body" style="margin-bottom:2rem"><p class="field-hint">Loading…</p></div>';
+  // counts: null = that queue failed to load (shown as "?", never "all clear").
+  function renderAttention(counts) {
+    var el = document.getElementById('ov-attention'); if (!el) return;
+    var rows = [
+      { label: 'Flagged submissions', n: counts.flagged, tab: 'moderation' },
+      { label: 'Disputes & abuse reports', n: counts.disputes, tab: 'moderation' },
+      { label: 'Possible duplicate departments', n: counts.dupes, tab: 'moderation' },
+      { label: 'Location checks', n: counts.location, tab: 'moderation' },
+      { label: 'Pending department claims', n: counts.claims, tab: 'claims' }
+    ];
+    var pending = rows.filter(function (r) { return r.n == null || r.n > 0; });
+    if (!pending.length) { el.innerHTML = '<p class="field-hint">All clear — nothing needs review. ✓</p>'; return; }
+    el.innerHTML = pending.map(function (r) {
+      var count = r.n == null ? '<span class="pill warn">unavailable</span>' : '<span class="pill">' + r.n + '</span>';
+      return '<div class="feed-item"><span>' + r.label + ' ' + count + '</span>' +
+        '<span class="feed-when"><button class="btn btn-outline btn-sm" data-goto-tab="' + r.tab + '">Review</button></span></div>';
+    }).join('');
   }
 
-  async function fillAnalytics(F) {
-    var host = document.getElementById('analytics-body'); if (!host) return;
-    try {
-      var cutoff = new Date(Date.now() - ANALYTICS_WINDOW_DAYS * 24 * 3600 * 1000);
-      var qy = F.query(F.collection(window.FireDB.db, 'events'),
-        F.where('timestamp', '>=', cutoff), F.orderBy('timestamp', 'desc'), F.limit(500));
-      var snap = await F.getDocs(qy);
-      if (snap.empty) { host.innerHTML = '<p class="field-hint">No events recorded yet.</p>'; return; }
-      var byType = {}, byDept = {}, byQuery = {}, byMiss = {}, byDay = {};
-      snap.forEach(function (doc) {
-        var d = doc.data();
-        byType[d.type] = (byType[d.type] || 0) + 1;
-        if (d.type === 'department_view' && d.departmentSlug) byDept[d.departmentSlug] = (byDept[d.departmentSlug] || 0) + 1;
-        if (d.type === 'search' && d.query) {
-          byQuery[d.query] = (byQuery[d.query] || 0) + 1;
-          // value === 0 is a search that found NOTHING — someone wanted a
-          // department the database doesn't have. Ranked below as the
-          // expansion to-do list. (Undefined value = count unknown, not a miss.)
-          if (d.value === 0) { var mq = String(d.query).toLowerCase().trim(); byMiss[mq] = (byMiss[mq] || 0) + 1; }
-        }
-        if (d.date) byDay[d.date] = (byDay[d.date] || 0) + 1;
+  function renderOverviewActivity() {
+    var el = document.getElementById('ov-activity'); if (!el) return;
+    if (_eventsError) { el.innerHTML = '<p class="field-hint">Activity unavailable: ' + UI.esc(_eventsError) + '</p>'; return; }
+    if (!_events) { el.innerHTML = '<p class="field-hint">Loading…</p>'; return; }
+    var cutoff = Date.now() - WINDOWS['24h'].ms;
+    var ev = _events.filter(function (e) { return e.ms >= cutoff; });
+    var searches = ev.filter(function (e) { return e.type === 'search'; });
+    var misses = searches.filter(function (e) { return e.value === 0; });
+    var sessions = uniqueSessions(ev);
+    var row = function (label, val) {
+      return '<div class="feed-item"><span>' + label + '</span><span class="feed-when">' + val + '</span></div>';
+    };
+    el.innerHTML =
+      row('Visitor sessions', sessions) +
+      row('Searches', searches.length + (misses.length ? ' (' + misses.length + ' found nothing)' : '')) +
+      row('Department page views', ev.filter(function (e) { return e.type === 'department_view'; }).length) +
+      row('Submissions completed', ev.filter(function (e) { return e.type === 'submit_complete'; }).length) +
+      '<div style="margin-top:.75rem"><button class="btn btn-outline btn-sm" data-goto-tab="activity">Open activity</button></div>';
+  }
+
+  // ---- Activity (js/analytics.js writes the events; admin-only read) -------
+  var WINDOWS = {
+    '24h': { label: '24 hours', ms: 24 * 3600 * 1000 },
+    '7d': { label: '7 days', ms: 7 * 24 * 3600 * 1000 },
+    '30d': { label: '30 days', ms: 30 * 24 * 3600 * 1000 }
+  };
+  var TYPE_LABELS = { department_view: 'Department views', search: 'Searches', compare_add: 'Added to comparison', submit_complete: 'Submissions completed',
+    home_stat_click: 'Stat tile clicks', compare_example: 'Example comparisons', legend_toggle: 'Legend toggles', share: 'Department shares' };
+  var KIND_LABELS = { department_view: 'Dept view', search: 'Search', compare_add: 'Compare', submit_complete: 'Submission',
+    home_stat_click: 'Home', compare_example: 'Compare', legend_toggle: 'Map', share: 'Share' };
+  var _events = null;       // normalized, newest first
+  var _eventsError = null;
+  var _actWindow = '24h';
+
+  async function fetchEvents(F) {
+    var cutoff = new Date(Date.now() - WINDOWS['30d'].ms);
+    var qy = F.query(F.collection(window.FireDB.db, 'events'),
+      F.where('timestamp', '>=', cutoff), F.orderBy('timestamp', 'desc'), F.limit(500));
+    var snap = await F.getDocs(qy);
+    var out = [];
+    snap.forEach(function (doc) {
+      var d = doc.data();
+      var ms = d.timestamp && typeof d.timestamp.toMillis === 'function' ? d.timestamp.toMillis()
+        : (d.date ? Date.parse(d.date) : 0);
+      out.push({ type: d.type, ms: ms, page: d.page, query: d.query, value: d.value,
+        slug: d.departmentSlug, label: d.label, session: d.sessionId });
+    });
+    return out;
+  }
+
+  function wireActivityToggle() {
+    var host = document.getElementById('act-window'); if (!host) return;
+    host.querySelectorAll('button[data-window]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        _actWindow = btn.getAttribute('data-window');
+        host.querySelectorAll('button').forEach(function (b) { b.classList.toggle('active', b === btn); });
+        renderActivity();
       });
-      var top = function (obj, n) {
-        return Object.keys(obj).map(function (k) { return { k: k, n: obj[k] }; })
-          .sort(function (a, b) { return b.n - a.n; }).slice(0, n);
-      };
-      var TYPE_LABELS = { department_view: 'Department views', search: 'Searches', compare_add: 'Added to comparison', submit_complete: 'Submissions completed',
-        home_stat_click: 'Stat tile clicks', compare_example: 'Example comparisons', legend_toggle: 'Legend toggles', share: 'Department shares' };
-      var typeStats = Object.keys(byType).map(function (t) {
-        return '<div class="card stat-card"><div class="stat-val">' + byType[t] + '</div><div class="stat-lab">' + (TYPE_LABELS[t] || t) + '</div></div>';
-      }).join('');
-      var deptRows = top(byDept, 8).map(function (row) {
-        return '<div class="feed-item"><span><a href="/departments/' + UI.esc(row.k) + '/" target="_blank" rel="noopener">' + UI.esc(row.k) + '</a></span><span class="feed-when">' + row.n + ' view' + (row.n === 1 ? '' : 's') + '</span></div>';
-      }).join('') || '<p class="field-hint">No department views yet.</p>';
-      var queryRows = top(byQuery, 8).map(function (row) {
-        return '<div class="feed-item"><span>' + UI.esc(row.k) + '</span><span class="feed-when">' + row.n + '×</span></div>';
-      }).join('') || '<p class="field-hint">No searches yet.</p>';
-      var missRows = top(byMiss, 10).map(function (row) {
-        return '<div class="feed-item"><span>' + UI.esc(row.k) + '</span><span class="feed-when">' + row.n + '×</span></div>';
-      }).join('') || '<p class="field-hint">Every search found something.</p>';
-      var days = Object.keys(byDay).sort().slice(-14);
-      var maxDay = Math.max.apply(null, days.map(function (d) { return byDay[d]; }).concat(1));
-      var dayBars = days.map(function (d) {
-        var pct = Math.max(4, Math.round((byDay[d] / maxDay) * 100));
-        return '<div class="feed-item"><span>' + d + '</span><span class="feed-when" style="display:flex;align-items:center;gap:.5rem">' +
-          '<span style="display:inline-block;width:80px;height:8px;border-radius:4px;background:var(--bg-sunken);overflow:hidden">' +
-          '<span style="display:block;height:100%;width:' + pct + '%;background:var(--accent)"></span></span>' + byDay[d] + '</span></div>';
-      }).join('');
-      host.innerHTML =
-        '<div class="grid cols-4" style="margin-bottom:1rem">' + typeStats + '</div>' +
-        '<div class="grid cols-2">' +
-          '<div class="card"><h3>Most-viewed departments</h3>' + deptRows + '</div>' +
-          '<div class="card"><h3>Top searches</h3>' + queryRows + '</div>' +
-          '<div class="card"><h3>Searched but not found</h3><p class="field-hint" style="margin-top:0">Departments people wanted and couldn’t find — the expansion list.</p>' + missRows + '</div>' +
-        '</div>' +
-        '<div class="card" style="margin-top:1rem"><h3>Events per day</h3>' + dayBars + '</div>';
-    } catch (e) {
-      host.innerHTML = '<p class="field-hint">Analytics unavailable: ' + UI.esc(e.message) + '</p>';
+    });
+  }
+
+  function uniqueSessions(ev) {
+    var seen = {};
+    ev.forEach(function (e) { if (e.session) seen[e.session] = true; });
+    return Object.keys(seen).length;
+  }
+
+  function agoShort(ms) {
+    if (!ms) return '';
+    var s = Math.max(0, Math.round((Date.now() - ms) / 1000));
+    if (s < 60) return 'just now';
+    var m = Math.floor(s / 60);
+    if (m < 60) return m + 'm ago';
+    var h = Math.floor(m / 60);
+    if (h < 24) return h + 'h ago';
+    return Math.floor(h / 24) + 'd ago';
+  }
+
+  function hourLabel(t) { return new Date(t).toLocaleTimeString([], { hour: 'numeric' }); }
+  function dayLabel(t) { return new Date(t).toLocaleDateString([], { month: 'short', day: 'numeric' }); }
+
+  // Column chart: hourly buckets for the 24h window, daily otherwise.
+  function activityChart(ev) {
+    var hourly = _actWindow === '24h';
+    var sizeMs = hourly ? 3600000 : 86400000;
+    var n = hourly ? 24 : (_actWindow === '7d' ? 7 : 30);
+    var start;
+    if (hourly) {
+      start = Math.floor(Date.now() / sizeMs) * sizeMs - (n - 1) * sizeMs;
+    } else {
+      var d0 = new Date(); d0.setHours(0, 0, 0, 0);
+      start = d0.getTime() - (n - 1) * sizeMs;
+    }
+    var buckets = [];
+    for (var i = 0; i < n; i++) buckets.push(0);
+    ev.forEach(function (e) {
+      var idx = Math.floor((e.ms - start) / sizeMs);
+      if (idx >= 0 && idx < n) buckets[idx]++;
+    });
+    var max = Math.max.apply(null, buckets.concat(1));
+    var label = hourly ? hourLabel : dayLabel;
+    var cols = buckets.map(function (c, i) {
+      var t = start + i * sizeMs;
+      return '<div class="act-col' + (c ? '' : ' is-zero') + '" style="height:' + Math.max(Math.round((c / max) * 100), 3) + '%" title="' +
+        UI.esc(label(t)) + ' — ' + c + ' event' + (c === 1 ? '' : 's') + '"></div>';
+    }).join('');
+    return '<div class="act-chart" role="img" aria-label="Events over time">' + cols + '</div>' +
+      '<div class="act-chart-axis"><span>' + UI.esc(label(start)) + '</span><span>' + (hourly ? 'now' : 'today') + '</span></div>';
+  }
+
+  function deptLink(slug) {
+    return '<a href="/departments/' + UI.esc(slug) + '/" target="_blank" rel="noopener">' + UI.esc(slug) + '</a>';
+  }
+
+  function eventDesc(e) {
+    var dept = e.slug ? deptLink(e.slug) : '';
+    switch (e.type) {
+      case 'search': {
+        var res = e.value == null ? '' : (e.value === 0 ? ' · <span class="pill warn">no results</span>' : ' · ' + e.value + ' result' + (e.value === 1 ? '' : 's'));
+        return '“' + UI.esc(e.query || '') + '”' + (e.page ? ' <span class="pill">' + UI.esc(e.page) + '</span>' : '') + res;
+      }
+      case 'department_view': return 'Viewed ' + (dept || 'a department');
+      case 'compare_add': return 'Added ' + (dept || 'a department') + ' to comparison';
+      case 'submit_complete': return 'Completed a submission' + (dept ? ' for ' + dept : '') + (e.label ? ' (' + UI.esc(e.label) + ')' : '');
+      case 'share': return 'Shared ' + (dept || 'a department');
+      case 'home_stat_click': return 'Clicked home stat' + (e.label ? ' “' + UI.esc(e.label) + '”' : '');
+      case 'compare_example': return 'Opened example comparison' + (e.label ? ' “' + UI.esc(e.label) + '”' : '');
+      case 'legend_toggle': return 'Map legend ' + (e.label ? UI.esc(e.label) : 'toggled');
+      default: return UI.esc(e.type) + (e.label ? ' “' + UI.esc(e.label) + '”' : '');
     }
   }
 
-  function queues() {
-    var q = function (id, title, hint) {
-      return '<div class="card" style="margin-bottom:1rem"><h3>' + title + '</h3><p class="muted" style="margin-bottom:.75rem">' + hint + '</p><div id="' + id + '"><p class="field-hint">Loading…</p></div></div>';
-    };
-    return '<h2>Moderation queues</h2>' +
-      '<p class="muted" style="margin-bottom:1rem">Routine salary submissions publish automatically and do <strong>not</strong> appear here — only automatically flagged items and reports do.</p>' +
-      q('q-flagged', 'Flagged submissions', 'Auto-flagged by the moderation rules (large jumps, out-of-range, placeholder data).') +
-      q('q-disputes', 'Disputes & abuse reports', 'Community-reported incorrect information and abuse reports.') +
-      q('q-claims', 'Department ownership claims', 'Requests to manage a department page via an official email domain.') +
-      '<div class="card" style="margin-bottom:1rem"><h3>Active department claims</h3>' +
-      '<p class="muted" style="margin-bottom:.75rem">Approved right now. A claim expires automatically after 18 months with no submission from the claimant — revoke here if it needs to happen sooner, or reassign it to a different department if it was granted by mistake.</p>' +
-      '<div id="q-active-claims"><p class="field-hint">Loading…</p></div>' +
-      '<div class="divider-label" style="margin:1rem 0">Grant a claim manually</div>' +
-      '<p class="field-hint" style="margin-bottom:.5rem">Only finds people who have submitted at least one claim before (even a rejected one) — there is no way to look up an arbitrary email that has never touched a claim.</p>' +
+  function top(obj, n) {
+    return Object.keys(obj).map(function (k) { return { k: k, n: obj[k] }; })
+      .sort(function (a, b) { return b.n - a.n; }).slice(0, n);
+  }
+
+  function renderActivity() {
+    var host = document.getElementById('act-body'); if (!host) return;
+    if (_eventsError) { host.innerHTML = '<p class="field-hint">Analytics unavailable: ' + UI.esc(_eventsError) + '</p>'; return; }
+    if (!_events) { host.innerHTML = '<p class="field-hint">Loading events…</p>'; return; }
+    var cutoff = Date.now() - WINDOWS[_actWindow].ms;
+    var ev = _events.filter(function (e) { return e.ms >= cutoff; })
+      .sort(function (a, b) { return b.ms - a.ms; });
+
+    var searches = ev.filter(function (e) { return e.type === 'search'; });
+    var views = ev.filter(function (e) { return e.type === 'department_view'; });
+    var byType = {}, byDept = {}, byQuery = {}, byMiss = {};
+    ev.forEach(function (e) {
+      byType[e.type] = (byType[e.type] || 0) + 1;
+      if (e.type === 'department_view' && e.slug) byDept[e.slug] = (byDept[e.slug] || 0) + 1;
+      if (e.type === 'search' && e.query) {
+        var q = String(e.query).toLowerCase().trim();
+        byQuery[q] = (byQuery[q] || 0) + 1;
+        // value === 0 is a search that found NOTHING — someone wanted a
+        // department the database doesn't have. Ranked below as the expansion
+        // to-do list. (Undefined value = count unknown, not a miss.)
+        if (e.value === 0) byMiss[q] = (byMiss[q] || 0) + 1;
+      }
+    });
+
+    var stat = function (n, l) { return '<div class="card stat-card"><div class="stat-val">' + n + '</div><div class="stat-lab">' + l + '</div></div>'; };
+    var tiles = '<div class="grid cols-4" style="margin-bottom:1rem">' +
+      stat(ev.length, 'Events') +
+      stat(searches.length, 'Searches') +
+      stat(views.length, 'Department views') +
+      stat(uniqueSessions(ev), 'Unique sessions') +
+      '</div>';
+
+    var chartCard = '<div class="card" style="margin-bottom:1rem"><h3>' +
+      (_actWindow === '24h' ? 'Events by hour' : 'Events by day') + '</h3>' + activityChart(ev) + '</div>';
+
+    var searchRows = searches.slice(0, 30).map(function (e) {
+      return '<div class="feed-item"><span>' + eventDesc(e) + '</span><span class="feed-when">' + agoShort(e.ms) + '</span></div>';
+    }).join('') || '<p class="field-hint">No searches in this window.</p>';
+    var searchNote = searches.length > 30 ? '<p class="field-hint" style="margin-top:0">Latest 30 of ' + searches.length + '.</p>' : '';
+
+    var feedRows = ev.slice(0, 30).map(function (e) {
+      return '<div class="feed-item"><span class="feed-kind">' + (KIND_LABELS[e.type] || UI.esc(e.type)) + '</span><span>' + eventDesc(e) + '</span><span class="feed-when">' + agoShort(e.ms) + '</span></div>';
+    }).join('') || '<p class="field-hint">No events in this window.</p>';
+
+    var queryRows = top(byQuery, 8).map(function (row) {
+      return '<div class="feed-item"><span>' + UI.esc(row.k) + '</span><span class="feed-when">' + row.n + '×</span></div>';
+    }).join('') || '<p class="field-hint">No searches yet.</p>';
+
+    var missRows = top(byMiss, 10).map(function (row) {
+      return '<div class="feed-item"><span>' + UI.esc(row.k) + '</span><span class="feed-when">' + row.n + '×</span></div>';
+    }).join('') || '<p class="field-hint">Every search found something.</p>';
+
+    var deptRows = top(byDept, 8).map(function (row) {
+      return '<div class="feed-item"><span>' + deptLink(row.k) + '</span><span class="feed-when">' + row.n + ' view' + (row.n === 1 ? '' : 's') + '</span></div>';
+    }).join('') || '<p class="field-hint">No department views yet.</p>';
+
+    var typeRows = top(byType, 20).map(function (row) {
+      return '<div class="feed-item"><span>' + (TYPE_LABELS[row.k] || UI.esc(row.k)) + '</span><span class="feed-when">' + row.n + '</span></div>';
+    }).join('') || '<p class="field-hint">No events yet.</p>';
+
+    host.innerHTML = tiles + chartCard +
+      '<div class="grid cols-2" style="margin-bottom:1rem">' +
+      '<div class="card"><h3>Recent searches</h3>' + searchNote + searchRows + '</div>' +
+      '<div class="card"><h3>Recent activity</h3>' + feedRows + '</div>' +
+      '</div>' +
+      '<div class="grid cols-2" style="margin-bottom:1rem">' +
+      '<div class="card"><h3>Top searches</h3>' + queryRows + '</div>' +
+      '<div class="card"><h3>Searched but not found</h3><p class="field-hint" style="margin-top:0">Departments people wanted and couldn\'t find — the expansion list.</p>' + missRows + '</div>' +
+      '</div>' +
       '<div class="grid cols-2">' +
-        '<div class="field"><label for="ac-dept">Department</label><input id="ac-dept" type="text" list="ac-dept-list" autocomplete="off" placeholder="Type a department, city, or county…"><datalist id="ac-dept-list"></datalist></div>' +
-        '<div class="field"><label for="ac-user">Claimant</label><select id="ac-user"><option value="">Loading…</option></select></div>' +
-      '</div>' +
-      '<button class="btn btn-outline btn-sm" id="ac-add">Grant claim</button>' +
-      '<div id="ac-status" class="field-hint" style="margin-top:.5rem"></div>' +
-      '</div>' +
-      q('q-dupes', 'Possible duplicate departments', 'Suggested merges from contributors.') +
-      q('q-location', 'Departments needing a location check', 'The ZIP could not be resolved to a Texas place, or it belongs to a different city than the one entered. Nothing here is on the map yet.') +
-      suspendedCard() + deptOverrideCard() + fieldLockCard() + approvedDomainsCard();
+      '<div class="card"><h3>Most-viewed departments</h3>' + deptRows + '</div>' +
+      '<div class="card"><h3>Events by type</h3>' + typeRows + '</div>' +
+      '</div>';
   }
 
   // ---- Suspend / restore contributors ----
@@ -289,8 +547,7 @@
       var FIELD_LABELS = { entry: 'Entry pay', midpoint: 'Midpoint pay', top: 'Top pay' };
       var rows = active.map(function (doc) {
         var d = doc.data();
-        var deptLink = '<a href="/departments/' + UI.esc(d.departmentSlug) + '/" target="_blank" rel="noopener">' + UI.esc(d.departmentSlug) + '</a>';
-        return '<div class="feed-item"><span>' + deptLink + ' — ' + (FIELD_LABELS[d.field] || d.field) + ': $' + UI.esc(d.value) + (d.note ? ' (' + UI.esc(d.note) + ')' : '') + '</span>' +
+        return '<div class="feed-item"><span>' + deptLink(d.departmentSlug) + ' — ' + (FIELD_LABELS[d.field] || d.field) + ': $' + UI.esc(d.value) + (d.note ? ' (' + UI.esc(d.note) + ')' : '') + '</span>' +
           '<span class="feed-when"><button class="btn btn-outline btn-sm" data-unlock-id="' + UI.esc(doc.id) + '">Unlock</button></span></div>';
       });
       el.innerHTML = rows.join('');
@@ -425,13 +682,14 @@
   async function loadQueues() {
     var db = window.FireDB; if (!db || !db.ready) return;
     var F = db.sdk.firestore;
-    await fillFlaggedQueue(F);
-    await fillDisputesQueue(F);
-    await fillClaimsQueue(F);
+    var counts = {};
+    counts.flagged = await fillFlaggedQueue(F);
+    counts.disputes = await fillDisputesQueue(F);
+    counts.claims = await fillClaimsQueue(F);
     await fillActiveClaimsQueue(F);
     wireAddClaimForm(F);
-    await fillDupesQueue(F);
-    await fillLocationQueue(F);
+    counts.dupes = await fillDupesQueue(F);
+    counts.location = await fillLocationQueue(F);
     await fillSuspendedQueue(F);
     wireSuspendForm(F);
     wireDeptOverrideForm(F);
@@ -439,7 +697,17 @@
     wireFieldLockForm(F);
     await fillApprovedDomainsQueue(F);
     wireApprovedDomainsForm(F);
-    await fillAnalytics(F);
+    renderAttention(counts);
+    var sum = function (a, b) { return (a || 0) + (b || 0); };
+    setBadge('moderation', [counts.flagged, counts.disputes, counts.dupes, counts.location].reduce(sum, 0));
+    setBadge('claims', counts.claims || 0);
+    try {
+      _events = await fetchEvents(F); _eventsError = null;
+    } catch (e) {
+      _events = null; _eventsError = e.message;
+    }
+    renderActivity();
+    renderOverviewActivity();
   }
 
   // Cheap client-side hint only — a domain match here never auto-approves
@@ -464,23 +732,21 @@
   // history — two separate writes, not atomic, but low-risk (worst case an
   // admin retries one manually).
   async function fillClaimsQueue(F) {
-    var el = document.getElementById('q-claims'); if (!el) return;
+    var el = document.getElementById('q-claims'); if (!el) return null;
     try {
       var qy = F.query(F.collection(window.FireDB.db, 'department_claims'), F.where('status', '==', 'pending'), F.limit(25));
       var snap = await F.getDocs(qy);
-      if (snap.empty) { el.innerHTML = '<p class="field-hint">Nothing in this queue. ✓</p>'; return; }
+      if (snap.empty) { el.innerHTML = '<p class="field-hint">Nothing in this queue. ✓</p>'; return 0; }
       var approvedDomains = await approvedDomainSet(F);
       var rows = [];
       snap.forEach(function (doc) {
         var d = doc.data();
-        var deptLink = d.departmentSlug
-          ? '<a href="/departments/' + UI.esc(d.departmentSlug) + '/" target="_blank" rel="noopener">' + UI.esc(d.departmentSlug) + '</a>'
-          : 'unknown department';
+        var dept = d.departmentSlug ? deptLink(d.departmentSlug) : 'unknown department';
         // Older claims (written before email was captured) only have
         // emailDomain — fall back to that rather than showing nothing.
         var who = d.email || (d.emailDomain ? ('someone @' + d.emailDomain) : 'unknown email');
         var recognized = d.emailDomain && approvedDomains.has(d.emailDomain) ? ' <span class="pill">recognized domain</span>' : '';
-        rows.push('<div class="feed-item"><span>' + deptLink + ' — claimed by ' + UI.esc(who) + recognized + '</span>' +
+        rows.push('<div class="feed-item"><span>' + dept + ' — claimed by ' + UI.esc(who) + recognized + '</span>' +
           '<span class="feed-when">' +
           '<button class="btn btn-secondary btn-sm" data-claim-id="' + UI.esc(doc.id) + '" data-claim-action="approve" data-claim-user="' + UI.esc(d.userId || '') + '">Approve</button> ' +
           '<button class="btn btn-outline btn-sm" data-claim-id="' + UI.esc(doc.id) + '" data-claim-action="reject">Reject</button>' +
@@ -492,7 +758,8 @@
           resolveClaim(F, btn.getAttribute('data-claim-id'), btn.getAttribute('data-claim-action'), btn.getAttribute('data-claim-user'), btn);
         });
       });
-    } catch (e) { el.innerHTML = '<p class="field-hint">Queue unavailable: ' + UI.esc(e.message) + '</p>'; }
+      return snap.size;
+    } catch (e) { el.innerHTML = '<p class="field-hint">Queue unavailable: ' + UI.esc(e.message) + '</p>'; return null; }
   }
 
   async function resolveClaim(F, id, action, userId, btn) {
@@ -551,11 +818,11 @@
       snap.forEach(function (doc) {
         var d = doc.data();
         var slug = d.departmentSlug || '';
-        var deptLink = slug
+        var dept = slug
           ? '<a href="/departments/' + UI.esc(slug) + '/" target="_blank" rel="noopener">' + UI.esc(d.departmentName || slug) + '</a>'
           : 'unknown department';
         var who = d.email || (d.emailDomain ? ('someone @' + d.emailDomain) : 'unknown email');
-        rows.push('<div class="feed-item"><span>' + deptLink + ' — ' + UI.esc(who) + '</span>' +
+        rows.push('<div class="feed-item"><span>' + dept + ' — ' + UI.esc(who) + '</span>' +
           '<span class="feed-when"><button class="btn btn-outline btn-sm" data-revoke-id="' + UI.esc(doc.id) + '" data-revoke-user="' + UI.esc(d.userId || '') + '">Revoke</button></span></div>');
       });
       el.innerHTML = rows.join('');
@@ -680,11 +947,11 @@
   // duplicate would put a second pin on the map for the same place: publish it
   // (false alarm) or reject it (confirmed duplicate, never promoted).
   async function fillDupesQueue(F) {
-    var el = document.getElementById('q-dupes'); if (!el) return;
+    var el = document.getElementById('q-dupes'); if (!el) return null;
     try {
       var qy = F.query(F.collection(window.FireDB.db, 'department_requests'), F.where('status', '==', 'possible_duplicate'), F.limit(25));
       var snap = await F.getDocs(qy);
-      if (snap.empty) { el.innerHTML = '<p class="field-hint">Nothing in this queue. ✓</p>'; return; }
+      if (snap.empty) { el.innerHTML = '<p class="field-hint">Nothing in this queue. ✓</p>'; return 0; }
       var rows = [];
       snap.forEach(function (doc) {
         var d = doc.data();
@@ -699,7 +966,8 @@
       el.querySelectorAll('[data-dupe-id]').forEach(function (btn) {
         btn.addEventListener('click', function () { resolveDupe(F, btn.getAttribute('data-dupe-id'), btn.getAttribute('data-dupe-action'), btn); });
       });
-    } catch (e) { el.innerHTML = '<p class="field-hint">Queue unavailable: ' + UI.esc(e.message) + '</p>'; }
+      return snap.size;
+    } catch (e) { el.innerHTML = '<p class="field-hint">Queue unavailable: ' + UI.esc(e.message) + '</p>'; return null; }
   }
 
   // New departments whose ZIP could not be resolved to a Texas place, or whose
@@ -716,11 +984,11 @@
   // export needs coordinates it does not have. Fix the ZIP in Firestore, or add
   // the department to the seed, before publishing that case.
   async function fillLocationQueue(F) {
-    var el = document.getElementById('q-location'); if (!el) return;
+    var el = document.getElementById('q-location'); if (!el) return null;
     try {
       var qy = F.query(F.collection(window.FireDB.db, 'department_requests'), F.where('status', '==', 'location_review'), F.limit(25));
       var snap = await F.getDocs(qy);
-      if (snap.empty) { el.innerHTML = '<p class="field-hint">Nothing in this queue. ✓</p>'; return; }
+      if (snap.empty) { el.innerHTML = '<p class="field-hint">Nothing in this queue. ✓</p>'; return 0; }
       var rows = [];
       snap.forEach(function (doc) {
         var d = doc.data();
@@ -739,7 +1007,8 @@
       el.querySelectorAll('[data-loc-id]').forEach(function (btn) {
         btn.addEventListener('click', function () { resolveDupe(F, btn.getAttribute('data-loc-id'), btn.getAttribute('data-loc-action'), btn); });
       });
-    } catch (e) { el.innerHTML = '<p class="field-hint">Queue unavailable: ' + UI.esc(e.message) + '</p>'; }
+      return snap.size;
+    } catch (e) { el.innerHTML = '<p class="field-hint">Queue unavailable: ' + UI.esc(e.message) + '</p>'; return null; }
   }
 
   async function resolveDupe(F, id, action, btn) {
@@ -764,19 +1033,17 @@
   // first time — an "Approve" action publishes it, closing the loop instead of
   // leaving a flagged submission stuck forever with no way to review it.
   async function fillFlaggedQueue(F) {
-    var el = document.getElementById('q-flagged'); if (!el) return;
+    var el = document.getElementById('q-flagged'); if (!el) return null;
     try {
       var qy = F.query(F.collection(window.FireDB.db, 'submissions'), F.where('status', '==', 'flagged'), F.limit(25));
       var snap = await F.getDocs(qy);
-      if (snap.empty) { el.innerHTML = '<p class="field-hint">Nothing in this queue. ✓</p>'; return; }
+      if (snap.empty) { el.innerHTML = '<p class="field-hint">Nothing in this queue. ✓</p>'; return 0; }
       var rows = [];
       snap.forEach(function (doc) {
         var d = doc.data();
-        var deptLink = d.departmentSlug
-          ? '<a href="/departments/' + UI.esc(d.departmentSlug) + '/" target="_blank" rel="noopener">' + UI.esc(d.departmentSlug) + '</a>'
-          : 'unknown department';
+        var dept = d.departmentSlug ? deptLink(d.departmentSlug) : 'unknown department';
         var reasons = (d.automatedFlags || []).join('; ') || 'flagged';
-        rows.push('<div class="feed-item"><span>' + deptLink + ' — ' + UI.esc(reasons) + '</span>' +
+        rows.push('<div class="feed-item"><span>' + dept + ' — ' + UI.esc(reasons) + '</span>' +
           '<span class="feed-when"><button class="btn btn-secondary btn-sm" data-approve-id="' + UI.esc(doc.id) + '">Approve</button>' +
           suspendButton(d.contributorId) + '</span></div>');
       });
@@ -785,7 +1052,8 @@
         btn.addEventListener('click', function () { approveSubmission(F, btn.getAttribute('data-approve-id'), btn); });
       });
       wireSuspendButtons(F, el);
-    } catch (e) { el.innerHTML = '<p class="field-hint">Queue unavailable: ' + UI.esc(e.message) + '</p>'; }
+      return snap.size;
+    } catch (e) { el.innerHTML = '<p class="field-hint">Queue unavailable: ' + UI.esc(e.message) + '</p>'; return null; }
   }
 
   // Lets an admin suspend a contributor directly from a flagged-submission or
@@ -829,29 +1097,25 @@
     }
   }
 
-  // Disputes gets its own queue renderer (not the generic fillQueue) because it's
-  // the one queue with real, live data right now (step-plan flags and
-  // entry/top/midpoint disputes both write here — see js/department.js) and the
-  // only one that needs an action: resolving a dispute sets its status away from
-  // 'open', which is exactly the filter scripts/export-overlay.js's
-  // countStepPlanDisputes/countValueDisputes use, so a resolved dispute stops
-  // counting toward the revert threshold on the next scheduled refresh.
+  // Disputes gets its own queue renderer (not a generic one) because resolving
+  // a dispute sets its status away from 'open', which is exactly the filter
+  // scripts/export-overlay.js's countStepPlanDisputes/countValueDisputes use,
+  // so a resolved dispute stops counting toward the revert threshold on the
+  // next scheduled refresh.
   function disputeLabel(d) {
-    var deptLink = d.departmentSlug
-      ? '<a href="/departments/' + UI.esc(d.departmentSlug) + '/" target="_blank" rel="noopener">' + UI.esc(d.departmentSlug) + '</a>'
-      : 'unknown department';
+    var dept = d.departmentSlug ? deptLink(d.departmentSlug) : 'unknown department';
     var what = d.field === 'stepPlan'
       ? 'pay-step plan flagged'
       : (d.field || 'entry') + ' disputed (' + (d.disputedValue != null ? '$' + d.disputedValue : '?') + (d.proposedValue != null ? ' → $' + d.proposedValue : '') + ')';
-    return deptLink + ' — ' + what + (d.reason ? ': ' + UI.esc(String(d.reason).slice(0, 80)) : '');
+    return dept + ' — ' + what + (d.reason ? ': ' + UI.esc(String(d.reason).slice(0, 80)) : '');
   }
 
   async function fillDisputesQueue(F) {
-    var el = document.getElementById('q-disputes'); if (!el) return;
+    var el = document.getElementById('q-disputes'); if (!el) return null;
     try {
       var qy = F.query(F.collection(window.FireDB.db, 'disputes'), F.where('status', '==', 'open'), F.limit(25));
       var snap = await F.getDocs(qy);
-      if (snap.empty) { el.innerHTML = '<p class="field-hint">Nothing in this queue. ✓</p>'; return; }
+      if (snap.empty) { el.innerHTML = '<p class="field-hint">Nothing in this queue. ✓</p>'; return 0; }
       var rows = [];
       snap.forEach(function (doc) {
         var d = doc.data();
@@ -864,7 +1128,8 @@
         btn.addEventListener('click', function () { resolveDispute(F, btn.getAttribute('data-dispute-id'), btn); });
       });
       wireSuspendButtons(F, el);
-    } catch (e) { el.innerHTML = '<p class="field-hint">Queue unavailable: ' + UI.esc(e.message) + '</p>'; }
+      return snap.size;
+    } catch (e) { el.innerHTML = '<p class="field-hint">Queue unavailable: ' + UI.esc(e.message) + '</p>'; return null; }
   }
 
   async function resolveDispute(F, id, btn) {
@@ -883,18 +1148,6 @@
       err.textContent = 'Could not resolve: ' + e.message;
       if (item) item.appendChild(err);
     }
-  }
-
-  async function fillQueue(id, F, coll, wheres, label) {
-    var el = document.getElementById(id); if (!el) return;
-    try {
-      var qy = F.query.apply(null, [F.collection(window.FireDB.db, coll)].concat(wheres, [F.limit(25)]));
-      var snap = await F.getDocs(qy);
-      if (snap.empty) { el.innerHTML = '<p class="field-hint">Nothing in this queue. ✓</p>'; return; }
-      var rows = [];
-      snap.forEach(function (doc) { rows.push('<div class="feed-item"><span>' + UI.esc(label(doc.data())) + '</span><span class="feed-when"><span class="pill">review</span></span></div>'); });
-      el.innerHTML = rows.join('');
-    } catch (e) { el.innerHTML = '<p class="field-hint">Queue unavailable: ' + UI.esc(e.message) + '</p>'; }
   }
 
   function within(ms, months) { return ms && (Date.now() - ms) <= months * 30.437 * 24 * 3600 * 1000; }

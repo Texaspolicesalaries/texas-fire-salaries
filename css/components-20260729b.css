@@ -368,3 +368,31 @@ body.has-compare-tray { padding-bottom: 136px; }
    is no visual hint that more columns exist off to the right. */
 .scroll-hint { display: none; font-size: var(--fs-xs); color: var(--text-faint); margin: var(--sp-2) 0 0; }
 .table-scroll.is-scrollable + .scroll-hint { display: block; }
+
+/* ---------------- Admin dashboard ----------------
+   Tab strip + activity chart used only by admin.html (js/admin.js). The strip
+   scrolls horizontally on phones rather than wrapping, so the active tab's
+   underline always reads as one continuous rule. */
+.admin-tabs { display: flex; gap: var(--sp-1); border-bottom: 2px solid var(--border); margin: var(--sp-5) 0 var(--sp-6); overflow-x: auto; }
+.admin-tabs [role="tab"] {
+  appearance: none; background: none; border: 0; border-bottom: 3px solid transparent;
+  margin-bottom: -2px; padding: var(--sp-3) var(--sp-4); font: inherit; font-weight: 650;
+  font-size: var(--fs-sm); color: var(--text-soft); cursor: pointer; white-space: nowrap;
+  display: inline-flex; align-items: center; gap: 6px;
+}
+.admin-tabs [role="tab"]:hover { color: var(--text); }
+.admin-tabs [role="tab"][aria-selected="true"] { color: var(--accent); border-bottom-color: var(--accent); }
+.tab-badge { min-width: 20px; padding: 1px 6px; border-radius: var(--r-pill); background: var(--accent); color: #fff; font-size: var(--fs-xs); font-weight: 700; text-align: center; }
+.tab-badge:empty { display: none; }
+
+.admin-panel-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--sp-3); margin-bottom: var(--sp-4); }
+.admin-panel-head h2 { margin: 0; }
+
+/* Column chart: one flex column per hour/day bucket, height = share of max. */
+.act-chart { display: flex; align-items: flex-end; gap: 3px; height: 120px; }
+.act-col { flex: 1; background: var(--accent); border-radius: 3px 3px 0 0; min-height: 3px; }
+.act-col.is-zero { background: var(--bg-sunken); }
+.act-chart-axis { display: flex; justify-content: space-between; color: var(--text-faint); font-size: var(--fs-xs); margin-top: var(--sp-2); }
+
+/* Amber pill for "this search found nothing" / degraded states. */
+.pill.warn { color: var(--f-update-fg); background: var(--f-update-bg); border-color: color-mix(in srgb, var(--f-update-fg) 30%, transparent); }
