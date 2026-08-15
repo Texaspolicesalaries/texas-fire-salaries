@@ -112,10 +112,17 @@ function loadLinks() {
   try { return JSON.parse(fs.readFileSync(p, 'utf8')); } catch (e) { return {}; }
 }
 
+// Owner corrections that must survive every re-import (see the file's note).
+function loadOverrides() {
+  const p = path.join(ROOT, 'data', 'seed-overrides.json');
+  try { return JSON.parse(fs.readFileSync(p, 'utf8')).overrides || {}; } catch (e) { return {}; }
+}
+
 function main() {
   const rows = parseCSV(fs.readFileSync(CSV, 'utf8'));
   const data = rows.slice(1);
   const links = loadLinks();                 // raw dept name -> pay-plan URL
+  const overrides = loadOverrides();         // slug -> owner corrections
   const departments = [];
 
   data.forEach(r => {
@@ -131,7 +138,10 @@ function main() {
     const population = numOf(r[3]);
 
     const dept = {
-      slug: slugify(rawName),
+      // Typo fixes must reach the slug too — cleanName() already corrects the
+      // display name, but a slug built from the raw sheet text would rename
+      // the live page URL (waxahachhie-fd) on every re-import.
+      slug: slugify(rawName.replace(/Waxahachhie/i, 'Waxahachie')),
       name: cleanName(rawName),
       city: cityFor(rawName),
       county,
@@ -169,6 +179,17 @@ function main() {
           departmentMaintained: false
         }]
       };
+      // Some pay plans' first-year figure is the academy rate, not the entry
+      // Firefighter step (schema.md: "recruitPay is never the first step" —
+      // it would skew entry pay and every ranking). The sheet has no recruit
+      // column, so the correction rides in data/seed-overrides.json.
+      const ov = overrides[dept.slug];
+      if (ov && ov.firstStepIsRecruit && dept.salary.steps.length > 1) {
+        const academy = dept.salary.steps.shift();
+        dept.salary.recruitPay = academy.baseAnnualSalary;
+        dept.salary.reports[0].entry = dept.salary.steps[0].baseAnnualSalary;
+        dept.salary.reports[0].recruit = academy.baseAnnualSalary;
+      }
     }
     departments.push(dept);
   });

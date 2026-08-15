@@ -1,7 +1,7 @@
 {
   "meta": {
     "source": "dfw-fire-pay.csv (owner-provided Google Sheet)",
-    "generated": "2026-07-29",
+    "generated": "2026-08-15",
     "note": "Imported from the owner's pay-plan sheet. Each figure is the published pay-plan annual salary per year of service (treated as base). No OT/incentive/transport/retirement breakdown was available; those fields are left blank for the community to fill in. Rerun scripts/import-sheet.js after updating the sheet.",
     "disclaimer": "Texas Fire Salaries is a community-maintained database. Compensation information may be incomplete, outdated, or incorrect. Always confirm current pay, benefits, and employment terms directly with the hiring department."
   },
@@ -206,13 +206,6 @@
         "classification": "Firefighter",
         "steps": [
           {
-            "stepName": "Entry (0–12 mo)",
-            "minimumMonths": 0,
-            "maximumMonths": 12,
-            "classification": "Firefighter",
-            "baseAnnualSalary": 63860
-          },
-          {
             "stepName": "1 year",
             "minimumMonths": 12,
             "maximumMonths": 24,
@@ -252,12 +245,14 @@
           {
             "contributorId": "dfw-fire-import",
             "submittedAt": "2025-10-23",
-            "entry": 63860,
+            "entry": 72100,
             "top": 81149.19,
             "hasSource": true,
-            "departmentMaintained": false
+            "departmentMaintained": false,
+            "recruit": 63860
           }
-        ]
+        ],
+        "recruitPay": 63860
       }
     },
     {

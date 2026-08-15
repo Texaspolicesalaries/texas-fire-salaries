@@ -1,0 +1,6 @@
+{
+  "note": "Owner corrections applied by scripts/import-sheet.js on every run, so they survive sheet re-imports. firstStepIsRecruit: the sheet's first-year column for this department is the academy/recruit rate, not the entry Firefighter step — the importer moves it to salary.recruitPay per data/schema.md ('recruitPay is never the first step').",
+  "overrides": {
+    "anna-fd": { "firstStepIsRecruit": true }
+  }
+}
