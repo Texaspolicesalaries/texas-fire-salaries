@@ -20,7 +20,7 @@
     { href: navHref('/map'), key: 'map', label: 'Map' },
     { href: navHref('/compare'), key: 'compare', label: 'Compare' },
     { href: navHref('/departments'), key: 'departments', label: 'Departments' },
-    { href: navHref('/submit'), key: 'submit', label: 'Submit Data' },
+    { href: navHref('/submit'), key: 'submit', label: 'Add / Update' },
     { href: navHref('/how-it-works'), key: 'how', label: 'How It Works' }
   ];
 

@@ -28,8 +28,8 @@
 
   <main id="main" class="wrap wrap-narrow section-sm">
     <p class="eyebrow">Contributor account</p>
-    <h1>Sign in to contribute</h1>
-    <p class="lede">Browsing needs no account. To submit, confirm, or dispute information you need a verified email — we store only your display name, email, and contribution counts, and your email is never shown publicly.</p>
+    <h1 id="auth-title">Sign in to contribute</h1>
+    <p class="lede" id="auth-lede">Browsing needs no account. Sign in with a verified email to add a department or update salary information.</p>
 
     <div class="card" style="margin-top:1.5rem">
       <div id="auth-body"><p class="muted">Loading…</p></div>
@@ -40,6 +40,14 @@
 
   <div id="site-footer"></div>
 
+  <style>
+    .auth-tabs { display:grid; grid-template-columns:1fr 1fr; gap:.35rem; margin-bottom:1.25rem; padding:.3rem; border-radius:var(--r-md); background:var(--bg-sunken); }
+    .auth-tabs button { border:0; border-radius:calc(var(--r-md) - 3px); padding:.7rem 1rem; background:transparent; color:var(--text-soft); font:inherit; font-weight:700; cursor:pointer; }
+    .auth-tabs button.active { background:var(--bg-raised); color:var(--text); box-shadow:var(--shadow-sm); }
+    .auth-account-actions { display:flex; flex-wrap:wrap; align-items:center; gap:.6rem; }
+    .auth-signed-in { border:0; padding:0; box-shadow:none; }
+  </style>
+
   <script src="/js/salary-lib.js?v=15b95e4a"></script>
   <script src="/js/consensus.js?v=575b8554"></script>
   <script src="/js/derive.js?v=f1eb6a1e"></script>
@@ -48,7 +56,7 @@
   <script src="/js/auth.js?v=a5d28356"></script>
   <script src="/js/data.js?v=22b65854"></script>
   <script src="/js/ui.js?v=9209fa74"></script>
-  <script src="/js/nav-20260729.js?v=7e5646ce"></script>
-  <script src="/js/sign-in.js?v=82e4edea"></script>
+  <script src="/js/nav-20260729.js?v=9f022ef6"></script>
+  <script src="/js/sign-in.js?v=693c0369"></script>
 </body>
 </html>

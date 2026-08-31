@@ -89,6 +89,7 @@
     var withSalary = all.filter(function (d) { return d.summary.hasSalary; });
     var updated12 = withSalary.filter(function (d) { return monthsAgo(d.summary.lastUpdated, 12); });
     var withSteps = withSalary.filter(function (d) { return d.summary.steps && d.summary.steps.length >= 3; });
+    var addedThroughForm = all.filter(function (d) { return d.communityAdded; }).length;
     var needed = all.length - withSalary.length;
     var pct = all.length ? Math.round(withSalary.length / all.length * 100) : 0;
 
@@ -96,6 +97,11 @@
     setStat('stat-salary', withSalary.length.toLocaleString());
     setStat('stat-stepplans', withSteps.length.toLocaleString());
     setStat('stat-needed', needed.toLocaleString());
+
+    var proof = document.getElementById('community-added-proof');
+    if (proof && addedThroughForm) {
+      proof.textContent = addedThroughForm.toLocaleString() + ' department' + (addedThroughForm === 1 ? ' has' : 's have') + ' been added through this form. Add the next one.';
+    }
 
     var status = document.getElementById('coverage-status');
     if (status) status.textContent = updated12.length.toLocaleString() + ' updated in the last 12 months';

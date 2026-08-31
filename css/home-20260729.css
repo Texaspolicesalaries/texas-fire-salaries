@@ -43,9 +43,33 @@
 }
 .home-directory-link {
   display: inline-block;
-  margin-top: var(--sp-4);
+  margin-top: var(--sp-3);
   font-size: var(--fs-sm);
   font-weight: 650;
+}
+.home-add-link {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  margin-top: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--border));
+  border-radius: var(--r-md);
+  background: var(--accent-soft);
+  color: var(--text);
+  font-size: var(--fs-sm);
+  line-height: 1.35;
+}
+.home-add-link:hover {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 14%, #fff);
+  text-decoration: none;
+}
+.home-add-link > span:first-child {
+  flex: 0 0 auto;
+  color: var(--accent);
+  font-size: 1.35rem;
+  font-weight: 800;
 }
 
 .home-coverage {
@@ -275,6 +299,12 @@ a.home-stat:focus-visible .home-stat-lab::after {
 .home-contribute p:not(.eyebrow) {
   margin-bottom: 0;
   color: var(--text-soft);
+}
+.home-contribute .home-contribute-proof {
+  margin-top: var(--sp-3);
+  color: var(--text);
+  font-size: var(--fs-sm);
+  font-weight: 650;
 }
 .home-contribute-actions {
   display: flex;

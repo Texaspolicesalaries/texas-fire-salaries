@@ -57,6 +57,8 @@
   var st = { type: 'update', step: 1, dept: '', mode: 'single', steps: [] };
   var totalSteps = 4;
   var _sid = 0;
+  var DRAFT_KEY = 'tfs-submit-draft-v1';
+  var _draftTimer = null;
   // Which step (if any) is currently showing a non-blocking warning awaiting a
   // second "Continue" click to confirm past it — see wireNav()/validateStep().
   var _pendingWarnStep = null;
@@ -82,8 +84,11 @@
       // what "edit only what's different" needs to be safe.
       else if (st.type === 'update') st.mode = 'range';
       st.dept = p.get('dept') || '';
+      var draft = p.get('resume') === '1' ? readDraft() : null;
+      if (draft) restoreDraftState(draft);
       renderGate();
       render();
+      if (draft) applyDraftFields(draft);
     });
     if (A) A.onChange(renderGate);
   });
@@ -100,8 +105,128 @@
       g.innerHTML = '<span aria-hidden="true">📧</span><div>Please verify your email before publishing. <button class="btn btn-outline btn-sm" id="resend">Resend verification</button></div>';
       var r = document.getElementById('resend'); if (r) r.onclick = function () { A.sendVerification().then(function () { r.textContent = 'Sent'; }); };
     } else {
-      g.innerHTML = '<span aria-hidden="true">🔒</span><div>Sign in with a verified email to publish. <a href="/sign-in.html">Sign in →</a></div>';
+      g.innerHTML = '<span aria-hidden="true">🔒</span><div><strong>Ready to contribute?</strong> A verified email protects the public database from spam. Your form is saved while you sign in. <span class="gate-actions"><a href="' + authUrl('signin') + '" target="_blank" rel="noopener">Sign in</a> · <a href="' + authUrl('create') + '" target="_blank" rel="noopener">Create account</a></span></div>';
+      g.querySelectorAll('a').forEach(function (link) { link.addEventListener('click', saveDraft); });
     }
+  }
+
+  // ── Draft preservation ─────────────────────────────────────────────────────
+  // The auth page opens separately so a contributor never has to sacrifice four
+  // steps of work to sign in. A small local draft also makes the flow resilient
+  // to a refresh or a return from the account page. File bytes are deliberately
+  // excluded; browsers do not allow restoring a file input and storing uploads in
+  // localStorage would be both unreliable and inappropriate.
+  function authUrl(authMode) {
+    var next = new URL(location.href);
+    next.searchParams.delete('nav');
+    next.searchParams.set('resume', '1');
+    var q = authMode === 'create' ? '?mode=create&' : '?';
+    return '/sign-in.html' + q + 'next=' + encodeURIComponent(next.pathname + next.search);
+  }
+
+  function saveDraft() {
+    var form = document.getElementById('the-form');
+    if (!form) return;
+    var fields = {};
+    form.querySelectorAll('input[id], select[id], textarea[id]').forEach(function (el) {
+      if (el.type === 'file') return;
+      fields[el.id] = { value: el.value, checked: !!el.checked, type: el.type || '' };
+    });
+    var supp = [];
+    form.querySelectorAll('#supp-rows .supp-row').forEach(function (row) {
+      supp.push({
+        type: (row.querySelector('.s-type') || {}).value || '',
+        amount: (row.querySelector('.s-amt') || {}).value || '',
+        unit: (row.querySelector('.s-unit') || {}).value || 'yr',
+        label: (row.querySelector('.s-label') || {}).value || '',
+        original: row.getAttribute('data-orig') || ''
+      });
+    });
+    try {
+      localStorage.setItem(DRAFT_KEY, JSON.stringify({
+        savedAt: Date.now(),
+        state: { type: st.type, step: st.step, dept: st.dept, mode: st.mode, steps: st.steps },
+        fields: fields,
+        supplemental: supp,
+        dirty: _dirty,
+        prefilled: _prefilled,
+        stepsDirty: _stepsDirty,
+        stepsPrefilled: _stepsPrefilled,
+        stepsSnapshot: _stepsSnapshot,
+        suppPrefill: _suppPrefill,
+        suppPrefilled: _suppPrefilled,
+        hadFile: hasFile()
+      }));
+    } catch (e) { /* A full/disabled storage area must never block submission. */ }
+  }
+
+  function scheduleDraftSave() {
+    clearTimeout(_draftTimer);
+    _draftTimer = setTimeout(saveDraft, 250);
+  }
+
+  function readDraft() {
+    try {
+      var draft = JSON.parse(localStorage.getItem(DRAFT_KEY) || 'null');
+      if (!draft || !draft.savedAt || Date.now() - draft.savedAt > 24 * 60 * 60 * 1000) { clearDraft(); return null; }
+      return draft;
+    } catch (e) { clearDraft(); return null; }
+  }
+
+  function restoreDraftState(draft) {
+    var state = draft.state || {};
+    if (state.type === 'add' || state.type === 'update') st.type = state.type;
+    if (state.mode === 'single' || state.mode === 'range' || state.mode === 'plan') st.mode = state.mode;
+    if (state.dept != null) st.dept = state.dept;
+    st.step = Math.max(1, Math.min(totalSteps, Number(state.step) || 1));
+    st.steps = Array.isArray(state.steps) ? state.steps : [];
+    _dirty = draft.dirty || {};
+    _prefilled = draft.prefilled || {};
+    _stepsDirty = !!draft.stepsDirty;
+    _stepsPrefilled = !!draft.stepsPrefilled;
+    _stepsSnapshot = draft.stepsSnapshot || null;
+    _suppPrefill = Array.isArray(draft.suppPrefill) ? draft.suppPrefill : [];
+    _suppPrefilled = !!draft.suppPrefilled;
+  }
+
+  function applyDraftFields(draft) {
+    var suppHost = document.getElementById('supp-rows');
+    if (suppHost && Array.isArray(draft.supplemental) && draft.supplemental.length) {
+      suppHost.innerHTML = draft.supplemental.map(function () { return suppRow(); }).join('');
+      suppHost.querySelectorAll('.supp-row').forEach(function (row, i) {
+        var item = draft.supplemental[i] || {};
+        row.querySelector('.s-type').value = item.type || '';
+        row.querySelector('.s-amt').value = item.amount || '';
+        row.querySelector('.s-unit').value = item.unit || 'yr';
+        var label = row.querySelector('.s-label');
+        label.value = item.label || '';
+        label.hidden = item.type !== 'other';
+        if (item.original) row.setAttribute('data-orig', item.original);
+      });
+      rewireMoney(suppHost); rewireSuppRemove(suppHost); rewireSuppType(suppHost);
+    }
+    Object.keys(draft.fields || {}).forEach(function (id) {
+      var el = document.getElementById(id), saved = draft.fields[id];
+      if (!el || el.type === 'file') return;
+      el.value = saved.value == null ? '' : saved.value;
+      if (el.type === 'checkbox' || el.type === 'radio') el.checked = !!saved.checked;
+      if (_dirty[id]) el.classList.remove('prefilled');
+    });
+    ['c-flat-sched', 'c-sched', 'p-sched'].forEach(function (id) {
+      var el = document.getElementById(id), box = document.getElementById(id + '-custom');
+      if (el && box) box.hidden = el.value !== 'other';
+    });
+    var zip = document.getElementById('f-zip'); if (zip) renderZipResolved();
+    updateChrome();
+    var status = document.getElementById('form-status');
+    if (status) status.innerHTML = notice(draft.hadFile ? 'warn' : 'info', draft.hadFile
+      ? '<strong>Your draft was restored.</strong> Please attach the source file again before submitting.'
+      : '<strong>Your draft was restored.</strong> Continue where you left off.');
+  }
+
+  function clearDraft() {
+    clearTimeout(_draftTimer);
+    try { localStorage.removeItem(DRAFT_KEY); } catch (e) { /* no-op */ }
   }
 
   // ── Field helpers ─────────────────────────────────────────────────────────────
@@ -325,10 +450,12 @@
   }
 
   function goStep(n) {
+    saveDraft();
     st.step = n;
     _pendingWarnStep = null; // a fresh arrival at any step should show its warnings again, not auto-skip them
     var s = document.getElementById('form-status'); if (s) s.innerHTML = '';
     updateChrome();
+    saveDraft();
     var top = document.querySelector('main'); if (top) window.scrollTo({ top: top.offsetTop, behavior: 'smooth' });
   }
   function wireNav() {
@@ -730,7 +857,7 @@
         var next = b.getAttribute('data-type');
         if (next === st.type) return;
         if (hasEnteredWork() && !window.confirm('Switching between "Update a department" and "Add a new department" clears the pay details you have entered. Switch anyway?')) return;
-        st.type = next; st.step = 1; st.steps = []; render();
+        st.type = next; st.step = 1; st.steps = []; clearDraft(); render();
       };
     });
     // mode toggle (step 2)
@@ -744,6 +871,7 @@
         if (plan) plan.hidden = st.mode !== 'plan';
         if (st.mode === 'plan' && !st.steps.length) { st.steps.push(blankStep(0, 'Entry')); }
         renderEditor();
+        scheduleDraftSave();
       };
     });
 
@@ -863,7 +991,7 @@
 
     // supplemental
     var addSupp = document.getElementById('add-supp');
-    if (addSupp) { var supp = document.getElementById('supp-rows'); addSupp.onclick = function () { supp.insertAdjacentHTML('beforeend', suppRow()); rewireMoney(supp); rewireSuppRemove(supp); rewireSuppType(supp); }; }
+    if (addSupp) { var supp = document.getElementById('supp-rows'); addSupp.onclick = function () { supp.insertAdjacentHTML('beforeend', suppRow()); rewireMoney(supp); rewireSuppRemove(supp); rewireSuppType(supp); scheduleDraftSave(); }; }
 
     // file upload
     var file = document.getElementById('src-file');
@@ -879,6 +1007,7 @@
       ['input', 'change'].forEach(function (ev) {
         form.addEventListener(ev, function (e) {
           var el = e.target;
+          scheduleDraftSave();
           if (!el || !el.id) return;
           markDirty(el.id);
           el.classList.remove('prefilled');
@@ -1142,6 +1271,7 @@
     else if (act === 'dup') { var c = Object.assign({}, st.steps[i], { id: 'k' + (_sid++) }); st.steps.splice(i + 1, 0, c); }
     else if (act === 'insert') { st.steps.splice(i + 1, 0, blankStep((Number(st.steps[i].startMonths) || 0) + 12, 'Step ' + (i + 2))); }
     renderEditor();
+    scheduleDraftSave();
   }
 
   function planControl(act) {
@@ -1150,10 +1280,11 @@
     else if (act === 'add5') { for (var k = 0; k < 5; k++) st.steps.push(blankStep(nextMonths(), autoLabel())); }
     else if (act === 'dup-last') { var last = st.steps[st.steps.length - 1]; if (last) st.steps.push(Object.assign({}, last, { id: 'k' + (_sid++), startMonths: (Number(last.startMonths) || 0) + 12, top: false })); }
     renderEditor();
+    scheduleDraftSave();
   }
 
   function rewireMoney(scope) { scope.querySelectorAll('input.money').forEach(function (el) { if (el._wired) return; el._wired = true; el.addEventListener('input', function () { commaFmt(el); }); }); }
-  function rewireSuppRemove(scope) { scope.querySelectorAll('.s-rm').forEach(function (b) { b.onclick = function () { b.closest('.supp-row').remove(); }; }); }
+  function rewireSuppRemove(scope) { scope.querySelectorAll('.s-rm').forEach(function (b) { b.onclick = function () { b.closest('.supp-row').remove(); scheduleDraftSave(); }; }); }
   // The free-text name only appears for "Other" — every other type already has
   // a label, and an always-visible box would read as a required field.
   function rewireSuppType(scope) {
@@ -1620,12 +1751,14 @@
       }
       // Opens in a new tab deliberately: navigating away here would discard all
       // four steps of typed work, and there is no draft to come back to.
-      status.innerHTML = notice('warn', 'Please sign in with a verified email to publish — your entries stay here. <a href="/sign-in.html" target="_blank" rel="noopener">Sign in in a new tab →</a>');
+      saveDraft();
+      status.innerHTML = notice('warn', 'Please sign in with a verified email to publish. Your draft is saved. <a href="' + authUrl('signin') + '" target="_blank" rel="noopener">Sign in</a> or <a href="' + authUrl('create') + '" target="_blank" rel="noopener">create an account</a>, then continue your saved submission.');
       return;
     }
     setSaving(true);
     if (hasFile()) status.innerHTML = notice('info', 'Uploading source file and publishing…');
     save(payload).then(function (fileUploadFailed) {
+      clearDraft();
       var host = document.getElementById('submit-body');
       var flagged = payload.automatedFlags && payload.automatedFlags.length;
       // Two things this has to get right, both learned the hard way.
