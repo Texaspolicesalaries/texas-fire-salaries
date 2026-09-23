@@ -181,10 +181,14 @@ function departmentPage(dept) {
   // plan is already conveyed by the summary cards (avoids a thin, redundant table).
   const stepTable = (s.hasSalary && s.steps && s.steps.length >= 3) ? payStepTable(s) : '';
   const facts = detailsBlock(dept, s);
+  // A claimed department's confidence level is also "Department maintained"
+  // (js/consensus.js's confidenceLabel), so skip that chip when the badge is
+  // already showing — otherwise the header reads the same label twice.
   const badges = [
     dept.departmentMaintained ? '<span class="badge-dept-maintained"><span class="chip-icon" aria-hidden="true"></span>Department maintained</span>' : '',
-    confChip(s.confidence), freshChip(s.freshness)
-  ].join(' ');
+    dept.departmentMaintained && s.confidence && s.confidence.key === 'department_maintained' ? '' : confChip(s.confidence),
+    freshChip(s.freshness)
+  ].filter(Boolean).join(' ');
 
   const hiring = dept.hiringStatus === 'hiring'
     ? '<span class="chip current"><span class="chip-icon" aria-hidden="true"></span>Currently hiring</span>'
