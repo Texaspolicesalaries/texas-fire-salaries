@@ -66,19 +66,27 @@
 /* Mono salary cards */
 .salary-cards { display: grid; grid-template-columns: repeat(4, 1fr); border: 1px solid var(--border); border-radius: var(--r-lg); overflow: hidden; background: var(--card); }
 .salary-cards article { min-height: 162px; padding: var(--sp-5) var(--sp-4) var(--sp-4); display: flex; flex-direction: column; border-right: 1px solid var(--border); }
-.salary-cards article:last-child { border-right: 0; }
+.salary-cards article:last-child, .salary-cards article:nth-child(4n) { border-right: 0; }
+/* A three-column step table fits a phone as is; the shared 520px floor only
+   pushed "Base annual", the column people want, off-screen. */
+table.data.compact { min-width: 0; }
 .salary-cards article > span { color: var(--text-faint); font-size: 12px; text-transform: uppercase; letter-spacing: .08em; font-weight: 750; }
 .salary-cards article strong { font-family: var(--font-mono); font-size: 1.5rem; letter-spacing: -.05em; margin: 1.3rem 0 auto; }
 .salary-cards article small { color: var(--text-faint); font-size: 12px; }
 .salary-cards article strong em { font-size: .85rem; font-style: normal; color: var(--text-faint); }
 @media (max-width: 860px) {
   .salary-cards { grid-template-columns: 1fr 1fr; }
-  .salary-cards article:nth-child(2) { border-right: 0; }
-  .salary-cards article:nth-child(-n+2) { border-bottom: 1px solid var(--border); }
-}
-@media (max-width: 500px) {
-  .salary-cards { grid-template-columns: 1fr; }
   .salary-cards article { border-right: 0; border-bottom: 1px solid var(--border); }
+  .salary-cards article:nth-child(odd) { border-right: 1px solid var(--border); }
+  .salary-cards article:last-child,
+  .salary-cards article:nth-last-child(2):nth-child(odd) { border-bottom: 0; }
+}
+/* Two per row on phones too: one per row made eight cards a ~1,300px scroll. */
+@media (max-width: 500px) {
+  .salary-cards article { min-height: 0; padding: var(--sp-4) var(--sp-3) var(--sp-3); }
+  .salary-cards article > span { font-size: 11px; letter-spacing: .06em; }
+  .salary-cards article strong { font-size: 1.2rem; margin: .7rem 0 .35rem; }
+  .salary-cards article small { font-size: 11px; }
 }
 
 .dept-context-note { display: flex; gap: 14px; padding: 19px 20px; margin-top: var(--sp-4); background: var(--bg-sunken); border-radius: var(--r-md); }
@@ -197,8 +205,14 @@
      the pay-step table's `min-width: 520px` (components CSS) then forces the
      whole single-column grid to 520px+ on a 390px screen, scrolling the
      entire page sideways instead of letting .table-scroll scroll on its own. */
-  .dept-grid { grid-template-columns: minmax(0, 1fr); }
-  .dept-side-column { position: relative; top: auto; padding-top: 2rem; order: -1; }
+  .dept-grid { grid-template-columns: minmax(0, 1fr); gap: 0; }
+  /* Salary first, then the confidence card, then everything else: the main
+     column's children join the grid directly so the side column can slot in
+     right after #salary instead of ahead of the whole page. */
+  .dept-main-column { display: contents; }
+  .dept-main-column > *, .dept-side-column { min-width: 0; }
+  .dept-side-column { position: relative; top: auto; padding-top: 0; margin-bottom: var(--sp-5); order: 1; }
+  .dept-main-column > #salary ~ * { order: 2; }
   /* 4rem top AND bottom stacked up to ~8rem of empty space between sections
      on a phone, which read as the page having ended. */
   .dept-section { padding: var(--sp-5) 0; }
