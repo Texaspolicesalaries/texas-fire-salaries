@@ -412,3 +412,9 @@ body.has-compare-tray { padding-bottom: 136px; }
 .diff-old { color: var(--text-faint); text-decoration: line-through; }
 .sub-who { font-size: var(--fs-xs); color: var(--text-soft); margin-top: 2px; }
 .sub-who .mono, [data-cid] .mono { font-size: 11px; }
+
+/* Map tiles (js/map-20260730d.js, js/home-20260729b.js): OpenStreetMap's
+   standard style is colourful; muted to a light grey so status pins read
+   first, and inverted for dark mode. */
+.osm-tiles { filter: grayscale(1) contrast(.85) brightness(1.06); }
+.osm-tiles-dark { filter: grayscale(1) invert(1) contrast(.8) brightness(.9); }
