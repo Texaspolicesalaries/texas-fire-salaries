@@ -252,3 +252,35 @@ test('a department with no salary at all is not flagged singleRatePlan', () => {
   const s = Derive.deriveSummary({ slug: 'empty-fd', name: 'Empty FD', salary: {} }, [], NOW);
   assert.strictEqual(s.singleRatePlan, false);
 });
+
+// A longevity step past the regular top (Cleburne's "7 years (top)" then
+// "+8 years" at 15 yr) must not become years-to-top while the top-pay figure
+// is the regular top step.
+function longevityFixture(topReport) {
+  return {
+    slug: 'longevity-fd', name: 'Longevity FD', scheduleType: '24/48', flags: {},
+    salary: {
+      effectiveDate: '2025-10-01',
+      steps: [
+        { stepName: 'Entry', minimumMonths: 0, baseAnnualSalary: 70000 },
+        { stepName: '2 year', minimumMonths: 12, baseAnnualSalary: 75000 },
+        { stepName: '3 years (top)', minimumMonths: 24, baseAnnualSalary: 80000 },
+        { stepName: '+8 years', minimumMonths: 180, baseAnnualSalary: 84000 }
+      ],
+      reports: [{ contributorId: 'a', submittedAt: '2025-10-01', entry: 70000, top: topReport, hasSource: true }]
+    }
+  };
+}
+
+test('years to top follows the step paying the reported top, not a later longevity step', () => {
+  const s = Derive.deriveSummary(longevityFixture(80000), [], NOW);
+  assert.strictEqual(s.topBase, 80000);
+  assert.strictEqual(s.yearsToTop, 2);
+  assert.strictEqual(s.topStepIndex, 2);
+});
+
+test('years to top falls back to the last step when the top matches it', () => {
+  const s = Derive.deriveSummary(longevityFixture(84000), [], NOW);
+  assert.strictEqual(s.yearsToTop, 15);
+  assert.strictEqual(s.topStepIndex, 3);
+});

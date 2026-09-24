@@ -102,7 +102,10 @@
 .notice .notice-icon { flex: 0 0 auto; font-weight: 700; }
 .notice.warn { background: var(--f-update-bg); color: var(--f-update-fg); border-color: color-mix(in srgb, var(--f-update-fg) 30%, transparent); }
 .notice.info { background: var(--accent-2-soft); color: var(--teal-700); border-color: color-mix(in srgb, var(--accent-2) 30%, transparent); }
-.notice.disclaimer { background: #FFF5F1; color: #A93510; border-color: #FFD5C5; }
+/* The footer already carries the full disclaimer on every page, so the
+   in-page one is a single quiet line near the numbers, not a second alarm box. */
+.notice.disclaimer { background: none; border: 0; padding: 0; gap: 6px; color: var(--text-faint); font-size: 12.5px; line-height: 1.5; }
+.notice.disclaimer strong { color: var(--text-soft); }
 
 /* ---------------- Hero (homepage) ---------------- */
 .hero {

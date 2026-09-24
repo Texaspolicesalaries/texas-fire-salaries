@@ -294,6 +294,23 @@
       out.hasSalary = true;
     }
 
+    // "Years to top" follows the step that actually pays the displayed top
+    // figure. A plan with longevity steps past the top (e.g. "7 years (top)"
+    // then "+8 years" at 15 yr) otherwise reported the longevity step's start
+    // as years-to-top while the top-pay card showed the regular top step.
+    out.topStepIndex = hasSteps ? steps.length - 1 : null;
+    if (hasSteps && out.topBase != null) {
+      for (var ti = 1; ti < steps.length - 1; ti++) {
+        var tv = Lib.parseMoney(steps[ti].baseAnnualSalary);
+        if (tv != null && Math.abs(tv - out.topBase) < 1) {
+          var tm = Lib.parseNumber(steps[ti].minimumMonths);
+          out.topStepIndex = ti;
+          if (tm != null) out.yearsToTop = Math.round((tm / 12) * 10) / 10;
+          break;
+        }
+      }
+    }
+
     // Supplemental pay rides on the raw report objects, not on any single
     // clustered field, so it's read straight off salary.reports rather than the
     // per-field pools above (those are filtered to reports carrying that one

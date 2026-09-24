@@ -147,7 +147,7 @@ const HEAD = (title, desc, canonical, extra = '', ogImage = '/assets/branding/og
   ${extra}
 </head>`;
 
-const DISCLAIMER = `<div class="notice disclaimer" style="margin:1rem 0"><span class="notice-icon" aria-hidden="true">ⓘ</span><div><strong>Community-maintained data.</strong> Compensation information may be incomplete, outdated, or incorrect, and is not officially verified. Always confirm current pay, benefits, and employment terms directly with the hiring department.</div></div>`;
+const DISCLAIMER = `<div class="notice disclaimer" style="margin:1rem 0"><span class="notice-icon" aria-hidden="true">ⓘ</span><div><strong>Community-maintained data.</strong> Not officially verified — confirm current pay with the hiring department.</div></div>`;
 
 // Full-page scripts for department pages (needs hydration).
 const DEPT_SCRIPTS = `
@@ -323,8 +323,10 @@ function salaryCards(s) {
     ${card(s.annualHoursKnown ? 'Reported annual hours' : 'Assumed annual hours',
            s.annualHours ? s.annualHours.toLocaleString() : null,
            s.annualHoursKnown ? (s.scheduleType || '') : `${s.scheduleType ? s.scheduleType + ' — ' : ''}hours not reported`)}
-    ${card('Effective hourly (entry)', hourly(s.effectiveHourlyEntry),
-           s.annualHoursKnown ? 'Base ÷ scheduled hours' : 'Base ÷ assumed hours')}
+    ${/* The hero already shows the entry hourly rate; top pay's hourly is the
+         figure a reader can't get anywhere else on the page. */ ''}
+    ${card('Effective hourly (top)', s.effectiveHourlyTop != null ? hourly(s.effectiveHourlyTop) : null,
+           s.annualHoursKnown ? 'Top base ÷ scheduled hours' : 'Top base ÷ assumed hours')}
   </div>`;
 }
 
@@ -392,16 +394,21 @@ function compExplanation(s, slug) {
 function payStepTable(s) {
   const has = (key) => s.steps.some(st => Lib.parseMoney(st[key]) != null);
   const cols = [
-    ['stepName', 'Step', false], ['minimumMonths', 'Time in service', true],
+    // "Starts after", not "Time in service": departments name steps by the
+    // year being served ("2 year" begins after 1 year), so a bare "1 yr" next
+    // to "2 year" read as a mistake.
+    ['stepName', 'Step', false], ['minimumMonths', 'Starts after', true],
     ['baseAnnualSalary', 'Base annual', true], ['scheduledOvertime', 'Scheduled OT', true],
     ['paramedicPay', 'Paramedic', true], ['reportedAnnualCompensation', 'Reported total', true]
   ].filter(([k]) => k === 'stepName' || k === 'minimumMonths' || has(k));
   const head = cols.map(([, label, num]) => `<th${num ? ' class="num"' : ''} scope="col">${label}</th>`).join('');
   const rows = s.steps.map((st, i) => {
-    const isTop = i === s.steps.length - 1;
+    const topIdx = s.topStepIndex != null ? s.topStepIndex : s.steps.length - 1;
+    const isTop = i === topIdx;
+    const isLongevity = i > topIdx;
     const tds = cols.map(([k, , num]) => {
       let v;
-      if (k === 'stepName') v = esc(st.stepName || `Step ${i + 1}`);
+      if (k === 'stepName') v = esc(st.stepName || `Step ${i + 1}`) + (isLongevity ? ' <span class="pill">Longevity</span>' : '');
       else if (k === 'minimumMonths') v = st.minimumMonths != null ? monthsLabel(st.minimumMonths) : '—';
       else v = money(Lib.parseMoney(st[k]));
       return `<td${num ? ' class="num"' : ''}>${v}</td>`;
@@ -433,9 +440,9 @@ function payStepTable(s) {
     <div class="dept-section-heading"><div><span class="section-kicker">Pay-step plan</span><h2>Full pay schedule</h2></div></div>
     <p class="dept-section-intro">Reported step schedule${s.classification ? ` for the ${esc(s.classification)} classification` : ''}. Only submitted columns are shown.</p>
     ${disputeNotice}${outdatedNotice}
-    <div class="table-scroll"><table class="data"><caption class="visually-hidden">Pay steps</caption><thead><tr>${head}</tr></thead><tbody>${rows}</tbody></table></div>${planNotes(s)}${flag}</section>`;
+    <div class="table-scroll"><table class="data${cols.length <= 3 ? ' compact' : ''}"><caption class="visually-hidden">Pay steps</caption><thead><tr>${head}</tr></thead><tbody>${rows}</tbody></table></div>${planNotes(s)}${flag}</section>`;
 }
-function monthsLabel(m) { if (m === 0) return 'Start'; const y = Math.floor(m / 12); const mo = m % 12; return (y ? `${y} yr` : '') + (mo ? ` ${mo} mo` : '') || `${m} mo`; }
+function monthsLabel(m) { if (m === 0) return 'At hire'; const y = Math.floor(m / 12); const mo = m % 12; return (y ? `${y} yr` : '') + (mo ? ` ${mo} mo` : '') || `${m} mo`; }
 
 // "2026-01-15" -> "01/15/2026", by pattern rather than by Date parsing: an ISO
 // day string parses as UTC midnight, so formatting it in local time renders the
@@ -448,7 +455,8 @@ function detailsBlock(dept, s) {
   // smaller sans "detail-text" style instead of trying to force them into
   // the same oversized mono numerals.
   const rows = [
-    ['Shift schedule', dept.scheduleType, false], ['Scheduled annual hours', dept.annualScheduledHours ? dept.annualScheduledHours.toLocaleString() : null, false],
+    // Annual hours already lead the salary cards whenever those render.
+    ['Shift schedule', dept.scheduleType, false], ['Scheduled annual hours', dept.annualScheduledHours && !(s && s.hasSalary) ? dept.annualScheduledHours.toLocaleString() : null, false],
     // Read off the derived summary, not the seed record, so a date supplied by a
     // community submission is the one shown.
     ['Pay plan effective', s ? fmtDate(s.effectiveDate) : null, false],
