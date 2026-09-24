@@ -144,10 +144,11 @@
       keyboard: false,
       touchZoom: false
     }).setView([31.1, -99.4], 5);
-    window.L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-      attribution: '© OpenStreetMap © CARTO',
+    // Keyless OpenStreetMap tiles, tinted by .osm-tiles — see js/map-20260730d.js.
+    window.L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© <a href="https://www.openstreetmap.org/copyright" rel="noopener" target="_blank">OpenStreetMap</a> contributors',
       maxZoom: 19,
-      subdomains: 'abcd'
+      className: 'osm-tiles'
     }).addTo(map);
 
     // Miniatures of the real map's pins — same .pin-* colors AND the same

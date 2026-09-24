@@ -50,10 +50,14 @@
     map = L.map('map', { zoomControl: false, scrollWheelZoom: true }).setView([31.3, -99.3], 6);
     L.control.zoom({ position: 'bottomright' }).addTo(map);
     var dark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-    var url = dark
-      ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
-      : 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
-    L.tileLayer(url, { attribution: '© OpenStreetMap © CARTO', maxZoom: 19, subdomains: 'abcd' }).addTo(map);
+    // OpenStreetMap's own tiles need no key (CARTO's free basemaps started
+    // drawing "API key required" over the map). They're tinted grey — and
+    // inverted in dark mode — by .osm-tiles in components CSS so the pins
+    // stay the loudest thing on the map, as they were on CARTO's light/dark.
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© <a href="https://www.openstreetmap.org/copyright" rel="noopener" target="_blank">OpenStreetMap</a> contributors',
+      maxZoom: 19, className: dark ? 'osm-tiles osm-tiles-dark' : 'osm-tiles'
+    }).addTo(map);
     cluster = L.markerClusterGroup({
       showCoverageOnHover: false, maxClusterRadius: 48,
       iconCreateFunction: function (c) {
