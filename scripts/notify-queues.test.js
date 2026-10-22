@@ -80,3 +80,33 @@ test('computeDelta separates new items (email) from resolved ones (silent)', () 
   assert.deepStrictEqual(d.added, ['sub:c']);
   assert.deepStrictEqual(d.removed, ['flag:a']);
 });
+
+test('pickAlert keeps the oldest labeled issue and calls the rest duplicates', () => {
+  const alert = (number) => ({ number, labels: [{ name: 'queue-alert' }] });
+  const out = M.pickAlert([alert(12), alert(1), alert(8)]);
+  assert.strictEqual(out.keep.number, 1);
+  assert.deepStrictEqual(out.duplicates.map(d => d.number), [8, 12]);
+});
+
+test('pickAlert ignores pull requests and issues without the label', () => {
+  const out = M.pickAlert([
+    { number: 3, labels: [{ name: 'bug' }] },
+    { number: 4, labels: [{ name: 'queue-alert' }], pull_request: { url: 'x' } },
+    { number: 5, labels: [{ name: 'queue-alert' }] }
+  ]);
+  assert.strictEqual(out.keep.number, 5);
+  assert.deepStrictEqual(out.duplicates, []);
+});
+
+test('pickAlert reports nothing open for an empty or junk list', () => {
+  for (const rows of [[], null, undefined, [null]]) {
+    const out = M.pickAlert(rows);
+    assert.strictEqual(out.keep, null);
+    assert.deepStrictEqual(out.duplicates, []);
+  }
+});
+
+test('an empty issue list is re-read several times before trusting it', () => {
+  // Guards the inbox: one stale empty read must not open a second alert issue.
+  assert.ok(M.EXISTENCE_READS >= 3);
+});

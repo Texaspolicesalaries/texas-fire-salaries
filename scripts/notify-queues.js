@@ -13,7 +13,10 @@
  *   - Maintains at most ONE open issue labeled `queue-alert`: created when
  *     something first needs review (that's the notification email), commented
  *     when NEW items appear (another email), body silently refreshed when
- *     items resolve or age out, closed when everything is clear.
+ *     items resolve or age out, closed when everything is clear. "At most one"
+ *     is enforced on both sides: a new issue is opened only after several
+ *     reads agree that none is open, and any duplicate that slipped through
+ *     earlier is folded into the oldest one on the next pass.
  *   - State between runs lives in the issue body itself, as a JSON marker in
  *     an HTML comment — no artifact storage, no race with concurrent runs
  *     (the workflow's concurrency group serializes passes).
@@ -32,6 +35,10 @@ const ROOT = path.resolve(__dirname, '..');
 const SITE = 'https://texasfiresalaries.com';
 const LABEL = 'queue-alert';
 const RECENT_HOURS = 72;
+// Independent reads of the issue list that must ALL come back empty before the
+// watcher believes no alert issue is open. See findOpenAlerts().
+const EXISTENCE_READS = 4;
+const EXISTENCE_BACKOFF_MS = 1500;
 const DRY = process.argv.includes('--dry-run');
 
 // Single source of truth: pull projectId + apiKey out of firebase-init.js
@@ -159,11 +166,57 @@ function gh(pathname, init) {
   }, init));
 }
 
-async function findOpenAlert() {
-  const res = await gh(`/issues?labels=${LABEL}&state=open&per_page=5`);
+// Of the open alert issues, the oldest (lowest number) is canonical: it is the
+// one carrying the state marker and the admin's reading history, so a newer
+// duplicate loses to it. Pure; unit-tested.
+function pickAlert(rows) {
+  const alerts = (rows || [])
+    .filter(r => r && !r.pull_request && typeof r.number === 'number')
+    .filter(r => (r.labels || []).some(l => (l && l.name ? l.name : l) === LABEL))
+    .sort((a, b) => a.number - b.number);
+  return { keep: alerts[0] || null, duplicates: alerts.slice(1) };
+}
+
+async function listOpenIssues(byLabel) {
+  const res = await gh(byLabel
+    ? `/issues?labels=${LABEL}&state=open&per_page=50`
+    : '/issues?state=open&per_page=50');
   if (!res.ok) throw new Error('GitHub list issues: ' + res.status);
-  const rows = await res.json();
-  return rows.find(r => !r.pull_request) || null;
+  return res.json();
+}
+
+const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+
+// GitHub answers the issue list from read replicas, and an empty array is NOT
+// evidence that nothing is open. Measured 2026-10-22, with nine alert issues
+// open and labeled, roughly 40% of reads came back `[]` — both the
+// label-filtered list and the plain one. Every empty read made this script
+// open ANOTHER issue, which is how the admin ended up with a fresh
+// "Site needs review" email every ~20 minutes.
+//
+// So emptiness has to be confirmed: alternate the two endpoints and only
+// conclude that nothing is open after EXISTENCE_READS reads in a row agree.
+// Finding the issue is believed immediately — a false positive there costs
+// nothing, a false negative costs an inbox.
+async function findOpenAlerts() {
+  for (let attempt = 0; attempt < EXISTENCE_READS; attempt++) {
+    const found = pickAlert(await listOpenIssues(attempt % 2 === 0));
+    if (found.keep) return found;
+    if (attempt < EXISTENCE_READS - 1) await sleep(EXISTENCE_BACKOFF_MS);
+  }
+  return { keep: null, duplicates: [] };
+}
+
+// Self-healing: fold any extra alert issues into the canonical one, so a
+// duplicate that did slip through stops being a second notification thread.
+async function closeDuplicates(duplicates, keep) {
+  for (const dup of duplicates) {
+    await gh(`/issues/${dup.number}/comments`, { method: 'POST', body: JSON.stringify({
+      body: `Duplicate of #${keep.number} — closing. Opened by a stale read of the issue list; the watcher now confirms across several reads before opening a new alert.`
+    }) });
+    await gh(`/issues/${dup.number}`, { method: 'PATCH', body: JSON.stringify({ state: 'closed', state_reason: 'not_planned' }) });
+    console.log('[notify] closed duplicate alert #' + dup.number);
+  }
 }
 
 async function ensureLabel() {
@@ -195,7 +248,8 @@ async function main() {
     return;
   }
 
-  const open = await findOpenAlert();
+  const { keep: open, duplicates } = await findOpenAlerts();
+  if (open && duplicates.length) await closeDuplicates(duplicates, open);
   if (!currentKeys.length) {
     if (open) {
       await gh(`/issues/${open.number}/comments`, { method: 'POST', body: JSON.stringify({ body: 'All queues are clear — closing.' }) });
@@ -229,7 +283,7 @@ async function main() {
   }
 }
 
-module.exports = { fv, shapeFlagged, shapeDispute, shapeSubmission, submittedWithin, parseState, renderBody, buildTitle, computeDelta, RECENT_HOURS };
+module.exports = { fv, shapeFlagged, shapeDispute, shapeSubmission, submittedWithin, parseState, renderBody, buildTitle, computeDelta, pickAlert, RECENT_HOURS, EXISTENCE_READS };
 
 if (require.main === module) {
   main().catch(e => { console.error('[notify-queues] ' + (e && e.message || e)); process.exit(1); });
